@@ -34,8 +34,23 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
 
 struct AppSettings: Codable, Equatable, Sendable {
     var language: AppLanguage
+    var showsMenuBarPercentage: Bool
 
-    static let `default` = AppSettings(language: .system)
+    static let `default` = AppSettings(language: .system, showsMenuBarPercentage: true)
+
+    init(language: AppLanguage, showsMenuBarPercentage: Bool = true) {
+        self.language = language
+        self.showsMenuBarPercentage = showsMenuBarPercentage
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
+        showsMenuBarPercentage = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .showsMenuBarPercentage
+        ) ?? true
+    }
 }
 
 struct WeeklyUsage: Codable, Equatable, Sendable {

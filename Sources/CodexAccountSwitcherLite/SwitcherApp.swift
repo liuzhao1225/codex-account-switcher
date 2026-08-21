@@ -9,8 +9,16 @@ struct SwitcherApp: App {
         MenuBarExtra {
             MenuBarPopover(model: model)
         } label: {
-            MenuBarLogo()
-                .accessibilityLabel("Codex Account Switcher Lite")
+            HStack(spacing: 4) {
+                MenuBarLogo()
+                if model.settings.showsMenuBarPercentage,
+                   let remainingPercent = model.activeRemainingPercent {
+                    Text("\(remainingPercent)%")
+                        .monospacedDigit()
+                }
+            }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(menuBarAccessibilityLabel)
                 .task {
                     await model.startBackgroundUsageRefresh()
                 }
@@ -19,6 +27,15 @@ struct SwitcherApp: App {
         .commands {
             QuitApplicationCommands(title: model.text("quit"))
         }
+    }
+
+    private var menuBarAccessibilityLabel: String {
+        guard model.settings.showsMenuBarPercentage,
+              let remainingPercent = model.activeRemainingPercent
+        else {
+            return "Codex Account Switcher Lite"
+        }
+        return "Codex Account Switcher Lite, \(remainingPercent)%"
     }
 }
 

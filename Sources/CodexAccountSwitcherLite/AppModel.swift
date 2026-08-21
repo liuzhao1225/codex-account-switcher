@@ -57,6 +57,11 @@ final class AppModel: ObservableObject {
         String(format: text(key), argument)
     }
 
+    var activeRemainingPercent: Int? {
+        guard let activeAccountID else { return nil }
+        return usageStates[activeAccountID]?.displayedUsage?.remainingPercent
+    }
+
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
@@ -247,6 +252,15 @@ final class AppModel: ObservableObject {
 
     func setLanguage(_ language: AppLanguage) async {
         settings.language = language
+        do {
+            try await store.saveSettings(settings)
+        } catch {
+            showError(error)
+        }
+    }
+
+    func setShowsMenuBarPercentage(_ enabled: Bool) async {
+        settings.showsMenuBarPercentage = enabled
         do {
             try await store.saveSettings(settings)
         } catch {

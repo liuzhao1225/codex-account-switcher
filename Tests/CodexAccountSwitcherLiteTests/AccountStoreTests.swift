@@ -96,6 +96,33 @@ struct AccountStoreTests {
         #expect(try permissions(fixture.support.appending(path: "usage-cache.json")) == 0o600)
     }
 
+    @Test func persistsSettingsAndLoadsLegacySettingsWithPercentageEnabled() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        try FileManager.default.createDirectory(
+            at: fixture.support,
+            withIntermediateDirectories: true
+        )
+        let settingsURL = fixture.support.appending(path: "settings.json")
+        try Data(#"{"language":"english"}"#.utf8).write(to: settingsURL)
+
+        let legacySettings = try await fixture.store.loadSettings()
+        #expect(legacySettings.language == .english)
+        #expect(legacySettings.showsMenuBarPercentage)
+
+        let updatedSettings = AppSettings(
+            language: .simplifiedChinese,
+            showsMenuBarPercentage: false
+        )
+        try await fixture.store.saveSettings(updatedSettings)
+        let reloadedStore = AccountStore(
+            baseURL: fixture.support,
+            activeHomeURL: fixture.activeHome
+        )
+        #expect(try await reloadedStore.loadSettings() == updatedSettings)
+        #expect(try permissions(settingsURL) == 0o600)
+    }
+
     private func permissions(_ url: URL) throws -> Int {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         return (attributes[.posixPermissions] as? NSNumber)?.intValue ?? -1

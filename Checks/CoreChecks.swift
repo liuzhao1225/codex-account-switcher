@@ -157,6 +157,28 @@ struct CoreChecks {
         let usageCachePermissions = try permissions(support.appending(path: "usage-cache.json"))
         try require(usageCachePermissions == 0o600, "weekly usage cache permissions")
 
+        let settingsURL = support.appending(path: "settings.json")
+        try Data(#"{"language":"english"}"#.utf8).write(to: settingsURL)
+        let legacySettings = try await store.loadSettings()
+        try require(legacySettings.language == .english, "legacy settings language")
+        try require(
+            legacySettings.showsMenuBarPercentage,
+            "legacy settings enable menu bar percentage"
+        )
+        let hiddenPercentageSettings = AppSettings(
+            language: .simplifiedChinese,
+            showsMenuBarPercentage: false
+        )
+        try await store.saveSettings(hiddenPercentageSettings)
+        let reloadedSettingsStore = AccountStore(baseURL: support, activeHomeURL: activeHome)
+        let reloadedSettings = try await reloadedSettingsStore.loadSettings()
+        try require(
+            reloadedSettings == hiddenPercentageSettings,
+            "menu bar percentage setting persistence"
+        )
+        let settingsPermissions = try permissions(settingsURL)
+        try require(settingsPermissions == 0o600, "settings permissions")
+
         try fileManager.removeItem(at: activeCredential)
         try fileManager.createDirectory(at: activeCredential, withIntermediateDirectories: false)
         do {
