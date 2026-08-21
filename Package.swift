@@ -17,6 +17,9 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "CodexAccountSwitcherLite",
+            resources: [
+                .process("Resources"),
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
             ]
