@@ -34,7 +34,7 @@ Preflight
 → save the current account's latest credentials
 → atomically activate the target credentials
 → verify the target identity through Codex
-→ write activeProfileID
+→ write activeAccountID
 → reopen Codex Desktop
 ```
 

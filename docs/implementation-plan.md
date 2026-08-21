@@ -13,11 +13,12 @@ Deliver:
 - SwiftUI app target;
 - `MenuBarExtra`;
 - account-list popover;
+- compact 326-point content width;
 - highlighted current row;
 - one `Usage` bar per row;
-- Manage Accounts view;
-- Settings with language only;
-- switch confirmation view.
+- equal-width Manage Accounts, Settings, and Quit footer actions;
+- in-popover Manage Accounts and language-only Settings pages;
+- in-popover switch confirmation page with safe cancel behavior.
 
 Use fixture data matching the HTML prototype.
 
@@ -32,10 +33,9 @@ Exit criteria:
 
 Implement:
 
-- `Paths`;
-- `ProfileRepository`;
-- `profiles.json` load/save;
-- `state.json` load/save;
+- `AccountStore`;
+- `accounts.json` load/save;
+- `settings.json` load/save;
 - profile-directory creation;
 - copy active credential into a profile;
 - activate profile credential into `~/.codex/auth.json`;
@@ -66,7 +66,7 @@ Exit criteria:
 
 ## 5. Milestone 4 — direct switch flow
 
-Implement `AccountSwitcher` in the documented order:
+Implement `SwitchService` in the documented order:
 
 ```text
 preflight
@@ -94,16 +94,20 @@ Implement:
 
 - profile-specific `CODEX_HOME` app-server calls;
 - rate-limit RPC;
-- `secondary` weekly-window extraction;
+- six-to-eight-day weekly-window extraction;
 - `remainingPercent` calculation;
 - reset-time formatting;
+- persistent `usage-cache.json`;
+- refresh on application launch and every popover opening;
+- concurrent single-flight refresh rounds;
 - `Usage unavailable` errors.
 
 Exit criteria:
 
-- `primary` is ignored even when present;
-- absent `secondary` does not fall back to another window;
+- short-duration windows are ignored even when present;
+- absence of a six-to-eight-day window does not fall back to another window;
 - no 5-hour UI or model field exists;
+- cached Usage remains visible while refresh runs;
 - each account row refreshes independently.
 
 ## 7. Milestone 6 — account management
@@ -112,7 +116,6 @@ Implement:
 
 - add account using a new profile `CODEX_HOME`;
 - read identity after login;
-- local rename;
 - remove inactive profile;
 - disable removal of active profile.
 
@@ -131,8 +134,7 @@ Implement:
 - Simplified Chinese strings;
 - System Default language selection;
 - app icon and menu-bar icon;
-- signed local build;
-- basic release archive.
+- local `.app` packaging script.
 
 Launch at login is not part of this milestone.
 
@@ -140,14 +142,12 @@ Launch at login is not part of this milestone.
 
 ```text
 AccountProfile
-→ Paths
-→ ProfileRepository
+→ AccountStore
 → static AppModel
-→ AccountMenuView
-→ CodexDesktopController
-→ CodexAppServerClient identity
-→ AccountSwitcher
-→ UsageService
+→ MenuBarPopover
+→ DesktopController
+→ CodexClient identity and Usage
+→ SwitchService
 → Manage Accounts
 → localization
 ```
@@ -160,8 +160,12 @@ Before merging MVP code, verify:
 - no automatic rollback branch exists;
 - no transaction journal exists;
 - no catch-and-continue behavior exists;
-- `primary` rate-limit window is not presented;
+- short-duration rate-limit windows are not presented;
 - Settings contains only language;
+- Manage Accounts and Settings stay inside the popover;
+- every new popover opening starts on the account list;
+- account management has no rename path;
+- cached Usage is loaded before refresh and updated only after success;
 - active account is a row highlight;
 - CLI processes are not enumerated or killed;
 - errors include the failed stage;

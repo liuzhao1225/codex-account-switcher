@@ -12,9 +12,37 @@ The product is intentionally narrow:
 
 It is not an account router, proxy, recovery manager, or policy layer.
 
-## Current prototype
+## Native application
 
-The interactive prototype is available at [`prototype/index.html`](prototype/index.html).
+The repository includes the macOS 14+ SwiftUI application. It provides:
+
+- a compact native menu-bar popover with one weekly Usage row per account;
+- persisted weekly Usage that remains visible while launch and popover openings refresh in the background;
+- independent `CODEX_HOME` profile directories and local account metadata;
+- first-launch import of an existing `~/.codex/auth.json` account;
+- Codex app-server integration for identity, login, and rate limits;
+- the fixed six-stage Desktop account switch pipeline;
+- add and remove account flows;
+- English, Simplified Chinese, and system-default UI language choices.
+
+Build and check it from Terminal:
+
+```bash
+swift build
+./scripts/run-core-checks.sh
+```
+
+Create a local development app bundle:
+
+```bash
+./scripts/package-local-app.sh
+```
+
+The bundle is written to `.build/release/Codex Account Switcher Lite.app`.
+
+## Visual prototype
+
+The early visual prototype is available at [`prototype/index.html`](prototype/index.html). The native implementation and product documents define current behavior.
 
 Run it locally:
 
@@ -30,8 +58,11 @@ Then open <http://127.0.0.1:8765/>.
 - Only the weekly Codex allowance is displayed.
 - There is no 5-hour row, selector, detail panel, or setting.
 - The current account is shown by row highlight rather than a checkmark or `Current` label.
-- The footer contains only `Manage Accounts…` and `Settings…`.
+- The footer contains equal-width `Manage Accounts`, `Settings`, and `Quit` actions.
+- Manage Accounts and Settings replace the content inside the same popover.
 - Settings contains only language selection.
+- Every popover opening starts on the account-switching page.
+- Persisted weekly Usage stays visible during refresh and is replaced after a successful response.
 - Switching follows one direct sequence and stops on the first error.
 - There is no automatic rollback, retry, transaction journal, credential backup, or crash recovery workflow.
 

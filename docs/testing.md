@@ -20,9 +20,9 @@ Test:
 - `used=58` → `42% left`;
 - `used=100` → `0% left`;
 - values below 0 and above 100 are clamped;
-- `secondary` is used;
-- `primary` is ignored;
-- missing `secondary` returns `Usage unavailable`;
+- a six-to-eight-day window is selected from either `primary` or `secondary` buckets;
+- short-duration windows are ignored;
+- absence of a six-to-eight-day window returns `Usage unavailable`;
 - no product type or UI string contains `5-hour`.
 
 ### 2.2 Profile repository
@@ -31,12 +31,13 @@ Test:
 
 - load empty repository;
 - create profile;
-- rename profile;
 - save active credential into profile;
 - activate profile credential;
 - delete inactive profile;
 - reject deleting active profile;
-- surface read, write, rename, and delete errors.
+- persist weekly Usage with mode `0600`;
+- remove cached Usage with its inactive profile;
+- surface read, write, atomic replacement, and delete errors.
 
 ### 2.3 Identity matching
 
@@ -50,7 +51,7 @@ Test:
 
 ## 3. Switch-flow tests
 
-Use fakes for Desktop, repository, Codex identity, and state store.
+Use fakes for Desktop, account storage, and Codex identity.
 
 Expected call order:
 
@@ -59,7 +60,7 @@ closeDesktop
 saveCurrent
 activateTarget
 readActiveIdentity
-saveActiveProfileID
+commitActiveAccountID
 openDesktop
 ```
 
@@ -69,7 +70,7 @@ Inject an error at each call and assert:
 - no later call occurs;
 - no rollback call occurs;
 - no retry occurs;
-- `isSwitching` returns to false after presentation.
+- `isMutating` returns to false after presentation.
 
 Specific partial-state assertions:
 
@@ -93,7 +94,7 @@ Create a fake JSON-RPC child process that returns:
 - process exit;
 - request timeout.
 
-Assert that the client does not retry and does not convert `primary` into weekly Usage.
+Assert that the client does not retry and does not convert a short-duration window into weekly Usage.
 
 ## 5. UI tests
 
@@ -103,9 +104,13 @@ Verify:
 - no checkmark or `Current` label exists;
 - reset text is on the name line;
 - progress-bar accessibility value equals `NN% left`;
-- footer contains only Manage Accounts and Settings;
+- footer contains equal-width Manage Accounts, Settings, and Quit actions;
+- Manage Accounts and Settings navigate inside the popover;
+- reopening after closing a secondary page starts on the account list;
 - Settings contains only Language;
 - switch confirmation describes Desktop and CLI consequences;
+- canceling switch or removal keeps the popover open and performs no mutation;
+- account rows display cached Usage while refresh runs;
 - active profile remove button is disabled;
 - no 5-hour control or text exists.
 
@@ -122,9 +127,10 @@ With two real test accounts:
 7. confirm the existing CLI was not terminated;
 8. start a new CLI and confirm it uses B;
 9. switch B → A;
-10. disconnect network and confirm Usage displays an error without substituting another window;
-11. force identity mismatch and confirm no rollback message appears;
-12. make `state.json` unwritable and confirm the state-write failure is shown directly.
+10. disconnect network and confirm cached Usage remains visible with a warning;
+11. remove the cache, disconnect network, and confirm Usage unavailable appears;
+12. force identity mismatch and confirm no rollback message appears;
+13. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
 
 ## 7. Repository checks
 
@@ -137,4 +143,5 @@ no rollback implementation
 no transaction journal
 no Keychain implementation
 no launch-at-login setting
+no account-rename UI or model operation
 ```

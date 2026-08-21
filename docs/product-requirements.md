@@ -16,7 +16,6 @@ The user should understand the product after opening the menu once. The main pat
 - weekly reset time;
 - account switching;
 - add account;
-- rename account locally;
 - remove inactive account;
 - English and Simplified Chinese UI.
 
@@ -59,26 +58,9 @@ As a user, I can choose System Default, English, or Simplified Chinese.
 
 ## 4. Menu-bar trigger
 
-The menu-bar item should show a compact account indicator. Recommended content:
+The menu-bar item uses a compact account-group icon with an accessibility label. It does not wait for account or Usage data before appearing.
 
-```text
-<avatar> <short account name> · <remaining%>
-```
-
-Examples:
-
-```text
-ZL Personal · 42%
-GW Work · 76%
-```
-
-When Usage is unavailable:
-
-```text
-ZL Personal
-```
-
-The trigger is not required to show reset time.
+The popover content width is 326 points.
 
 ## 5. Account row
 
@@ -105,22 +87,19 @@ Constraints:
 
 Input from Codex may include more than one rate-limit window. The product model keeps only the weekly window.
 
-For the Codex app-server response:
+Collect `primary` and `secondary` windows from the top-level rate limits and named rate-limit buckets, then choose the longest window whose duration is six through eight days:
 
 ```text
-weekly = rateLimitsByLimitId["codex"].secondary
-      ?? rateLimits.secondary
+weekly = max(windows where 8640 <= windowDurationMins <= 11520)
 ```
 
-There is intentionally no fallback to `primary`.
-
-If `secondary` is absent or invalid:
+If no six-to-eight-day window exists:
 
 ```text
 Usage unavailable
 ```
 
-The UI must not infer a weekly value from the short window.
+The UI must not infer a weekly value from a short window, regardless of whether Codex labels it `primary` or `secondary`.
 
 ### 5.3 Percentage
 
@@ -154,12 +133,15 @@ Reset unknown
 
 ## 6. Main-menu footer
 
-The footer contains exactly two actions:
+The footer contains exactly three equal-width actions:
 
-1. `Manage Accounts…`
-2. `Settings…`
+1. `Manage Accounts`
+2. `Settings`
+3. `Quit`
 
-No other persistent controls belong in the main menu.
+Manage Accounts and Settings open inside the current popover and provide a Back action. Every new popover opening starts on the account list, regardless of which secondary page was last visible.
+
+Quit directly terminates the application, remains enabled while another operation runs, and is also available through Command-Q.
 
 ## 7. Switching flow
 
@@ -169,7 +151,7 @@ Selecting the highlighted account closes the popover or does nothing. It does no
 
 ### 7.2 Selecting another account
 
-Show a confirmation view with an information icon and this meaning:
+Show a confirmation page inside the popover with this meaning:
 
 > Switch to **{account name}**?
 >
@@ -180,26 +162,29 @@ Actions:
 - `Cancel`
 - `Switch Account`
 
+Cancel returns to the account list without closing the popover or starting the switch.
+
 ### 7.3 Progress
 
-After confirmation, show the current stage:
+After confirmation, disable additional account actions while the six-stage operation runs:
 
 - `Closing Codex Desktop…`
 - `Saving current account…`
 - `Activating selected account…`
 - `Verifying selected account…`
+- `Saving selected account…`
 - `Opening Codex Desktop…`
 
-The stages are not configurable.
+The stages are not configurable. A failure banner identifies the failed stage and retains the underlying diagnostic message.
 
 ### 7.4 Success
 
 On success:
 
 - the selected row becomes highlighted;
-- `activeProfileID` is updated;
+- `activeAccountID` is updated;
 - Codex Desktop is reopened;
-- the popover may close.
+- the popover remains available on the account list.
 
 ### 7.5 Failure
 
@@ -209,7 +194,7 @@ On failure:
 - do not continue to later stages;
 - do not automatically restore the previous account;
 - show the failed stage and the underlying error;
-- offer `Close` and, when appropriate, `Try Again` as a fresh user action.
+- keep the error visible until the user dismisses it.
 
 The message must not claim that the previous account was restored.
 
@@ -227,7 +212,7 @@ Show:
 
 ### 8.2 Add account
 
-`Add Account…` starts a Codex login using a new profile directory.
+`Add Account` starts a Codex login using a new profile directory.
 
 Expected flow:
 
@@ -236,18 +221,14 @@ create profile directory
 → run Codex login with CODEX_HOME=<profile directory>
 → read account identity
 → create profile metadata
-→ optionally switch to the new profile
+→ return to Manage Accounts
 ```
 
 No current-account backup or rollback flow is created.
 
-If login fails, show the Codex login error and leave the incomplete profile directory removable.
+If login fails, show the Codex login error. The incomplete profile directory may remain on disk; the MVP does not hide the failure with automatic cleanup.
 
-### 8.3 Rename
-
-Renaming changes only the local `displayName`. It does not modify the OpenAI account.
-
-### 8.4 Remove
+### 8.3 Remove
 
 Removing an inactive profile:
 
@@ -260,9 +241,11 @@ If deletion fails, show the filesystem error. Do not add a tombstone or deferred
 
 The active profile's remove control is disabled.
 
+Remove first opens a confirmation page inside the popover. Cancel and the header Back action return to the account list without closing the popover or calling the remove operation.
+
 ## 9. Settings
 
-The Settings view contains one field:
+The in-popover Settings page contains one field:
 
 ```text
 Language  [System Default ▾]
@@ -274,7 +257,7 @@ Options:
 - English;
 - 简体中文.
 
-Changing language updates visible switcher UI immediately or after reopening the popover.
+Changing language updates the visible switcher UI immediately and persists the selected value.
 
 ## 10. Accessibility
 
@@ -288,8 +271,10 @@ Changing language updates visible switcher UI immediately or after reopening the
 ## 11. Performance
 
 - popover should appear immediately from local metadata;
-- Usage refresh begins when the popover opens;
-- each account refresh runs once; no automatic retry;
+- persisted weekly Usage is rendered before refresh subprocesses complete;
+- Usage refresh begins at application launch and whenever the popover opens;
+- account refreshes run concurrently and overlapping triggers share the active refresh round;
+- no periodic timer or automatic retry runs;
 - one failed account does not prevent other rows from rendering;
 - switch actions are disabled while one switch is in progress.
 
@@ -302,10 +287,17 @@ The MVP is accepted when:
 3. no 5-hour string, row, toggle, or selector exists;
 4. the progress bar exactly matches `NN% left`;
 5. the current row is highlighted without a checkmark;
-6. Settings contains only language;
-7. account switching follows the documented seven-stage sequence;
-8. a failure at any switch stage stops and is shown directly;
-9. no rollback, backup, journal, retry, or startup-recovery code path runs;
-10. existing CLI processes are not terminated;
-11. newly started CLI processes observe the selected active `auth.json`;
-12. only `main` is required for the repository's steady state.
+6. the footer contains equal-width Manage Accounts, Settings, and Quit actions;
+7. the popover is 326 points wide and all secondary pages navigate inside it;
+8. Settings contains only language and opens inside the popover;
+9. every popover opening starts on the account list;
+10. canceling switch or removal performs no mutation and keeps the popover open;
+11. Quit and Command-Q terminate the application and remain available during mutations;
+12. account switching follows the documented six-stage sequence;
+13. a failure at any switch stage stops and is shown directly;
+14. no rollback, backup, journal, retry, or startup-recovery code path runs;
+15. existing CLI processes are not terminated;
+16. newly started CLI processes observe the selected active `auth.json`;
+17. cached Usage stays visible during refresh and is replaced after success;
+18. inactive accounts can be added and removed; active accounts cannot be removed;
+19. only `main` is required for the repository's steady state.

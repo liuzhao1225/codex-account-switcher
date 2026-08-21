@@ -2,15 +2,18 @@
 
 ## 1. Product principle
 
-Codex Account Switcher Lite is a simple switcher. Every persistent control must directly support one of three jobs:
+Codex Account Switcher Lite is a simple switcher. Every persistent control must directly support one of four jobs:
 
 1. inspect account Usage;
 2. select an account;
-3. maintain the saved account list.
+3. maintain the saved account list;
+4. exit the application.
 
 Anything outside those jobs is excluded from the MVP.
 
 ## 2. Main menu
+
+The popover uses a compact 326-point content width. Account rows keep the density and visual hierarchy of the accepted HTML prototype.
 
 Each saved account row shows:
 
@@ -27,10 +30,15 @@ The current account is represented by a highlighted row. It does not use:
 - a `Current` label;
 - a second status column.
 
-The footer contains only:
+The footer divides its width equally between:
 
-- `Manage Accounts…`;
-- `Settings…`.
+- `Manage Accounts`;
+- `Settings`;
+- `Quit`.
+
+Manage Accounts and Settings replace the popover content in place and provide a Back action. Closing the popover from either page resets the next opening to the account list.
+
+Quit directly terminates the application, remains available during mutations, and has a Command-Q equivalent.
 
 ## 3. Weekly Usage only
 
@@ -46,7 +54,9 @@ remainingPercent = clamp(100 - weekly.usedPercent, 0, 100)
 
 The progress-bar width and text use the same `remainingPercent` value.
 
-If the weekly window cannot be read, the row shows `Usage unavailable`. The application does not substitute another window or silently reuse a different quota type.
+The last successful weekly value is persisted per account. App launch and every popover opening request a background refresh. Cached Usage remains visible while that refresh runs and a successful response replaces both display and cache. A refresh failure keeps cached Usage with a warning; without cached data the row shows `Usage unavailable`.
+
+The application does not substitute another quota window.
 
 ## 4. Switching confirmation
 
@@ -58,6 +68,8 @@ Selecting another account opens a normal confirmation view. It explains fixed be
 - newly started Codex CLI processes use the newly selected account.
 
 These are product semantics, not Settings options.
+
+The confirmation renders inside the popover. Cancel returns to the account list, keeps the popover open, and starts no switch operation.
 
 ## 5. Direct switching flow
 
@@ -90,24 +102,26 @@ When a step fails, execution stops and the exact error is shown. The system does
 The MVP uses ordinary local files with user-only permissions.
 
 - Codex active credential: `~/.codex/auth.json`
-- Switcher metadata: `~/.codex-account-switcher/profiles.json`
-- Switcher state: `~/.codex-account-switcher/state.json`
-- Saved account credential: `~/.codex-account-switcher/accounts/<profile-id>/auth.json`
+- Switcher registry: `~/Library/Application Support/Codex Account Switcher Lite/accounts.json`
+- Switcher settings: `~/Library/Application Support/Codex Account Switcher Lite/settings.json`
+- Weekly Usage cache: `~/Library/Application Support/Codex Account Switcher Lite/usage-cache.json`
+- Saved account credential: `~/Library/Application Support/Codex Account Switcher Lite/accounts/<profile-id>/auth.json`
 
 macOS Keychain is not used in the MVP. It adds implementation complexity without adding user-visible switching value.
 
 ## 7. Manage Accounts
 
-`Manage Accounts…` owns account lifecycle operations:
+`Manage Accounts` owns account lifecycle operations:
 
 - view saved accounts;
 - add account;
-- rename local display name;
 - remove an inactive account.
 
 The active account cannot be removed because the meaning of the active Codex authentication file would otherwise be ambiguous. The user first selects another account and then removes the old one.
 
 Removing an account deletes only the switcher's local profile directory and metadata. It does not claim to revoke every OpenAI server session.
+
+Removal uses an in-popover confirmation page. Cancel and Back return to the account list, keep the popover open, and perform no deletion.
 
 ## 8. Settings
 

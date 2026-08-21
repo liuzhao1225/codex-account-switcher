@@ -31,6 +31,7 @@ The MVP deliberately does not surround this operation with a recovery framework.
 - shared Codex configuration and history under `~/.codex`;
 - independent saved authentication profiles;
 - weekly Usage for each profile;
+- immediate display of persisted weekly Usage while refresh runs;
 - explicit, stage-specific errors;
 - code small enough to review as an MVP.
 
@@ -67,57 +68,45 @@ No third-party runtime dependency is required beyond the installed Codex executa
 flowchart LR
     UI[SwiftUI menu-bar UI]
     VM[AppModel @MainActor]
-    Repo[ProfileRepository]
-    Switch[AccountSwitcher]
-    Usage[UsageService]
-    Codex[CodexAppServerClient]
-    Desktop[CodexDesktopController]
+    Store[AccountStore actor]
+    Switch[SwitchService]
+    Codex[CodexClient]
+    Desktop[DesktopController]
     FS[Local files]
 
     UI --> VM
-    VM --> Repo
+    VM --> Store
     VM --> Switch
-    VM --> Usage
-    Switch --> Repo
+    VM --> Codex
+    Switch --> Store
     Switch --> Desktop
     Switch --> Codex
-    Usage --> Codex
-    Repo --> FS
+    Store --> FS
     Codex --> CLI[Installed codex executable]
 ```
 
 The application is a single process. There is no daemon and no local network service.
 
-## 5. Suggested source layout
+## 5. Source layout
 
 ```text
-CodexAccountSwitcherLite/
-├── App/
-│   ├── CodexAccountSwitcherLiteApp.swift
-│   └── AppModel.swift
-├── UI/
-│   ├── AccountMenuView.swift
-│   ├── AccountRowView.swift
-│   ├── SwitchConfirmationView.swift
-│   ├── ManageAccountsView.swift
-│   ├── AddAccountView.swift
-│   └── SettingsView.swift
-├── Domain/
-│   ├── AccountProfile.swift
-│   ├── WeeklyUsage.swift
-│   ├── SwitchStage.swift
-│   └── AppError.swift
-├── Services/
-│   ├── ProfileRepository.swift
-│   ├── AccountSwitcher.swift
-│   ├── UsageService.swift
-│   ├── CodexAppServerClient.swift
-│   ├── CodexDesktopController.swift
-│   └── CodexExecutableLocator.swift
-└── Support/
-    ├── Paths.swift
-    ├── JSONFile.swift
-    └── Localizer.swift
+Sources/CodexAccountSwitcherLite/
+├── SwitcherApp.swift
+├── AppModel.swift
+├── MenuBarPopover.swift
+├── AccountRow.swift
+├── ManageAccountsView.swift
+├── SettingsView.swift
+├── Models.swift
+├── Localization.swift
+├── AccountStore.swift
+├── CodexClient.swift
+├── WeeklyUsageNormalizer.swift
+├── SwitchService.swift
+└── DesktopController.swift
+
+Tests/CodexAccountSwitcherLiteTests/
+Checks/CoreChecks.swift
 ```
 
 Avoid adding protocol layers until a second implementation actually exists. Small concrete types are preferable for the MVP.
@@ -130,9 +119,10 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 ~/.codex/
 └── auth.json                         # active credential used by Codex
 
-~/.codex-account-switcher/
-├── profiles.json                     # profile metadata
-├── state.json                        # active profile and language
+~/Library/Application Support/Codex Account Switcher Lite/
+├── accounts.json                     # profile metadata and active account ID
+├── settings.json                     # selected language
+├── usage-cache.json                  # last successful weekly Usage per profile
 └── accounts/
     ├── <profile-id>/
     │   └── auth.json                 # saved credential snapshot
@@ -143,55 +133,53 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 Directory permissions:
 
 ```text
-~/.codex-account-switcher             0700
+Codex Account Switcher Lite directory 0700
 accounts/<profile-id>                 0700
 auth.json                             0600
-profiles.json / state.json            0600
+accounts.json / settings.json         0600
+usage-cache.json                      0600
 ```
 
 The implementation sets these permissions when creating files. It does not build a separate permission-audit or repair subsystem.
 
-### 6.2 `profiles.json`
+### 6.2 `accounts.json`
 
 ```json
 {
-  "schemaVersion": 1,
-  "profiles": [
+  "activeAccountID": "6FB26BF8-57C2-4DF6-8C2A-B4A5E5E6A915",
+  "accounts": [
     {
       "id": "6FB26BF8-57C2-4DF6-8C2A-B4A5E5E6A915",
       "displayName": "Personal",
       "email": "user@example.com",
       "accountID": "acct_123",
-      "plan": "pro",
       "createdAt": "2026-08-21T06:00:00Z",
-      "updatedAt": "2026-08-21T06:00:00Z"
+      "lastUsedAt": "2026-08-21T06:00:00Z"
     }
   ]
 }
 ```
 
-`accountID`, `email`, and `plan` are metadata returned by Codex when available. `displayName` is user-editable.
+`accountID` and `email` are metadata returned by Codex when available. The login identity supplies the local display name; the MVP has no rename operation.
 
-### 6.3 `state.json`
+### 6.3 `settings.json`
 
 ```json
 {
-  "schemaVersion": 1,
-  "activeProfileID": "6FB26BF8-57C2-4DF6-8C2A-B4A5E5E6A915",
   "language": "system"
 }
 ```
 
-No switch phase, rollback reference, or recovery journal is stored.
+`usage-cache.json` stores `profileID`, normalized weekly Usage, and `fetchedAt` for each last successful response. No switch phase, rollback reference, or recovery journal is stored.
 
 ### 6.4 Writes
 
 Credential activation uses a temp file and rename in the same directory:
 
 ```text
-copy target auth bytes to ~/.codex/auth.json.switching
+copy target auth bytes to ~/.codex/auth.json.switcher-<uuid>.tmp
 → chmod 0600
-→ rename auth.json.switching to auth.json
+→ rename the temporary file to auth.json
 ```
 
 This is used only to prevent a partially written JSON file. It is not a rollback mechanism.
@@ -206,65 +194,55 @@ Metadata can use the same small `write temp → rename` helper. There is no hist
 struct AccountProfile: Codable, Identifiable, Equatable {
     let id: UUID
     var displayName: String
-    var email: String?
-    var accountID: String?
-    var plan: String?
+    let email: String?
+    let accountID: String?
     let createdAt: Date
-    var updatedAt: Date
+    var lastUsedAt: Date?
 }
 ```
 
 ### 7.2 `WeeklyUsage`
 
 ```swift
-struct WeeklyUsage: Equatable {
-    let usedPercent: Int
+struct WeeklyUsage: Codable, Equatable {
     let remainingPercent: Int
-    let resetsAt: Date?
+    let resetsAt: Date
 }
 ```
 
-The initializer clamps values:
+The normalizer clamps values:
 
 ```swift
-let used = min(max(rawUsedPercent, 0), 100)
-remainingPercent = 100 - used
+remainingPercent = min(100, max(0, round(100 - usedPercent)))
 ```
 
-### 7.3 `AccountRowState`
+### 7.3 Usage cache and view state
 
 ```swift
-struct AccountRowState: Identifiable {
-    let profile: AccountProfile
-    let isActive: Bool
-    var usage: Loadable<WeeklyUsage>
+struct UsageCacheEntry: Codable, Equatable {
+    let profileID: UUID
+    let usage: WeeklyUsage
+    let fetchedAt: Date
 }
-```
 
-Recommended states:
-
-```swift
-enum Loadable<Value> {
+enum UsageViewState: Equatable {
     case idle
-    case loading
-    case loaded(Value)
-    case failed(String)
+    case loaded(WeeklyUsage)
+    case stale(WeeklyUsage, String)
+    case unavailable(String)
 }
 ```
-
-There is no stale-data fallback state in the MVP.
 
 ### 7.4 `SwitchStage`
 
 ```swift
 enum SwitchStage: String {
-    case preflight
-    case closingDesktop
-    case savingCurrent
-    case activatingTarget
-    case verifyingTarget
-    case committingProfile
-    case reopeningDesktop
+    case closeDesktop
+    case saveCurrentCredential
+    case activateTargetCredential
+    case verifyTargetIdentity
+    case commitActiveAccountID
+    case reopenDesktop
 }
 ```
 
@@ -272,13 +250,16 @@ The stage is held in memory only for progress and error messages.
 
 ## 8. Codex executable discovery
 
-`CodexExecutableLocator` resolves the executable once at launch.
+`CodexExecutableLocator` resolves the executable for each requested operation.
 
-Suggested order:
+Lookup order:
 
-1. `/opt/homebrew/bin/codex`;
-2. `/usr/local/bin/codex`;
-3. execute `/usr/bin/which codex` with the app's inherited `PATH`.
+1. test-only explicit URL;
+2. `CODEX_SWITCHER_CODEX_PATH` override;
+3. a bundled auxiliary executable;
+4. `/Applications/ChatGPT.app/Contents/Resources/codex`;
+5. `/Applications/Codex.app/Contents/Resources/codex`;
+6. the inherited `PATH`.
 
 If not found, show one direct error:
 
@@ -331,37 +312,32 @@ There is no fallback to local display name or file hash.
 
 ### 9.3 Weekly Usage read
 
-Call the account rate-limit RPC and read:
+Call `account/rateLimits/read`, collect `primary` and `secondary` windows from both top-level and named rate-limit buckets, then normalize by duration:
 
 ```text
-snapshot = rateLimitsByLimitId["codex"] ?? rateLimits
-weekly = snapshot.secondary
+weekly = longest window where 8640 <= windowDurationMins <= 11520
 ```
-
-Only `secondary` is accepted as the product's weekly window.
 
 The client intentionally ignores:
 
-- `primary`;
 - any short-duration window;
 - reset-credit details;
-- additional rate-limit buckets not identified as `codex`.
+- windows outside six through eight days.
 
 Normalized output:
 
 ```swift
 WeeklyUsage(
-    usedPercent: weekly.usedPercent,
-    remainingPercent: 100 - weekly.usedPercent,
+    remainingPercent: clamp(round(100 - weekly.usedPercent), 0, 100),
     resetsAt: weekly.resetsAt
 )
 ```
 
-If `secondary` is absent, return `weeklyUsageUnavailable`. Do not substitute `primary`.
+If no six-to-eight-day window exists, return `weeklyUsageUnavailable`.
 
 ### 9.4 Timeouts
 
-Use one fixed process/request timeout, for example 10 seconds. On timeout:
+Use one fixed 20-second process/request timeout. Login completion has a separate 10-minute timeout. On timeout:
 
 - terminate the app-server child;
 - return a timeout error;
@@ -376,24 +352,23 @@ This prevents a blocked row refresh from hanging indefinitely without creating a
 Each account directory acts as a minimal Codex home for identity and Usage calls:
 
 ```text
-~/.codex-account-switcher/accounts/<profile-id>/auth.json
+~/Library/Application Support/Codex Account Switcher Lite/accounts/<profile-id>/auth.json
 ```
 
 The switcher starts app-server with `CODEX_HOME` set to that directory. This lets it read Usage without changing the active `~/.codex/auth.json`.
 
 ### 10.2 Refresh behavior
 
-When the popover opens:
+At application launch and whenever the popover opens:
 
-1. render metadata immediately;
-2. mark all rows `loading`;
-3. refresh accounts sequentially;
-4. publish each result as soon as it completes;
-5. stop only that row on error.
+1. load account metadata and persisted weekly Usage;
+2. render cached values immediately without replacing them with a loading state;
+3. refresh all accounts concurrently;
+4. share one active refresh task when triggers overlap;
+5. publish and persist each successful result as it completes;
+6. retain cached Usage with a warning on failure, or show unavailable when no cache exists.
 
-Sequential refresh is chosen because expected account count is small and it avoids multiple OAuth refresh processes writing the same profile concurrently.
-
-There is no timer, background scheduler, exponential backoff, or silent retry.
+There is no periodic timer, helper daemon, exponential backoff, or silent retry.
 
 ### 10.3 Persisting refreshed credentials
 
@@ -437,8 +412,7 @@ An existing CLI process may have already loaded credentials into memory. Therefo
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Preflight
-    Preflight --> ClosingDesktop
+    [*] --> ClosingDesktop
     ClosingDesktop --> SavingCurrent
     SavingCurrent --> ActivatingTarget
     ActivatingTarget --> VerifyingTarget
@@ -446,7 +420,6 @@ stateDiagram-v2
     CommittingProfile --> ReopeningDesktop
     ReopeningDesktop --> Completed
 
-    Preflight --> Failed
     ClosingDesktop --> Failed
     SavingCurrent --> Failed
     ActivatingTarget --> Failed
@@ -464,31 +437,26 @@ There is no rollback state.
 
 ```swift
 func switchAccount(to targetID: UUID) async throws {
-    stage = .preflight
-    let target = try profiles.requireProfile(targetID)
-    guard target.id != state.activeProfileID else { return }
+    let target = try store.profile(id: targetID)
 
-    stage = .closingDesktop
-    try await desktop.close()
+    stage = .closeDesktop
+    try await desktop.closeDesktop()
 
-    stage = .savingCurrent
-    if let currentID = state.activeProfileID {
-        try profiles.saveActiveCredential(into: currentID)
-    }
+    stage = .saveCurrentCredential
+    try await store.saveCurrentCredential()
 
-    stage = .activatingTarget
-    try profiles.activateCredential(from: target.id)
+    stage = .activateTargetCredential
+    try await store.activateTargetCredential(id: target.id)
 
-    stage = .verifyingTarget
-    let identity = try await codex.readIdentity(codexHome: Paths.activeCodexHome)
-    try verify(identity, matches: target)
+    stage = .verifyTargetIdentity
+    let identity = try await codex.readIdentity(profileHome: store.activeCodexHome())
+    guard identity.matches(target) else { throw CodexClientError.identityUnavailable }
 
-    stage = .committingProfile
-    state.activeProfileID = target.id
-    try stateStore.save(state)
+    stage = .commitActiveAccountID
+    try await store.commitActiveAccountID(target.id)
 
-    stage = .reopeningDesktop
-    try await desktop.open()
+    stage = .reopenDesktop
+    try await desktop.reopenDesktop()
 }
 ```
 
@@ -500,10 +468,11 @@ Preflight performs only the minimum required to start:
 
 - target profile exists;
 - target credential file exists;
-- target is not already active;
 - no in-process switch is currently running.
 
 It does not inspect every filesystem property, create backups, test network reachability, or pre-verify credentials.
+
+These checks occur before the six recorded `SwitchStage` values.
 
 ### 12.4 Close Codex Desktop
 
@@ -511,12 +480,12 @@ Closing Desktop comes before saving the active credential so Codex has a chance 
 
 ### 12.5 Save current credentials
 
-When `activeProfileID` exists:
+The registry must identify one active account:
 
 ```text
 copy ~/.codex/auth.json
-→ accounts/<activeProfileID>/auth.json.tmp
-→ rename to accounts/<activeProfileID>/auth.json
+→ accounts/<activeAccountID>/auth.json.switcher-<uuid>.tmp
+→ rename to accounts/<activeAccountID>/auth.json
 ```
 
 If the active file is missing or unreadable, stop and show the error. Do not continue by assuming the stored snapshot is good enough.
@@ -525,9 +494,9 @@ If the active file is missing or unreadable, stop and show the error. Do not con
 
 ```text
 copy accounts/<targetID>/auth.json
-→ ~/.codex/auth.json.switching
+→ ~/.codex/auth.json.switcher-<uuid>.tmp
 → chmod 0600
-→ rename to ~/.codex/auth.json
+→ rename the temporary file to ~/.codex/auth.json
 ```
 
 If activation fails, stop. There is no backup file and no restore step.
@@ -540,7 +509,7 @@ If identity does not match the target metadata, throw `identityMismatch`. The ta
 
 ### 12.8 Commit active profile
 
-After successful identity verification, write `activeProfileID` to `state.json`.
+After successful identity verification, write `activeAccountID` and `lastUsedAt` to `accounts.json`.
 
 If this write fails, report it. The active credential may already be the target while metadata still names the previous profile. The next explicit user action can retry the switch or select an account again. No automatic reconciliation runs.
 
@@ -609,17 +578,17 @@ Manual resolution is not triggered automatically by the app.
 sequenceDiagram
     actor User
     participant UI
-    participant Repo as ProfileRepository
+    participant Store as AccountStore
     participant Codex as Codex Login
 
     User->>UI: Add Account
-    UI->>Repo: create profile directory
+    UI->>Store: create profile directory
     UI->>Codex: run login with profile CODEX_HOME
     Codex-->>User: browser/device login
     Codex-->>UI: login completes
     UI->>Codex: read identity
     Codex-->>UI: account metadata
-    UI->>Repo: append profile
+    UI->>Store: append profile
     UI-->>User: account appears
 ```
 
@@ -630,7 +599,7 @@ sequenceDiagram
 3. Run Codex login with `CODEX_HOME` set to that directory.
 4. Wait for login completion.
 5. Read identity from the same profile home.
-6. Ask for or derive a local display name.
+6. Derive the local display name from the returned identity.
 7. Append profile metadata.
 8. Return to Manage Accounts.
 
@@ -639,13 +608,15 @@ If any step fails, stop and show the error. An incomplete profile directory may 
 ## 15. Remove-account flow
 
 ```swift
-func removeProfile(_ id: UUID) throws {
-    guard id != state.activeProfileID else {
-        throw AppError.cannotRemoveActiveProfile
+func removeAccount(id: UUID) throws {
+    guard id != registry.activeAccountID else {
+        throw AccountStoreError.cannotRemoveActiveAccount
     }
-    try fileManager.removeItem(at: Paths.profileDirectory(id))
-    profiles.removeAll { $0.id == id }
-    try profileStore.save(profiles)
+    usageCache.entries.removeAll { $0.profileID == id }
+    try saveUsageCache(usageCache)
+    try fileManager.removeItem(at: profileHome(id: id))
+    registry.accounts.removeAll { $0.id == id }
+    try saveRegistry(registry)
 }
 ```
 
@@ -656,22 +627,23 @@ The order is intentionally direct. If metadata save fails after directory deleti
 `AppModel` is `@MainActor` and owns:
 
 ```swift
-@Published var accounts: [AccountRowState]
-@Published var activeProfileID: UUID?
-@Published var selectedProfileID: UUID?
-@Published var switchStage: SwitchStage?
-@Published var presentedError: PresentedError?
-@Published var language: AppLanguage
-@Published var isSwitching = false
+@Published private(set) var accounts: [AccountProfile] = []
+@Published private(set) var activeAccountID: UUID?
+@Published private(set) var usageStates: [UUID: UsageViewState] = [:]
+@Published private(set) var settings: AppSettings = .default
+@Published private(set) var isMutating = false
+@Published var visibleError: OperationError?
 ```
 
-Only one switch runs at a time. While `isSwitching` is true:
+Only one mutation runs at a time. While `isMutating` is true:
 
 - account rows are disabled;
 - Manage Accounts actions that mutate profiles are disabled;
-- Settings remains read-only or closed.
+- Quit remains available.
 
 This is a simple in-process UI invariant, not a cross-process lock service.
+
+`MenuBarPopover` owns an in-memory page enum for the account list, Manage Accounts, Settings, and switch confirmation. All secondary pages render inside the same 326-point popover. Cancel and Back change only page state. The root view resets the page to the account list on every popover appearance.
 
 ## 17. Localization
 
@@ -698,16 +670,7 @@ enum AppLanguage: String, Codable {
 
 ## 18. Observability
 
-The MVP uses unified logging for development only:
-
-```text
-switch started target=<profile-id>
-switch stage=closingDesktop
-switch failed stage=verifyingTarget error=<description>
-switch completed target=<profile-id>
-```
-
-Never log auth file contents or access tokens.
+The current MVP surfaces operation failures directly in the popover and retains the underlying diagnostic description in memory. It does not log auth file contents or access tokens.
 
 There is no remote telemetry, support bundle, analytics pipeline, or automatic diagnostics upload.
 
@@ -717,7 +680,7 @@ The implementation assumes:
 
 - Codex stores active file credentials under `CODEX_HOME/auth.json` when file credential storage is used;
 - the installed Codex app-server exposes account identity and rate-limit RPCs;
-- `secondary` represents the weekly Codex window for the supported Codex build;
+- weekly Codex windows report a duration between six and eight days;
 - Codex Desktop reads the active `~/.codex` authentication state when launched.
 
 These assumptions should be checked against the Codex version used during implementation. The MVP does not add a compatibility adapter matrix. Unsupported versions fail with a direct message.
