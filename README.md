@@ -1,20 +1,18 @@
 # Codex Account Switcher Lite
 
-A deliberately small macOS menu-bar switcher for Codex Desktop.
+A lightweight macOS menu-bar switcher for changing the ChatGPT account used by Codex Desktop and newly started Codex CLI processes.
 
-It keeps the normal shared `~/.codex` directory for Codex configuration, projects, and local history, while saving multiple ChatGPT authentication snapshots and copying the selected snapshot into `~/.codex/auth.json`.
+The product is intentionally narrow:
 
-## Product rules
+- show saved accounts;
+- show one weekly `Usage` value and its reset time;
+- switch the active Codex authentication file;
+- add and remove local account snapshots;
+- choose the UI language.
 
-- The main menu shows saved accounts, **weekly Usage only**, reset time, `Manage accounts`, and `Settings`.
-- The 5-hour window is never displayed and is not configurable.
-- Selecting another account opens one normal confirmation, switches the auth file, and reopens Codex Desktop.
-- Existing Codex CLI processes keep the credentials they already loaded. New processes use the newly selected account.
-- Settings contains only language selection.
-- There is no automatic rotation, failover, retry loop, rollback transaction, recovery journal, or hidden fallback.
-- An error is shown as an error. The app stops the current operation instead of pretending it succeeded.
+It is not an account router, proxy, recovery manager, or policy layer.
 
-## Prototype
+## Current prototype
 
 The interactive prototype is available at [`prototype/index.html`](prototype/index.html).
 
@@ -26,10 +24,22 @@ python3 -m http.server 8765 --directory prototype
 
 Then open <http://127.0.0.1:8765/>.
 
+## Product constraints
+
+- The main menu uses `Usage`, a percentage-linked progress bar, and `Resets …` beside the account name.
+- Only the weekly Codex allowance is displayed.
+- There is no 5-hour row, selector, detail panel, or setting.
+- The current account is shown by row highlight rather than a checkmark or `Current` label.
+- The footer contains only `Manage Accounts…` and `Settings…`.
+- Settings contains only language selection.
+- Switching follows one direct sequence and stops on the first error.
+- There is no automatic rollback, retry, transaction journal, credential backup, or crash recovery workflow.
+
 ## Documentation
 
+- [Documentation index](docs/README.md)
 - [Product decisions](docs/product-decisions.md)
 - [Product requirements](docs/product-requirements.md)
 - [System design](docs/system-design.md)
-- [Testing and release](docs/testing-and-release.md)
-- [ADR: direct MVP switching](docs/adr/0001-direct-mvp-switching.md)
+- [Implementation plan](docs/implementation-plan.md)
+- [Testing](docs/testing.md)

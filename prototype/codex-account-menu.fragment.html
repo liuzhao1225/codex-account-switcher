@@ -1,22 +1,260 @@
-<div id="switcher-demo">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codex Account Switcher Lite</title>
 <style>
-#switcher-demo{--bg:light-dark(#e8eaed,#121416);--panel:light-dark(#f8f8f7,#262626);--text:light-dark(#202124,#f3f3f3);--muted:light-dark(#74777c,#a0a0a6);--line:light-dark(#d9dbde,#444);--hover:light-dark(#0000000d,#ffffff12);--selected:light-dark(#0a84ff1a,#0a84ff2b);--blue:#0a84ff;color-scheme:light dark;min-height:540px;padding:48px 20px;background:var(--bg);color:var(--text);font:13px -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;box-sizing:border-box}#switcher-demo *{box-sizing:border-box}#switcher-demo button,#switcher-demo select{font:inherit}.stage{max-width:720px;margin:auto}.menubar{height:34px;display:flex;justify-content:flex-end;align-items:center;padding:0 10px;border:1px solid #0002;border-radius:11px;background:light-dark(#f8f8f8ee,#1c1d1fee);box-shadow:0 12px 35px #0002}.trigger{height:26px;display:flex;align-items:center;gap:7px;padding:0 9px 0 7px;border:0;border-radius:7px;background:var(--hover);color:var(--text);font-weight:600;cursor:pointer}.mark{width:17px;height:17px;display:grid;place-items:center;border:1.5px solid;border-radius:50%;font-size:9px}.popover{width:326px;margin:8px 8px 0 auto;overflow:hidden;border:1px solid #0002;border-radius:14px;background:var(--panel);box-shadow:0 24px 70px #0005}.popover[hidden]{display:none}.list{padding:6px}.row{width:100%;min-height:64px;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:8px;border:0;border-radius:9px;background:transparent;color:var(--text);text-align:left;cursor:pointer}.row:hover{background:var(--hover)}.row[aria-selected="true"]{background:var(--selected)}.avatar{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;background:#303238;color:#fff;font-size:12px;font-weight:650}.avatar.work{background:#7658d6}.avatar.backup{background:#b26a42}.main{min-width:0}.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:590}.reset{flex:none;color:var(--muted);font-size:10.5px;white-space:nowrap}.usage{margin-top:5px;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px}.track{height:3px;flex:1;overflow:hidden;border-radius:99px;background:var(--line)}.bar{width:var(--remaining);height:100%;background:var(--text)}.percent{min-width:44px;text-align:right}.footer{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:5px 6px 6px;border-top:1px solid var(--line)}.action{height:34px;display:flex;align-items:center;gap:9px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--text);cursor:pointer}.action:hover,.back:hover{background:var(--hover)}.icon{width:16px;color:var(--muted);text-align:center}.view[hidden],.list[hidden],.footer[hidden]{display:none}.head{height:44px;display:flex;align-items:center;gap:7px;padding:0 8px;border-bottom:1px solid var(--line);font-size:14px;font-weight:620}.back{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--text);font-size:20px;cursor:pointer}.managed{padding:5px 8px}.managed-row{min-height:49px;display:grid;grid-template-columns:32px 1fr auto;gap:9px;align-items:center;border-bottom:1px solid var(--line)}.managed-row:last-child{border:0}.copy{min-width:0;display:grid}.local-name,.email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.local-name{font-size:12.5px;font-weight:560}.email{color:var(--muted);font-size:10.5px}.remove{padding:5px 7px;border:0;border-radius:6px;background:transparent;color:#d84b45;font-size:11px;cursor:pointer}.add{padding:5px 6px 6px;border-top:1px solid var(--line)}.settings{padding:8px 12px 12px}.setting{min-height:48px;display:grid;grid-template-columns:1fr auto;align-items:center}.select{height:28px;min-width:132px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text)}.confirm{padding:17px}.title-line{display:flex;align-items:center;gap:7px}.info{width:17px;height:17px;display:grid;place-items:center;border:1px solid var(--muted);border-radius:50%;color:var(--muted);font-size:11px;font-weight:650}.confirm h2{margin:0;font-size:15px}.target{margin-top:5px;color:var(--muted);font-size:12px}.effects{margin:14px 0 0;padding-left:18px;font-size:11.5px;line-height:1.45}.effects li{margin-top:7px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:16px}.buttons button{height:31px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);cursor:pointer}.buttons .primary{border-color:var(--blue);background:var(--blue);color:#fff}
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#e8eaed, #111315);
+    --panel: light-dark(#f8f8f7, #252525);
+    --text: light-dark(#202124, #f3f3f3);
+    --muted: light-dark(#74777c, #a1a1a6);
+    --border: light-dark(rgba(0,0,0,.12), rgba(255,255,255,.12));
+    --hover: light-dark(rgba(0,0,0,.055), rgba(255,255,255,.075));
+    --selected: light-dark(rgba(10,132,255,.11), rgba(10,132,255,.18));
+    --track: light-dark(#dedfdf, #444447);
+    --fill: light-dark(#242629, #e8e8e8);
+    --blue: #0a84ff;
+    --danger: #d43f3a;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 48px 20px;
+    display: grid;
+    place-items: start center;
+    background: radial-gradient(circle at 50% -10%, light-dark(#d8dee8, #263143), transparent 45%), var(--bg);
+    color: var(--text);
+  }
+  button, select { font: inherit; }
+  .stage { width: min(720px, 100%); }
+  .menubar {
+    height: 34px;
+    padding: 0 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: light-dark(rgba(248,248,248,.92), rgba(28,29,31,.94));
+    box-shadow: 0 12px 35px rgba(0,0,0,.13);
+  }
+  .trigger {
+    height: 26px;
+    padding: 0 9px 0 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 7px;
+    color: var(--text);
+    background: var(--hover);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mark {
+    width: 17px;
+    height: 17px;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    font-size: 9px;
+  }
+  .popover {
+    width: 326px;
+    margin: 8px 8px 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    box-shadow: 0 24px 70px rgba(0,0,0,.28), 0 3px 10px rgba(0,0,0,.14);
+  }
+  .view[hidden] { display: none; }
+  .list { padding: 6px; }
+  .account {
+    width: 100%;
+    min-height: 64px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    column-gap: 10px;
+    align-items: center;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+  .account:hover, .account:focus-visible { background: var(--hover); outline: none; }
+  .account[aria-selected="true"] { background: var(--selected); }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #303238;
+    color: white;
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .avatar.work { background: #7658d6; }
+  .avatar.backup { background: #b26a42; }
+  .main { min-width: 0; }
+  .name-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 590; }
+  .reset { flex: 0 0 auto; color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .usage { margin-top: 5px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+  .track { height: 3px; flex: 1; overflow: hidden; border-radius: 99px; background: var(--track); }
+  .bar { height: 100%; width: var(--remaining); border-radius: inherit; background: var(--fill); }
+  .percent { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  .footer { padding: 5px 6px 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-top: 1px solid var(--border); }
+  .action {
+    height: 34px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .action:hover { background: var(--hover); }
+  .header { height: 44px; padding: 0 8px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 620; }
+  .back { width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font-size: 20px; cursor: pointer; }
+  .back:hover { background: var(--hover); }
+  .settings-body { padding: 10px 12px 13px; }
+  .setting { min-height: 44px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
+  .setting-name { font-size: 12.5px; font-weight: 530; }
+  select { height: 28px; min-width: 120px; padding: 0 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text); font-size: 11.5px; }
+  .managed-list { padding: 6px; }
+  .managed { min-height: 52px; padding: 7px 8px; display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 9px; border-radius: 9px; }
+  .managed:hover { background: var(--hover); }
+  .managed-name { display: block; font-size: 12.5px; font-weight: 560; }
+  .managed-email { display: block; margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+  .remove { height: 25px; padding: 0 7px; border: 0; border-radius: 6px; background: transparent; color: var(--danger); font-size: 11.5px; cursor: pointer; }
+  .remove:hover { background: rgba(212,63,58,.10); }
+  .remove:disabled { opacity: .35; cursor: default; background: transparent; }
+  .manage-footer { padding: 6px; border-top: 1px solid var(--border); }
+  .add { width: 100%; }
+  .confirm { padding: 17px; }
+  .confirm-title { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 650; }
+  .info { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font-size: 11px; }
+  .confirm-target { margin-top: 5px; color: var(--muted); font-size: 12px; }
+  .effects { margin: 14px 0 0; padding-left: 18px; font-size: 11.5px; line-height: 1.5; }
+  .effects li + li { margin-top: 6px; }
+  .confirm-actions { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .confirm-button { height: 31px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
+  .confirm-button.primary { border-color: var(--blue); background: var(--blue); color: white; }
 </style>
-<div class="stage">
-  <div class="menubar"><button class="trigger" aria-expanded="true"><span class="mark">C</span><span class="trigger-label">Personal · 42%</span></button></div>
-  <section class="popover">
-    <div class="list">
-      <button class="row" data-account="Personal" data-remaining="42" aria-selected="true"><span class="avatar">ZL</span><span class="main"><span class="top"><span class="name">Zhao Liu</span><span class="reset">Resets Aug 25, 9:20 AM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span></button>
-      <button class="row" data-account="Work" data-remaining="76" aria-selected="false"><span class="avatar work">GL</span><span class="main"><span class="top"><span class="name">Galaxy Work</span><span class="reset">Resets Aug 27, 3:40 PM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span></button>
-      <button class="row" data-account="Backup" data-remaining="100" aria-selected="false"><span class="avatar backup">BA</span><span class="main"><span class="top"><span class="name">Backup</span><span class="reset">Resets Aug 29, 11:05 AM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span></button>
+</head>
+<body>
+  <div class="stage">
+    <div class="menubar">
+      <button class="trigger" id="trigger" type="button"><span class="mark">C</span><span id="triggerLabel">Personal · 42%</span></button>
     </div>
-    <div class="footer"><button class="action open-manage"><span class="icon">◎</span>Manage accounts</button><button class="action open-settings"><span class="icon">⚙︎</span>Settings</button></div>
-    <div class="view confirm-view" hidden><div class="confirm"><div class="title-line"><span class="info">i</span><h2>Switch account?</h2></div><div class="target">Switch to <strong class="confirm-name">Galaxy Work</strong></div><ul class="effects"><li>Codex Desktop will restart.</li><li>A running Desktop task may be interrupted.</li><li>Existing Terminal sessions keep their current account.</li><li>New Codex sessions use <span class="inline-name">Galaxy Work</span>.</li></ul><div class="buttons"><button class="cancel">Cancel</button><button class="primary apply">Switch account</button></div></div></div>
-    <div class="view manage-view" hidden><div class="head"><button class="back">‹</button>Manage accounts</div><div class="managed"><div class="managed-row"><span class="avatar">ZL</span><span class="copy"><span class="local-name">Zhao Liu</span><span class="email">personal@example.com</span></span><button class="remove">Remove</button></div><div class="managed-row"><span class="avatar work">GL</span><span class="copy"><span class="local-name">Galaxy Work</span><span class="email">work@example.com</span></span><button class="remove">Remove</button></div><div class="managed-row"><span class="avatar backup">BA</span><span class="copy"><span class="local-name">Backup</span><span class="email">backup@example.com</span></span><button class="remove">Remove</button></div></div><div class="add"><button class="action"><span class="icon">＋</span>Add account</button></div></div>
-    <div class="view settings-view" hidden><div class="head"><button class="back">‹</button>Settings</div><div class="settings"><div class="setting"><span>Language</span><select class="select"><option selected>System Default</option><option>English</option><option>简体中文</option></select></div></div></div>
-  </section>
-</div>
+
+    <section class="popover" aria-label="Codex accounts">
+      <div class="view" id="mainView">
+        <div class="list" id="accountList">
+          <button class="account" type="button" data-id="personal" data-name="Personal" data-remaining="42" aria-selected="true">
+            <span class="avatar">ZL</span>
+            <span class="main"><span class="name-line"><span class="name">Zhao Liu</span><span class="reset">Resets Aug 25, 9:20 AM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span>
+          </button>
+          <button class="account" type="button" data-id="work" data-name="Work" data-remaining="76" aria-selected="false">
+            <span class="avatar work">GW</span>
+            <span class="main"><span class="name-line"><span class="name">Galaxy Work</span><span class="reset">Resets Aug 27, 3:40 PM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span>
+          </button>
+          <button class="account" type="button" data-id="backup" data-name="Backup" data-remaining="100" aria-selected="false">
+            <span class="avatar backup">BA</span>
+            <span class="main"><span class="name-line"><span class="name">Backup</span><span class="reset">Resets Aug 29, 11:05 AM</span></span><span class="usage"><span>Usage</span><span class="track"><span class="bar"></span></span><span class="percent"></span></span></span>
+          </button>
+        </div>
+        <div class="footer">
+          <button class="action" type="button" data-view="manage">Manage Accounts…</button>
+          <button class="action" type="button" data-view="settings">Settings…</button>
+        </div>
+      </div>
+
+      <div class="view" id="manageView" hidden>
+        <div class="header"><button class="back" type="button">‹</button><span>Manage Accounts</span></div>
+        <div class="managed-list">
+          <div class="managed"><span class="avatar">ZL</span><span><span class="managed-name">Zhao Liu</span><span class="managed-email">personal@example.com</span></span><button class="remove" type="button" disabled>Remove</button></div>
+          <div class="managed"><span class="avatar work">GW</span><span><span class="managed-name">Galaxy Work</span><span class="managed-email">work@example.com</span></span><button class="remove" type="button">Remove</button></div>
+          <div class="managed"><span class="avatar backup">BA</span><span><span class="managed-name">Backup</span><span class="managed-email">backup@example.com</span></span><button class="remove" type="button">Remove</button></div>
+        </div>
+        <div class="manage-footer"><button class="action add" type="button">＋ Add Account…</button></div>
+      </div>
+
+      <div class="view" id="settingsView" hidden>
+        <div class="header"><button class="back" type="button">‹</button><span>Settings</span></div>
+        <div class="settings-body">
+          <div class="setting"><span class="setting-name">Language</span><select aria-label="Language"><option>System Default</option><option>English</option><option>简体中文</option></select></div>
+        </div>
+      </div>
+
+      <div class="view" id="confirmView" hidden>
+        <div class="confirm">
+          <h2 class="confirm-title"><span class="info">i</span><span>Switch account?</span></h2>
+          <div class="confirm-target" id="confirmTarget"></div>
+          <ul class="effects">
+            <li>Codex Desktop will close and reopen.</li>
+            <li>A task currently running in Desktop may stop.</li>
+            <li>Existing Codex CLI sessions continue with the account they started with.</li>
+            <li>New Codex CLI sessions use the selected account.</li>
+          </ul>
+          <div class="confirm-actions"><button class="confirm-button" id="cancelSwitch" type="button">Cancel</button><button class="confirm-button primary" id="confirmSwitch" type="button">Switch Account</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
 <script>
-(()=>{const r=document.querySelector('#switcher-demo'),p=r.querySelector('.popover'),list=r.querySelector('.list'),footer=r.querySelector('.footer'),views=[...r.querySelectorAll('.view')],rows=[...r.querySelectorAll('.row')],show=v=>{list.hidden=v!=='accounts';footer.hidden=v!=='accounts';views.forEach(x=>x.hidden=!x.classList.contains(v+'-view'))};let pending=null;rows.forEach(row=>{const n=Math.max(0,Math.min(100,+row.dataset.remaining));row.querySelector('.bar').style.setProperty('--remaining',n+'%');row.querySelector('.percent').textContent=n+'% left';row.onclick=()=>{if(row.getAttribute('aria-selected')==='true')return;pending=row;const name=row.querySelector('.name').textContent;r.querySelector('.confirm-name').textContent=name;r.querySelector('.inline-name').textContent=name;show('confirm')}});r.querySelector('.trigger').onclick=()=>p.toggleAttribute('hidden');r.querySelector('.open-manage').onclick=()=>show('manage');r.querySelector('.open-settings').onclick=()=>show('settings');r.querySelectorAll('.back,.cancel').forEach(b=>b.onclick=()=>show('accounts'));r.querySelector('.apply').onclick=()=>{if(!pending)return;rows.forEach(x=>x.setAttribute('aria-selected',x===pending));r.querySelector('.trigger-label').textContent=pending.dataset.account+' · '+pending.dataset.remaining+'%';pending=null;show('accounts')};r.querySelectorAll('.remove').forEach(b=>b.onclick=()=>{if(b.textContent==='Confirm')b.closest('.managed-row').remove();else b.textContent='Confirm'});const v=new URLSearchParams(location.search).get('view');if(v==='manage'||v==='settings')show(v);if(v==='confirm')rows[1].click()})();
+  const views = [...document.querySelectorAll('.view')];
+  const accounts = [...document.querySelectorAll('.account')];
+  let pending = null;
+
+  function show(id) {
+    views.forEach(view => view.hidden = view.id !== id);
+  }
+
+  function renderUsage() {
+    accounts.forEach(account => {
+      const remaining = Number(account.dataset.remaining);
+      account.style.setProperty('--remaining', `${remaining}%`);
+      account.querySelector('.percent').textContent = `${remaining}% left`;
+    });
+  }
+
+  accounts.forEach(account => account.addEventListener('click', () => {
+    if (account.getAttribute('aria-selected') === 'true') return;
+    pending = account;
+    document.getElementById('confirmTarget').textContent = `Switch to ${account.dataset.name}.`;
+    show('confirmView');
+  }));
+
+  document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => show(button.dataset.view + 'View')));
+  document.querySelectorAll('.back').forEach(button => button.addEventListener('click', () => show('mainView')));
+  document.getElementById('cancelSwitch').addEventListener('click', () => { pending = null; show('mainView'); });
+  document.getElementById('confirmSwitch').addEventListener('click', () => {
+    if (!pending) return;
+    accounts.forEach(account => account.setAttribute('aria-selected', String(account === pending)));
+    document.getElementById('triggerLabel').textContent = `${pending.dataset.name} · ${pending.dataset.remaining}%`;
+    pending = null;
+    show('mainView');
+  });
+
+  renderUsage();
 </script>
-</div>
+</body>
+</html>

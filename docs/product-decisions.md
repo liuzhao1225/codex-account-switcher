@@ -1,152 +1,158 @@
 # Product decisions
 
-## Product principle
+## 1. Product principle
 
-Codex Account Switcher Lite is a switcher, not an account platform.
+Codex Account Switcher Lite is a simple switcher. Every persistent control must directly support one of three jobs:
 
-The primary flow is:
+1. inspect account Usage;
+2. select an account;
+3. maintain the saved account list.
 
-1. Open the menu-bar popover.
-2. Read each account's weekly Usage and reset time.
-3. Select another account.
-4. Confirm the ordinary switching effects.
-5. Let the app copy the selected credentials and reopen Codex Desktop.
+Anything outside those jobs is excluded from the MVP.
 
-Every permanent control must directly support that flow.
+## 2. Main menu
 
-## Main menu
-
-Each saved account row contains:
+Each saved account row shows:
 
 - avatar or initials;
-- account display name;
-- weekly reset time on the same line as the name;
+- display name;
+- `Resets …` on the same line as the name;
 - the label `Usage`;
-- a progress bar;
-- a percentage such as `42% left`.
+- one progress bar;
+- one `NN% left` value.
 
-The percentage and progress-bar width use the same `remainingPercent` value.
+The current account is represented by a highlighted row. It does not use:
 
-The selected account is represented by row highlighting. There is no `Current` label and no checkmark consuming horizontal space.
+- a checkmark;
+- a `Current` label;
+- a second status column.
 
 The footer contains only:
 
-- `Manage accounts`;
-- `Settings`.
+- `Manage Accounts…`;
+- `Settings…`.
 
-## Weekly Usage only
+## 3. Weekly Usage only
 
-The product displays one quota window: the weekly window.
+The product displays the weekly Codex allowance only.
 
-- The 5-hour window is never shown.
-- There is no toggle to reveal it.
-- There is no secondary details page containing it.
-- The app does not fall back to the 5-hour window when weekly data is missing.
-- When no weekly window is present, the row shows `Usage unavailable`.
+There is no 5-hour row and no setting to enable one. If Codex returns both a short window and a weekly window, the short window is ignored by the UI and by the normalized product model.
 
-`remainingPercent` is calculated as:
+The displayed percentage is remaining allowance:
 
 ```text
-remainingPercent = clamp(100 - usedPercent, 0, 100)
+remainingPercent = clamp(100 - weekly.usedPercent, 0, 100)
 ```
 
-The reset label comes from the weekly window's reset timestamp.
+The progress-bar width and text use the same `remainingPercent` value.
 
-## Switching confirmation
+If the weekly window cannot be read, the row shows `Usage unavailable`. The application does not substitute another window or silently reuse a different quota type.
 
-Selecting a non-active account opens one normal confirmation sheet. This is not styled as a dangerous or destructive warning.
+## 4. Switching confirmation
 
-It explains the fixed behavior:
+Selecting another account opens a normal confirmation view. It explains fixed behavior rather than exposing configuration switches:
 
-- Codex Desktop will close and reopen with the selected account.
-- A running Desktop task can be interrupted by the restart.
-- Existing Terminal Codex processes keep their already loaded account.
-- New Codex processes use the selected account.
+- Codex Desktop will close and reopen;
+- a Desktop task that is currently running may stop;
+- existing Codex CLI processes are not restarted and continue with the account state they already loaded;
+- newly started Codex CLI processes use the newly selected account.
 
-These are product semantics, not Settings toggles.
+These are product semantics, not Settings options.
 
-## Direct switching behavior
+## 5. Direct switching flow
 
-The implementation performs a direct sequence:
+The switch implementation is intentionally sequential:
 
 ```text
-Confirm
+Preflight
 → close Codex Desktop
-→ save the current auth snapshot
-→ replace ~/.codex/auth.json with the selected snapshot
-→ record the selected profile ID
+→ save current credentials
+→ activate target credentials
+→ verify target identity
+→ commit active profile
 → reopen Codex Desktop
 ```
 
-There is deliberately:
+The MVP does not implement:
 
-- no rollback copy;
-- no transaction journal;
-- no post-switch identity verification gate;
-- no retry loop;
-- no automatic repair;
-- no alternate credential backend fallback.
+- rollback credentials;
+- backup copies;
+- a transaction journal;
+- automatic retries;
+- startup recovery;
+- compensating actions;
+- silent fallback to the previous account.
 
-If a step fails, the app displays the error and stops. It does not claim that the switch succeeded.
+When a step fails, execution stops and the exact error is shown. The system does not hide the failure by restoring another state.
 
-## Manage accounts
+## 6. Credential storage
 
-`Manage accounts` owns all account lifecycle actions:
+The MVP uses ordinary local files with user-only permissions.
 
-- list saved accounts;
-- add an account;
-- rename an account;
-- remove an account.
+- Codex active credential: `~/.codex/auth.json`
+- Switcher metadata: `~/.codex-account-switcher/profiles.json`
+- Switcher state: `~/.codex-account-switcher/state.json`
+- Saved account credential: `~/.codex-account-switcher/accounts/<profile-id>/auth.json`
 
-Removing a saved account deletes its local snapshot only. It does not revoke server sessions or log the account out on other devices.
+macOS Keychain is not used in the MVP. It adds implementation complexity without adding user-visible switching value.
 
-Removing the selected saved profile is allowed. The currently active `~/.codex/auth.json` remains untouched until the next switch or login. This avoids a special-case safety gate in the MVP.
+## 7. Manage Accounts
 
-A remove action uses one compact confirmation because the deletion is intentional and local. There is no second confirmation or typed account name.
+`Manage Accounts…` owns account lifecycle operations:
 
-## Add account
+- view saved accounts;
+- add account;
+- rename local display name;
+- remove an inactive account.
 
-Adding an account uses the normal Codex Desktop sign-in experience:
+The active account cannot be removed because the meaning of the active Codex authentication file would otherwise be ambiguous. The user first selects another account and then removes the old one.
 
-1. Save the current selected profile's latest `auth.json`, when available.
-2. Close Codex Desktop.
-3. Delete the active `~/.codex/auth.json`.
-4. Reopen Codex Desktop.
-5. Let the user sign in.
-6. Detect the newly written `auth.json`.
-7. Ask for a local display name and save the new snapshot.
+Removing an account deletes only the switcher's local profile directory and metadata. It does not claim to revoke every OpenAI server session.
 
-If login is canceled or fails, the app leaves the failure visible. The user can select any previously saved account to continue.
+## 8. Settings
 
-## Settings
+Settings contains only:
 
-Settings contains only language:
+- `Language`: `System Default`, `English`, `简体中文`.
 
-- `System Default`;
-- `English`;
-- `简体中文`.
+The following controls are intentionally absent:
 
-The following are intentionally absent:
-
-- launch at login;
+- Launch at login;
 - restart behavior;
-- CLI switching behavior;
+- CLI behavior;
 - confirmation behavior;
-- Keychain or credential storage status;
+- credential storage selection;
+- Keychain status;
 - Usage-window selection;
-- automatic rotation;
-- recovery or retry options.
-
-## Non-goals
-
 - 5-hour Usage display;
-- automatic account rotation;
-- failover or round-robin routing;
-- account pooling;
-- transparent reverse proxying;
-- running multiple Codex Desktop instances;
-- changing credentials inside already running CLI processes;
-- editing or injecting the Codex Desktop frontend;
-- cross-device synchronization;
-- enterprise policy management;
-- rollback and crash recovery machinery.
+- automatic rotation.
+
+## 9. Architecture
+
+The production client is a native SwiftUI menu-bar app.
+
+It does not require:
+
+- Electron;
+- a local HTTP server;
+- a daemon;
+- a reverse proxy;
+- a cloud service;
+- modification of Codex Desktop;
+- injection into Codex UI.
+
+The HTML prototype is a visual reference, not the production runtime.
+
+## 10. Error philosophy
+
+Errors must be visible and attributable to a specific step.
+
+The implementation should:
+
+- use small typed operations;
+- stop at the first failed operation;
+- preserve the original system error where useful;
+- avoid broad `catch` blocks that convert every failure into a generic message;
+- avoid retry loops unless a later product requirement explicitly adds them.
+
+A partially completed switch is an observable implementation failure, not a hidden condition to repair automatically.

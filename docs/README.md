@@ -1,32 +1,41 @@
 # Documentation
 
-Codex Account Switcher Lite has one job: let a user see weekly account usage and switch the account used by new Codex Desktop and CLI processes.
-
-The project intentionally prefers a short, inspectable implementation over a defensive account-management platform.
+This directory defines the MVP for Codex Account Switcher Lite.
 
 ## Documents
 
 | Document | Purpose |
 | --- | --- |
-| [Product decisions](product-decisions.md) | Final interaction and scope decisions. |
-| [Product requirements](product-requirements.md) | User flows, UI rules, acceptance criteria, and non-goals. |
-| [System design](system-design.md) | Native macOS architecture, storage, switching, login, weekly Usage, and errors. |
-| [Testing and release](testing-and-release.md) | Small test suite and direct release process. |
-| [ADR 0001](adr/0001-direct-mvp-switching.md) | Why the MVP deliberately has no rollback or fallback machinery. |
+| [Product decisions](product-decisions.md) | Binding product and architecture decisions |
+| [Product requirements](product-requirements.md) | User-visible behavior and acceptance criteria |
+| [System design](system-design.md) | Components, storage, flows, interfaces, and failure behavior |
+| [Implementation plan](implementation-plan.md) | Concrete milestones and suggested source layout |
+| [Testing](testing.md) | Small, failure-oriented MVP test plan |
 
-## Non-negotiable constraints
+## Product definition
 
-1. **Weekly Usage only.** Never show the 5-hour window, even when the backend returns it.
-2. **One direct switch path.** Save current auth, activate selected auth, record the selected profile, reopen Desktop.
-3. **No hidden recovery.** No retries, stale-value fallback, automatic rollback, transaction journal, or silent repair.
-4. **Errors remain visible.** The operation stops and the original error is shown.
-5. **Settings stays small.** It contains language selection and nothing related to switching semantics or credential storage.
+Codex Account Switcher Lite is a local macOS menu-bar utility. It manages a small set of authentication snapshots and copies the selected snapshot into Codex's active authentication location.
 
-## MVP implementation target
+The intended user flow is:
 
-- macOS 14+
-- Swift 6
-- SwiftUI `MenuBarExtra`
-- AppKit only where process control or alerts require it
-- Foundation `FileManager` and `URLSession`
-- No Electron, local HTTP server, daemon, database, reverse proxy, or third-party dependency
+```text
+Open menu
+→ inspect weekly Usage
+→ select account
+→ confirm normal switch consequences
+→ switch
+```
+
+The implementation flow is:
+
+```text
+Preflight
+→ close Codex Desktop
+→ save the current account's latest credentials
+→ atomically activate the target credentials
+→ verify the target identity through Codex
+→ write activeProfileID
+→ reopen Codex Desktop
+```
+
+The sequence is deliberately linear. Every step either succeeds or returns an error. The implementation does not add a second recovery state machine around the switch.
