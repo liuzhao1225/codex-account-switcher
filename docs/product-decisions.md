@@ -2,138 +2,151 @@
 
 ## Product principle
 
-Codex Account Switcher Lite is a simple switcher, not an account platform.
+Codex Account Switcher Lite is a switcher, not an account platform.
 
 The primary flow is:
 
 1. Open the menu-bar popover.
-2. Read weekly Usage and reset time.
+2. Read each account's weekly Usage and reset time.
 3. Select another account.
-4. Confirm the normal switching effects.
-5. Switch and reopen Codex Desktop.
+4. Confirm the ordinary switching effects.
+5. Let the app copy the selected credentials and reopen Codex Desktop.
 
-Every persistent control must directly support account selection, account maintenance, or language selection.
+Every permanent control must directly support that flow.
 
 ## Main menu
 
-Each saved account row shows:
+Each saved account row contains:
 
 - avatar or initials;
-- account name;
-- `Resets …` on the same line as the account name;
+- account display name;
+- weekly reset time on the same line as the name;
 - the label `Usage`;
-- one progress bar;
-- one percentage such as `42% left`.
+- a progress bar;
+- a percentage such as `42% left`.
 
-The percentage and progress-bar width are driven by the same `remainingPercent` value.
+The percentage and progress-bar width use the same `remainingPercent` value.
 
-The active account is represented by a highlighted row. The UI does not use a checkmark, a right-side status icon, or a `Current` label.
+The selected account is represented by row highlighting. There is no `Current` label and no checkmark consuming horizontal space.
 
 The footer contains only:
 
-- `Manage Accounts…`
-- `Settings…`
+- `Manage accounts`;
+- `Settings`.
 
 ## Weekly Usage only
 
-`Usage` means the remaining **weekly Codex quota**.
+The product displays one quota window: the weekly window.
 
-The following rules are fixed:
+- The 5-hour window is never shown.
+- There is no toggle to reveal it.
+- There is no secondary details page containing it.
+- The app does not fall back to the 5-hour window when weekly data is missing.
+- When no weekly window is present, the row shows `Usage unavailable`.
 
-- Do not render the 5-hour Usage window.
-- Do not add a `Show 5-hour Usage` setting.
-- Do not show two quota rows.
-- Do not fall back to the 5-hour window when weekly data is unavailable.
-- When weekly data cannot be read, show `Usage unavailable` for that account.
+`remainingPercent` is calculated as:
 
-The backend adapter may receive several rate-limit windows, but the presentation layer receives only the normalized weekly value.
+```text
+remainingPercent = clamp(100 - usedPercent, 0, 100)
+```
+
+The reset label comes from the weekly window's reset timestamp.
 
 ## Switching confirmation
 
-Selecting another account opens a normal confirmation dialog. It is not a danger warning.
+Selecting a non-active account opens one normal confirmation sheet. This is not styled as a dangerous or destructive warning.
 
-The dialog explains fixed behavior:
+It explains the fixed behavior:
 
 - Codex Desktop will close and reopen with the selected account.
-- A currently running Desktop task can be interrupted by the restart.
-- Existing Terminal or CLI sessions are not restarted and can continue using the account they already loaded.
-- New CLI sessions use the selected active credential.
+- A running Desktop task can be interrupted by the restart.
+- Existing Terminal Codex processes keep their already loaded account.
+- New Codex processes use the selected account.
 
 These are product semantics, not Settings toggles.
 
-## Direct MVP switch
+## Direct switching behavior
 
-The switch pipeline is intentionally straightforward:
+The implementation performs a direct sequence:
 
-1. Close Codex Desktop.
-2. Save the current account's latest `auth.json` into its local profile.
-3. Atomically replace the active `~/.codex/auth.json` with the target profile's `auth.json`.
-4. Ask Codex to report the active account and compare it with the target profile.
-5. Save the target profile as the active profile.
-6. Reopen Codex Desktop.
+```text
+Confirm
+→ close Codex Desktop
+→ save the current auth snapshot
+→ replace ~/.codex/auth.json with the selected snapshot
+→ record the selected profile ID
+→ reopen Codex Desktop
+```
 
-The MVP explicitly does not implement:
+There is deliberately:
 
-- rollback credentials;
-- backup copies for switching;
-- transaction journals;
-- crash recovery state machines;
-- automatic retries;
-- automatic selection of another account;
-- silent fallback to stale Usage or another quota window;
-- broad preflight checks unrelated to the next required operation.
+- no rollback copy;
+- no transaction journal;
+- no post-switch identity verification gate;
+- no retry loop;
+- no automatic repair;
+- no alternate credential backend fallback.
 
-If a step fails, the pipeline stops immediately and shows the failed stage and error. The application does not hide the failure by restoring an earlier state.
+If a step fails, the app displays the error and stops. It does not claim that the switch succeeded.
 
-## Manage Accounts
+## Manage accounts
 
-`Manage Accounts…` owns account lifecycle operations:
+`Manage accounts` owns all account lifecycle actions:
 
 - list saved accounts;
-- add an account through Codex login;
-- rename the local display name;
-- remove an inactive saved account.
+- add an account;
+- rename an account;
+- remove an account.
 
-Removing an account deletes only the locally saved profile. It does not claim to revoke every remote session.
+Removing a saved account deletes its local snapshot only. It does not revoke server sessions or log the account out on other devices.
 
-The active account cannot be removed. The user switches to another account first. This is a necessary product invariant because the active Codex credential must continue to have a corresponding local profile.
+Removing the selected saved profile is allowed. The currently active `~/.codex/auth.json` remains untouched until the next switch or login. This avoids a special-case safety gate in the MVP.
+
+A remove action uses one compact confirmation because the deletion is intentional and local. There is no second confirmation or typed account name.
+
+## Add account
+
+Adding an account uses the normal Codex Desktop sign-in experience:
+
+1. Save the current selected profile's latest `auth.json`, when available.
+2. Close Codex Desktop.
+3. Delete the active `~/.codex/auth.json`.
+4. Reopen Codex Desktop.
+5. Let the user sign in.
+6. Detect the newly written `auth.json`.
+7. Ask for a local display name and save the new snapshot.
+
+If login is canceled or fails, the app leaves the failure visible. The user can select any previously saved account to continue.
 
 ## Settings
 
-Settings contains only:
+Settings contains only language:
 
-- `Language`
-  - `System Default`
-  - `English`
-  - `简体中文`
+- `System Default`;
+- `English`;
+- `简体中文`.
 
-There is no `Launch at Login`, `Restart Codex automatically`, credential-storage selector, Keychain status, Usage detail switch, CLI behavior switch, or confirmation preference.
+The following are intentionally absent:
 
-## Error philosophy
-
-Errors are part of the MVP's visible behavior:
-
-- no silent catch-and-continue;
-- no success message before the final required step finishes;
-- no generic `Something went wrong` when a concrete stage is known;
-- no automatic repair of mismatched active metadata;
-- no stale data presented as fresh.
-
-A typical error is presented as:
-
-> Could not verify the selected account. The target credential has already been written. Codex Desktop was not reopened.
-
-The user can retry the same account or choose another account.
+- launch at login;
+- restart behavior;
+- CLI switching behavior;
+- confirmation behavior;
+- Keychain or credential storage status;
+- Usage-window selection;
+- automatic rotation;
+- recovery or retry options.
 
 ## Non-goals
 
+- 5-hour Usage display;
 - automatic account rotation;
 - failover or round-robin routing;
-- transparent multi-account proxying;
-- cloud credential sync;
-- changing accounts inside already running CLI processes;
-- modifying or injecting the Codex Desktop frontend;
-- detailed quota analytics;
-- 5-hour Usage display;
+- account pooling;
+- transparent reverse proxying;
+- running multiple Codex Desktop instances;
+- changing credentials inside already running CLI processes;
+- editing or injecting the Codex Desktop frontend;
+- cross-device synchronization;
 - enterprise policy management;
-- a generalized credential manager.
+- rollback and crash recovery machinery.

@@ -1,228 +1,198 @@
 # Testing and release
 
-## 1. Test philosophy
+## 1. Testing principle
 
-The MVP test suite verifies the direct behavior that users depend on.
+The MVP test suite should prove the direct happy path and make failures obvious.
 
-It does not test rollback, journals, crash recovery, stale-cache fallback, 5-hour presentation, or account failover because those features do not exist.
-
-The most important assertion is:
-
-> When a step fails, the operation stops at that step and exposes the error.
+It should not become a simulation of every possible crash or a proof of automatic recovery, because the product intentionally has no rollback or recovery subsystem.
 
 ## 2. Unit tests
 
-### 2.1 Weekly Usage normalization
+### 2.1 AccountStore
 
-Test:
+Test with a temporary directory:
 
-- a seven-day window is selected;
-- a six-day window is accepted;
-- an eight-day window is accepted;
-- a five-hour window is ignored;
-- a one-day window is ignored;
-- a five-hour window alone produces `Usage unavailable`;
-- `usedPercent = 58` becomes `42% left`;
-- values are clamped to 0 through 100;
-- reset timestamp is preserved;
-- the bar width and percentage use the same value.
+- saves and loads `accounts.json`;
+- creates a profile directory;
+- writes and reads a snapshot;
+- renames metadata;
+- removes metadata and profile files;
+- clears `activeAccountID` when the selected profile is removed;
+- preserves duplicate display names as separate UUID profiles.
 
-### 2.2 Account metadata
+### 2.2 Weekly window selection
 
-Test:
+Required cases:
 
-- registry encode and decode;
-- active account ID persistence;
-- rename trims whitespace;
-- empty rename fails;
-- duplicate display names are accepted;
-- active account removal fails;
-- inactive account removal deletes its profile and metadata.
+| Windows returned | Expected |
+| --- | --- |
+| 5 hours only | no weekly Usage |
+| 7 days only | select 7-day window |
+| 5 hours + 7 days | select 7-day window |
+| 1 day + 7 days | select 7-day window |
+| 6.5 days + 7 days | select value closest to 7 days |
+| 8.1 days | no weekly Usage |
+| missing durations | no weekly Usage |
 
-### 2.3 Error mapping
+Also test:
 
-Test each subprocess and filesystem error maps to a concrete user-facing stage.
+- `usedPercent = 0` → `100% left`;
+- `usedPercent = 58` → `42% left`;
+- values below 0 and above 100 are clamped;
+- reset timestamp decodes correctly.
 
-Do not assert a generic fallback message.
+### 2.3 UsageService
 
-## 3. Switch-service tests
+Use `URLProtocol` stubs to test:
 
-Inject fakes for:
+- authorization and account-ID headers;
+- successful decode;
+- 200 without weekly window;
+- 401 mapping to `Sign in again`;
+- non-2xx mapping to a visible error;
+- malformed JSON mapping to a visible error;
+- no retry after failure.
 
-- `DesktopController`;
-- `AccountStore`;
-- `CodexClient`.
+### 2.4 SwitchService
 
-Verify the successful call order:
+Use temporary active and profile paths plus a fake Desktop controller.
+
+Test the exact order:
 
 ```text
-closeDesktop
-saveCurrentCredential
-activateTargetCredential
-verifyTargetIdentity
-commitActiveAccountID
-reopenDesktop
+stop Desktop
+→ save current snapshot
+→ write target auth
+→ update active profile
+→ launch Desktop
 ```
 
-For each stage, inject one error and assert:
+Required failure assertions:
 
-- no later method is called;
-- no rollback method is called because none exists;
-- the returned error identifies the failed stage;
-- the UI does not receive success.
+- when stopping Desktop throws, later steps do not run;
+- when saving current auth throws, target is not written;
+- when target read throws, active metadata does not update;
+- when active write throws, active metadata does not update;
+- when metadata write throws, no rollback is attempted;
+- when Desktop launch throws, no rollback is attempted;
+- the original error reaches the caller.
 
-Specific failure cases:
+The last two tests are important: they prevent a future contributor from silently adding recovery behavior that contradicts the MVP decision.
 
-1. Desktop termination timeout.
-2. Missing active `auth.json`.
-3. Current-profile write failure.
-4. Target-profile read failure.
-5. Active-auth temporary write failure.
-6. Rename failure.
-7. Codex app-server startup failure.
-8. Account identity mismatch.
-9. Registry write failure.
-10. Desktop reopen failure.
+### 2.5 AddAccountService
 
-For identity mismatch, assert that the target credential is not automatically replaced with the previous credential.
+Test:
 
-## 4. Codex app-server tests
+- current profile is saved before active auth removal;
+- Desktop is stopped before removal;
+- Desktop is launched after removal;
+- a new auth file creates a new UUID profile;
+- cancellation stops observation;
+- cancellation does not restore prior auth;
+- malformed new auth can still be saved under a local name, while Usage remains unavailable.
 
-Use a fake JSON-RPC process or test fixture.
+## 3. View tests
 
-Verify:
+Use SwiftUI previews and targeted snapshot tests for:
 
-- initialize is sent before account methods;
-- malformed JSON terminates the request with a visible error;
-- account identity is decoded;
-- rate-limit windows are decoded;
-- stderr is captured for diagnostics but secrets are not copied into UI text;
-- subprocess termination occurs after success or failure;
-- request timeout returns a timeout error without retry.
+- 42%, 76%, and 100% remaining;
+- long account name with reset time;
+- selected-row highlight;
+- weekly Usage unavailable;
+- sign-in-again state;
+- switching state;
+- English and Simplified Chinese;
+- increased text size.
 
-## 5. Filesystem integration tests
+Do not snapshot every pixel of the window chrome. Focus on layout decisions that are easy to regress.
 
-Use a temporary directory as both application support and fake `CODEX_HOME`.
+## 4. Manual test checklist
 
-Verify:
+Before a release:
 
-- profile directories are created;
-- profile `auth.json` is mode `0600`;
-- current credential is copied into the active profile;
-- target credential is written through a same-directory temporary file;
-- final rename produces complete JSON for a concurrent reader;
-- no backup, rollback, or journal file appears;
-- a failed rename surfaces the operating-system error;
-- registry write failure is not hidden.
+- [ ] Import the currently logged-in account.
+- [ ] Add a second account through Desktop login.
+- [ ] Switch from account A to account B.
+- [ ] Confirm Desktop reopens using B.
+- [ ] Confirm a previously running CLI process is not terminated.
+- [ ] Start a new CLI process and confirm it uses B.
+- [ ] Switch back to A.
+- [ ] Confirm refreshed A credentials were saved when leaving A.
+- [ ] Remove an inactive saved profile.
+- [ ] Remove the selected saved profile and confirm active auth remains untouched.
+- [ ] Rename a profile.
+- [ ] Change language.
+- [ ] Confirm Settings contains no other controls.
+- [ ] Confirm only the weekly window appears.
+- [ ] Confirm 5-hour data never appears in the menu or any secondary view.
+- [ ] Disconnect the network and confirm Usage failure is visible without retry.
+- [ ] Make the active auth path unwritable and confirm the write error is visible.
 
-## 6. UI tests
+## 5. Build configuration
 
-Verify the main popover:
+Use two configurations:
 
-- shows one row per account;
-- highlights the active row;
-- contains no checkmark and no `Current` text;
-- places reset time next to the account name;
-- uses the label `Usage`;
-- links bar width to `% left`;
-- contains no `5-hour`, `5 hr`, `five-hour`, or equivalent localized string;
-- contains only `Manage Accounts…` and `Settings…` in the footer.
+- Debug;
+- Release.
 
-Verify Settings:
+No separate staging backend is required because the application talks to the user's normal local Codex files and current Usage endpoint.
 
-- contains only the language picker;
-- contains no launch-at-login or switching options.
+Debug builds may include a menu item to reveal Application Support and print non-secret diagnostics to Console. This item should not become a permanent Settings section.
 
-Verify Manage Accounts:
+## 6. CI
 
-- active remove action is disabled;
-- inactive remove action asks for confirmation;
-- add and rename work;
-- operation errors remain visible.
-
-## 7. Manual test matrix
-
-Before a release, test with at least two real accounts.
-
-1. Launch with account A active.
-2. Open the menu and verify weekly Usage for A and B.
-3. Confirm that no 5-hour data appears.
-4. Switch A to B.
-5. Confirm Desktop closes and reopens.
-6. Confirm Codex reports B.
-7. Start a new CLI and confirm it uses B.
-8. Keep a CLI running during B to A and confirm the switcher does not terminate it.
-9. Add account C and confirm it is not automatically activated.
-10. Rename C.
-11. Remove inactive C.
-12. Make Codex app-server unavailable and confirm `Usage unavailable` appears.
-13. Make Desktop reopening fail and confirm the app reports that the account switched but Desktop did not open.
-14. Force identity mismatch and confirm no rollback occurs.
-
-## 8. Static checks
-
-Release checks:
+A minimal GitHub Actions workflow should run:
 
 ```text
 swift format lint
-swiftlint
 swift test
-xcodebuild test
+xcodebuild build -scheme CodexAccountSwitcherLite -configuration Release
 ```
 
-Add a repository text scan that fails when production UI or localization files contain:
+When UI tests require a macOS runner, keep them small enough to finish predictably.
 
-```text
-5-hour
-5 hour
-5 hr
-five-hour
-```
+The project does not need a multi-platform matrix.
 
-Documentation may mention those terms only when stating that the feature is excluded.
+## 7. Release
 
-Also scan source for forbidden MVP recovery artifacts:
+### 7.1 Versioning
 
-```text
-rollback
-transactionJournal
-recoveryState
-backupCredential
-```
+Use semantic versions:
 
-A match requires explicit review and should normally fail CI.
+- `0.1.0` for the first usable MVP;
+- patch releases for bug fixes;
+- minor releases for additive product features.
 
-## 9. Release process
+Do not promise backward compatibility for unpublished pre-1.0 metadata formats. A migration should be added only when users actually have persisted data that must survive.
 
-1. Run unit, integration, and UI tests.
-2. Run the real-account manual matrix on a test Mac.
-3. Build the Release configuration.
-4. Sign with Developer ID Application.
-5. Submit for notarization.
-6. Staple the notarization ticket.
-7. Publish a DMG or ZIP and checksum.
-8. Update release notes with known limitations.
+### 7.2 Packaging
 
-## 10. Known MVP limitations
+Release artifacts:
+
+- notarized `.app` inside a ZIP or DMG;
+- SHA-256 checksum;
+- release notes;
+- installation and uninstall instructions.
+
+### 7.3 Release notes
 
 Release notes must state:
 
+- the app changes `~/.codex/auth.json`;
+- Codex Desktop restarts during a switch;
+- existing CLI sessions are not changed;
 - only weekly Usage is displayed;
-- existing CLI processes are not switched;
-- switching restarts Codex Desktop;
-- there is no rollback or automatic recovery;
-- a failure after credential replacement can leave the new credential active before metadata is committed;
-- the user resolves such a failure by retrying or selecting an account again;
-- credentials are local to one Mac.
+- 5-hour Usage is intentionally omitted;
+- failures are surfaced directly and are not automatically rolled back.
 
-## 11. Release gate
+## 8. Exit criteria for 0.1.0
 
-Ship only when:
+The release is ready when:
 
-- weekly Usage works for the supported Codex version;
-- the UI has no 5-hour display or setting;
-- the direct switch order is covered by tests;
-- every injected error stops later steps;
-- no rollback or journal files are generated;
-- add, rename, switch, and remove-inactive flows pass;
-- the binary is signed and notarized.
+- two real accounts can be added and switched repeatedly;
+- weekly Usage is correct for both accounts when tokens are valid;
+- 5-hour Usage is never rendered;
+- language selection works;
+- the direct switch sequence passes unit and manual tests;
+- common IO and HTTP failures produce understandable errors;
+- no rollback, retry, failover, stale cache, or recovery journal exists in the codebase.

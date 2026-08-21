@@ -1,244 +1,337 @@
 # Product requirements
 
-## 1. Product summary
+## 1. Summary
 
-Codex Account Switcher Lite is a native macOS menu-bar application for people who use several ChatGPT accounts with Codex Desktop.
+Codex Account Switcher Lite is a native macOS menu-bar application for people who use more than one ChatGPT account with Codex.
 
-It provides three capabilities:
+The application gives the user a compact view of **weekly** Codex usage and lets the user switch which authentication snapshot is active at `~/.codex/auth.json`.
 
-1. display the remaining weekly Codex Usage for every saved account;
-2. switch the active Codex credential;
-3. add, rename, and remove local account profiles.
+The MVP optimizes for clarity and implementation speed. It does not attempt to make every intermediate failure recoverable.
 
-The MVP optimizes for low interaction cost and transparent failure, not for automated recovery or policy management.
+## 2. Goals
 
-## 2. Target user
+The product must:
+
+1. list locally saved Codex accounts in a compact menu;
+2. show weekly Usage, remaining percentage, and weekly reset time;
+3. switch accounts with one predictable confirmation;
+4. reopen Codex Desktop after a switch;
+5. provide a small account-management view;
+6. provide language selection;
+7. surface operational errors without silently retrying or falling back.
+
+## 3. Non-goals
+
+The MVP does not provide:
+
+- a 5-hour Usage view;
+- a Usage-window selector;
+- automatic rotation or failover;
+- a local reverse proxy;
+- multiple simultaneous Desktop profiles;
+- credential synchronization across devices;
+- enterprise team administration;
+- automatic credential repair;
+- transaction rollback;
+- a recovery journal;
+- background retry queues;
+- configurable switching semantics;
+- a Keychain settings page.
+
+## 4. Target user
 
 The target user:
 
-- uses Codex Desktop on one Mac;
-- has two or more ChatGPT accounts;
-- wants to compare weekly quota before switching;
-- accepts a Desktop restart during switching;
-- does not expect existing CLI processes to change account in place.
+- uses Codex Desktop on macOS;
+- has two or more ChatGPT accounts with Codex access;
+- is comfortable with a local utility changing `~/.codex/auth.json`;
+- prefers a fast explicit switch over repeated browser login;
+- understands that restarting Desktop may interrupt an active Desktop task.
 
-## 3. Primary user story
+## 5. Information architecture
 
-> I open the menu-bar popover, see which account has weekly Usage left, select it, confirm the restart, and continue in Codex Desktop with that account.
+The application has three surfaces:
 
-## 4. Main popover
+1. Main account menu.
+2. Manage Accounts.
+3. Settings.
 
-### 4.1 Account row
+No separate dashboard, onboarding wizard, diagnostics center, or advanced preferences screen is required.
 
-Each account row contains:
+## 6. Main account menu
 
-- a 32-point avatar or initials;
-- local display name;
-- weekly reset time on the same line as the name;
-- `Usage` label;
-- a horizontal progress bar;
-- remaining percentage text.
+### 6.1 Trigger
+
+The menu-bar item shows:
+
+```text
+<active account short name> · <weekly percent left>
+```
 
 Example:
 
 ```text
-ZL  Zhao Liu                    Resets Aug 25, 9:20 AM
-    Usage  ████████░░░░░░░░░░░  42% left
+Personal · 42%
 ```
 
-The percentage and bar width must use the same normalized integer from 0 through 100.
+When weekly Usage is unavailable:
 
-### 4.2 Current account
+```text
+Personal · —
+```
 
-The current account uses a full-row selection highlight.
+### 6.2 Account row
 
-Do not show:
+Each row displays:
 
-- a checkmark;
-- `Current`;
-- a separate selected-status column.
-
-### 4.3 Footer
-
-The footer contains exactly two actions:
-
-- `Manage Accounts…`
-- `Settings…`
-
-### 4.4 Loading and errors
-
-While weekly Usage is loading, the row shows `Loading…`.
-
-When it cannot be loaded, the row shows `Usage unavailable` and no fabricated percentage or reset time.
-
-The MVP does not persist stale Usage to disk.
-
-## 5. Weekly Usage definition
-
-The UI displays one quota window: weekly Codex Usage.
+```text
+[avatar]  Account Name                         Resets Aug 25, 9:20 AM
+          Usage  [==================------]                 42% left
+```
 
 Requirements:
 
-- ignore rate-limit windows shorter than six days;
-- accept a weekly window whose duration is between six and eight days;
-- calculate `remainingPercent = 100 - usedPercent`;
-- clamp the final number to 0 through 100;
-- use the weekly window's reset timestamp;
-- render reset time in the user's locale and timezone;
-- never render the 5-hour window;
-- never use the 5-hour window as fallback data;
-- never expose a setting for 5-hour Usage.
+- account name truncates before reset time;
+- reset time remains on the same line as the account name;
+- the progress bar fills to `remainingPercent`;
+- the percentage text uses the same value;
+- the selected row is highlighted;
+- no checkmark is displayed;
+- no `Current` label is displayed;
+- clicking the selected row does nothing;
+- clicking another row opens the switch confirmation.
 
-When no weekly window exists, the result is unavailable.
+### 6.3 Weekly-only rule
 
-## 6. Select-account interaction
+The account row displays only a weekly window.
 
-Clicking the active row closes the popover without doing anything.
+A returned window is treated as weekly only when its duration is within the accepted weekly range:
 
-Clicking another row opens a normal confirmation dialog.
+```text
+6 days <= duration <= 8 days
+```
 
-The dialog contains:
+This range tolerates minor backend representation differences while excluding 5-hour and daily windows.
 
-- selected account name;
-- a short explanation that Codex Desktop will close and reopen;
-- a note that a running Desktop task can be interrupted;
-- a note that existing CLI sessions are not restarted;
-- `Cancel` and `Switch Account` buttons.
+When multiple weekly candidates exist, use the candidate whose duration is closest to seven days.
 
-`Switch Account` starts the fixed switch pipeline. There are no switching preferences.
+When no candidate qualifies:
 
-## 7. Switching behavior
+- text: `Usage unavailable`;
+- no percentage;
+- empty neutral progress track;
+- reset time: `Reset unavailable`.
 
-The required order is:
+The application must not substitute a shorter window.
 
-1. close Codex Desktop;
-2. save the current account's latest active credential;
-3. activate the target credential with a same-directory temporary file and rename;
-4. verify the target account through Codex;
-5. write the active account ID;
-6. reopen Codex Desktop.
+### 6.4 Footer
 
-A later step must not execute after an earlier step fails.
+The footer contains exactly:
 
-The MVP has no rollback. A failure after credential replacement is shown exactly as that: the credential may already have changed while the active-profile marker has not been committed.
+- `Manage accounts`;
+- `Settings`.
 
-The user can retry. The app does not automatically choose or restore another account.
+## 7. Switch confirmation
 
-## 8. CLI behavior
+### 7.1 Copy
 
-The switcher never terminates or restarts Terminal processes.
+Title:
 
-Expected behavior:
+```text
+Switch account?
+```
 
-- an existing CLI process can continue with credentials already loaded in memory;
-- a new CLI process reads the newly active `~/.codex/auth.json`;
-- the confirmation dialog explains this distinction.
+Body:
 
-The product does not promise to mutate authentication inside an already running CLI process.
+```text
+Switch to <Account Name>
 
-## 9. Manage Accounts
+• Codex Desktop will restart.
+• A running Desktop task may be interrupted.
+• Existing Terminal sessions keep their current account.
+• New Codex sessions use <Account Name>.
+```
 
-### 9.1 Account list
+Actions:
 
-The window shows:
+- `Cancel`;
+- `Switch account`.
+
+### 7.2 Behavior
+
+After confirmation, the app performs the switch immediately.
+
+While switching:
+
+- disable all account rows;
+- show an inline spinner or change the primary action to `Switching…`;
+- do not present additional permission or safety dialogs created by the app.
+
+macOS may still display system dialogs when required by the operating system.
+
+### 7.3 Failure
+
+On failure:
+
+- stop the sequence;
+- show the operation that failed;
+- show the underlying error description;
+- keep the menu usable after the alert closes;
+- do not automatically retry;
+- do not automatically restore a previous snapshot;
+- do not report success.
+
+Example:
+
+```text
+Could not switch account
+
+Writing ~/.codex/auth.json failed:
+Permission denied
+```
+
+## 8. Manage Accounts
+
+### 8.1 List
+
+Each saved account displays:
 
 - avatar or initials;
-- display name;
+- local display name;
 - email when available;
-- active status;
-- rename and remove actions for inactive profiles.
+- `Rename` action;
+- `Remove` action.
 
-### 9.2 Add account
+### 8.2 Add account
 
-`Add Account` starts a Codex login using a profile-specific `CODEX_HOME`.
+The bottom action is `Add account`.
 
-On successful login:
+On selection:
 
-1. read the created `auth.json`;
-2. ask Codex for account identity;
-3. create the local profile metadata;
-4. show the new account in the list.
+1. show a single informational confirmation that Desktop will restart and the user will sign in;
+2. save the current profile's latest auth file when the current profile is known;
+3. close Desktop;
+4. remove the active auth file;
+5. reopen Desktop;
+6. wait for a newly created auth file;
+7. ask for a display name;
+8. store it as a saved profile and mark it selected.
 
-Adding an account does not automatically switch to it.
+The wait is canceled when the user closes the add-account flow. Cancellation does not restore the previous auth file.
 
-On failure, show the underlying login or identity error. Do not import an incomplete account.
+### 8.3 Rename
 
-### 9.3 Rename account
+Rename changes local metadata only. It does not change the ChatGPT account name.
 
-Rename changes only the local display name. It does not modify ChatGPT identity.
+Validation:
 
-Names must be non-empty after trimming. Duplicate local names are allowed because account ID, not name, is the identity key.
+- trimmed name must not be empty;
+- duplicate display names are allowed because profile ID is the identity.
 
-### 9.4 Remove account
+### 8.4 Remove
 
-Only inactive accounts can be removed.
+Remove uses one confirmation:
 
-Removal deletes:
+```text
+Remove <Account Name> from this Mac?
+```
 
-- the profile directory;
-- its metadata entry.
+Removal deletes the saved snapshot and metadata.
 
-The confirmation text says that removal affects only the saved local profile.
+If the removed profile was selected:
 
-## 10. Settings
+- clear `activeAccountID` in app metadata;
+- do not delete or modify `~/.codex/auth.json`;
+- show the active auth as an unsaved session until another account is selected or saved.
 
-Settings contains only language selection:
+## 9. Settings
 
-- `System Default`;
-- `English`;
-- `简体中文`.
+Settings contains one field:
 
-Changing language updates the open UI immediately and persists the selected language.
+```text
+Language: System Default | English | 简体中文
+```
+
+Changing language applies immediately to the switcher UI.
+
+No other setting is included in the MVP.
+
+## 10. Usage refresh
+
+Weekly Usage refreshes:
+
+- when the menu opens;
+- when an account is added;
+- after an account switch completes;
+- when the user presses a small retry icon shown only after a Usage failure.
+
+The MVP does not run a periodic background refresh timer.
+
+Requests for different accounts may run concurrently.
+
+Rules:
+
+- one request per account per refresh action;
+- no automatic retry;
+- no stale-value fallback after failure;
+- a 401 response becomes `Sign in again`;
+- other failures become `Usage unavailable` with an accessible error description.
 
 ## 11. Accessibility
 
-- Every account row is a single keyboard-focusable control.
-- Progress bars expose the weekly remaining percentage through accessibility value text.
-- Current selection is conveyed through `aria-selected` or the SwiftUI accessibility equivalent, not color alone.
-- All buttons have explicit accessibility labels.
-- Dynamic Type is not required, but the layout must tolerate the macOS larger-text accessibility setting without truncating the percentage.
+- All controls have VoiceOver labels.
+- Progress values expose `Weekly usage, 42 percent remaining`.
+- Selection is exposed through the row's selected state, not color alone.
+- Keyboard focus follows normal macOS menu and sheet behavior.
+- Reset timestamps use locale-aware date formatting.
 
-## 12. Performance
+## 12. Localization
 
-- Popover opening should complete in under 100 ms before network data returns.
-- Weekly Usage requests run concurrently across accounts.
-- UI interaction remains responsive while Codex subprocesses run.
-- The app performs no periodic background polling in MVP.
+The application ships with:
 
-## 13. Explicit exclusions
+- English;
+- Simplified Chinese.
 
-The MVP excludes:
+`System Default` selects the best supported locale from macOS.
 
-- 5-hour Usage display;
-- quota-history charts;
-- automatic account rotation;
-- automatic failover;
-- background refresh timers;
-- cloud synchronization;
-- Keychain configuration UI;
-- backup and rollback UI;
-- transaction recovery screens;
-- advanced diagnostics;
-- launch-at-login settings;
-- custom switch behavior.
+Account names, email addresses, file-system errors, and backend-provided error text are not translated by the application.
 
-## 14. Acceptance criteria
+## 13. Acceptance criteria
 
-1. The popover shows every saved account in a compact list.
-2. The active row is highlighted and has no checkmark or `Current` text.
-3. Reset time appears on the account-name line.
-4. The row uses the label `Usage`.
-5. The bar width equals the displayed `% left` value.
-6. Only weekly Usage is rendered.
-7. No UI string or setting mentions the 5-hour window.
-8. Missing weekly data produces `Usage unavailable`, not 5-hour data.
-9. The footer contains only `Manage Accounts…` and `Settings…`.
-10. Settings contains only language selection.
-11. Selecting another account opens the normal confirmation dialog.
-12. Switching executes the six required steps in order.
-13. The first thrown error stops the operation and is shown to the user.
-14. No rollback file, journal, or automatic recovery path is created.
-15. Existing CLI processes are never terminated by the switcher.
-16. New CLI processes use the selected active credential.
-17. An inactive account can be added, renamed, and removed.
-18. The active account cannot be removed.
+### Main menu
+
+- [ ] Main menu opens from the macOS menu bar.
+- [ ] Selected account is highlighted without a checkmark.
+- [ ] Reset time is on the account-name line.
+- [ ] Progress-bar width equals the displayed remaining percentage.
+- [ ] Footer contains only Manage Accounts and Settings.
+
+### Weekly Usage
+
+- [ ] Weekly data is displayed when a 6–8 day window is returned.
+- [ ] A 5-hour window is ignored.
+- [ ] A daily window is ignored.
+- [ ] Missing weekly data produces `Usage unavailable`.
+- [ ] No screen or setting exposes the 5-hour window.
+
+### Switching
+
+- [ ] Selecting another account opens one confirmation.
+- [ ] Desktop closes before auth replacement.
+- [ ] Current selected snapshot is updated from the active auth file when possible.
+- [ ] Target snapshot replaces the active auth file.
+- [ ] Selected profile metadata updates after the write succeeds.
+- [ ] Desktop reopens.
+- [ ] Existing CLI processes are not terminated.
+- [ ] A failed step displays its error and is not retried or rolled back.
+
+### Account management
+
+- [ ] Add Account enters normal Codex sign-in.
+- [ ] Rename changes local metadata only.
+- [ ] Remove deletes one local snapshot after one confirmation.
+- [ ] Removing the selected snapshot does not modify active Codex auth.
+
+### Settings
+
+- [ ] Settings contains only language selection.
