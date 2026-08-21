@@ -1,0 +1,554 @@
+<div id="codex-account-menu-demo">
+  <style>
+    #codex-account-menu-demo {
+      --cam-text: light-dark(#202124, #f3f3f3);
+      --cam-muted: light-dark(#74777c, #9c9ca2);
+      --cam-menu: light-dark(#f7f7f6, #252525);
+      --cam-border: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.12));
+      --cam-hover: light-dark(rgba(0, 0, 0, 0.055), rgba(255, 255, 255, 0.075));
+      --cam-selected: light-dark(rgba(10, 132, 255, 0.10), rgba(10, 132, 255, 0.17));
+      --cam-track: light-dark(#dedfdf, #444447);
+      --cam-fill: light-dark(#242629, #e8e8e8);
+      --cam-blue: #0a84ff;
+      color-scheme: light dark;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 570px;
+      display: grid;
+      place-items: start center;
+      padding: 48px 20px 44px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      color: var(--cam-text);
+      background:
+        radial-gradient(circle at 50% -18%, light-dark(rgba(153, 169, 195, 0.24), rgba(86, 106, 134, 0.28)), transparent 48%),
+        light-dark(#e7e9ec, #111316);
+    }
+
+    #codex-account-menu-demo * { box-sizing: border-box; }
+
+    #codex-account-menu-demo .cam-stage {
+      width: min(100%, 720px);
+      position: relative;
+    }
+
+    #codex-account-menu-demo .cam-menubar {
+      height: 34px;
+      border: 1px solid var(--cam-border);
+      border-radius: 11px;
+      background: light-dark(rgba(248, 248, 248, 0.92), rgba(28, 29, 31, 0.94));
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.13);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 10px;
+    }
+
+    #codex-account-menu-demo .cam-trigger {
+      height: 26px;
+      border: 0;
+      border-radius: 7px;
+      padding: 0 9px 0 7px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--cam-hover);
+      color: var(--cam-text);
+      font: 600 13px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      cursor: pointer;
+    }
+
+    #codex-account-menu-demo .cam-mark {
+      width: 17px;
+      height: 17px;
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 9px;
+      letter-spacing: -0.7px;
+    }
+
+    #codex-account-menu-demo .cam-popover {
+      width: 326px;
+      margin: 8px 8px 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--cam-border);
+      border-radius: 14px;
+      background: var(--cam-menu);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28), 0 3px 10px rgba(0, 0, 0, 0.14);
+      transform-origin: top right;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    #codex-account-menu-demo .cam-popover[hidden] {
+      display: block;
+      opacity: 0;
+      transform: scale(0.98) translateY(-5px);
+      pointer-events: none;
+    }
+
+    #codex-account-menu-demo .cam-list { padding: 6px; }
+
+    #codex-account-menu-demo .cam-account {
+      width: 100%;
+      min-height: 64px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      column-gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--cam-text);
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    #codex-account-menu-demo .cam-account:hover,
+    #codex-account-menu-demo .cam-account:focus-visible { background: var(--cam-hover); outline: none; }
+    #codex-account-menu-demo .cam-account[aria-pressed="true"] { background: var(--cam-selected); }
+
+    #codex-account-menu-demo .cam-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: light-dark(#303238, #ececec);
+      color: light-dark(#fff, #1d1d1f);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    #codex-account-menu-demo .cam-avatar.work { background: #7658d6; color: white; }
+    #codex-account-menu-demo .cam-avatar.spare { background: #b26a42; color: white; }
+
+    #codex-account-menu-demo .cam-main { min-width: 0; }
+    #codex-account-menu-demo .cam-name-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+    #codex-account-menu-demo .cam-name { font-size: 14px; font-weight: 590; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    #codex-account-menu-demo .cam-usage {
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cam-muted);
+      font-size: 11px;
+    }
+
+    #codex-account-menu-demo .cam-track {
+      height: 3px;
+      flex: 1;
+      border-radius: 99px;
+      overflow: hidden;
+      background: var(--cam-track);
+    }
+
+    #codex-account-menu-demo .cam-bar {
+      height: 100%;
+      width: var(--remaining);
+      border-radius: inherit;
+      background: var(--cam-fill);
+    }
+
+    #codex-account-menu-demo .cam-percent { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+    #codex-account-menu-demo .cam-reset { flex: 0 0 auto; color: var(--cam-muted); font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    #codex-account-menu-demo .cam-footer {
+      border-top: 1px solid var(--cam-border);
+      padding: 5px 6px 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+    }
+
+    #codex-account-menu-demo .cam-action {
+      width: 100%;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--cam-text);
+      font: 13px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      cursor: pointer;
+    }
+
+    #codex-account-menu-demo .cam-action:hover { background: var(--cam-hover); }
+    #codex-account-menu-demo .cam-action-icon { width: 16px; color: var(--cam-muted); font-size: 16px; text-align: center; }
+    #codex-account-menu-demo .cam-settings-view[hidden],
+    #codex-account-menu-demo .cam-manage-view[hidden],
+    #codex-account-menu-demo .cam-confirm-view[hidden],
+    #codex-account-menu-demo .cam-list[hidden],
+    #codex-account-menu-demo .cam-footer[hidden] { display: none; }
+
+    #codex-account-menu-demo .cam-settings-head {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--cam-border);
+      font-size: 14px;
+      font-weight: 620;
+    }
+
+    #codex-account-menu-demo .cam-back {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--cam-text);
+      font: 20px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+      cursor: pointer;
+    }
+
+    #codex-account-menu-demo .cam-back:hover { background: var(--cam-hover); }
+    #codex-account-menu-demo .cam-settings-body { padding: 8px 12px 12px; }
+    #codex-account-menu-demo .cam-section-title { margin: 7px 0 4px; color: var(--cam-muted); font-size: 10px; font-weight: 650; letter-spacing: .45px; text-transform: uppercase; }
+
+    #codex-account-menu-demo .cam-setting {
+      min-height: 44px;
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 22px auto;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--cam-border);
+    }
+
+    #codex-account-menu-demo .cam-setting.simple { grid-template-columns: 1fr auto; }
+
+    #codex-account-menu-demo .cam-setting:last-child { border-bottom: 0; }
+    #codex-account-menu-demo .cam-setting-copy { padding: 10px 0; }
+    #codex-account-menu-demo .cam-setting-name { display: block; font-size: 12.5px; font-weight: 530; }
+
+    #codex-account-menu-demo .cam-switch {
+      width: 32px;
+      height: 19px;
+      position: relative;
+      border: 0;
+      border-radius: 99px;
+      padding: 0;
+      background: var(--cam-track);
+      cursor: pointer;
+      transition: background 120ms ease;
+    }
+
+    #codex-account-menu-demo .cam-switch::after {
+      content: "";
+      width: 15px;
+      height: 15px;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .24);
+      transition: transform 120ms ease;
+    }
+
+    #codex-account-menu-demo .cam-switch[aria-pressed="true"] { background: var(--cam-blue); }
+    #codex-account-menu-demo .cam-switch[aria-pressed="true"]::after { transform: translateX(13px); }
+
+    #codex-account-menu-demo .cam-select {
+      min-width: 108px;
+      height: 27px;
+      border: 1px solid var(--cam-border);
+      border-radius: 7px;
+      padding: 0 25px 0 8px;
+      background: var(--cam-menu);
+      color: var(--cam-text);
+      font: 11.5px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #codex-account-menu-demo .cam-manage-list { padding: 6px; }
+    #codex-account-menu-demo .cam-managed-account {
+      min-height: 52px;
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 8px;
+      border-radius: 9px;
+    }
+
+    #codex-account-menu-demo .cam-managed-account:hover { background: var(--cam-hover); }
+    #codex-account-menu-demo .cam-managed-copy { min-width: 0; }
+    #codex-account-menu-demo .cam-managed-name { display: block; font-size: 12.5px; font-weight: 560; }
+    #codex-account-menu-demo .cam-managed-email { display: block; margin-top: 2px; color: var(--cam-muted); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #codex-account-menu-demo .cam-remove {
+      height: 25px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 7px;
+      background: transparent;
+      color: #d43f3a;
+      font: 11.5px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+      cursor: pointer;
+    }
+
+    #codex-account-menu-demo .cam-remove:hover { background: rgba(212, 63, 58, .10); }
+    #codex-account-menu-demo .cam-manage-add { border-top: 1px solid var(--cam-border); padding: 6px; }
+
+    #codex-account-menu-demo .cam-confirm-body { padding: 17px 17px 14px; }
+    #codex-account-menu-demo .cam-confirm-title { margin: 0; font-size: 15px; font-weight: 650; }
+    #codex-account-menu-demo .cam-confirm-target { margin-top: 5px; color: var(--cam-muted); font-size: 12px; }
+    #codex-account-menu-demo .cam-confirm-effects {
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--cam-text);
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    #codex-account-menu-demo .cam-confirm-effects li { position: relative; margin-top: 7px; padding-left: 16px; }
+    #codex-account-menu-demo .cam-confirm-effects li::before { content: "•"; position: absolute; left: 3px; color: var(--cam-muted); }
+    #codex-account-menu-demo .cam-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 16px; }
+    #codex-account-menu-demo .cam-confirm-button {
+      height: 31px;
+      border: 1px solid var(--cam-border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--cam-text);
+      font: 12px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+      cursor: pointer;
+    }
+
+    #codex-account-menu-demo .cam-confirm-button.primary { border-color: var(--cam-blue); background: var(--cam-blue); color: white; }
+
+    @media (max-width: 420px) {
+      #codex-account-menu-demo { min-height: 520px; padding-inline: 10px; }
+      #codex-account-menu-demo .cam-popover { width: min(326px, calc(100vw - 36px)); }
+    }
+  </style>
+
+  <div class="cam-stage">
+    <div class="cam-menubar" aria-label="macOS 菜单栏示意">
+      <button class="cam-trigger" type="button" aria-expanded="true" aria-controls="cam-account-popover">
+        <span class="cam-mark" aria-hidden="true">C</span>
+        <span class="cam-trigger-label">Personal · 42%</span>
+      </button>
+    </div>
+
+    <section class="cam-popover" id="cam-account-popover" aria-label="Codex 账号切换">
+      <div class="cam-list">
+        <button class="cam-account" type="button" data-account="Personal" data-initials="ZL" data-remaining="42" aria-pressed="true">
+          <span class="cam-avatar">ZL</span>
+          <span class="cam-main">
+            <span class="cam-name-line"><span class="cam-name">Zhao Liu</span><span class="cam-reset">Resets Aug 25, 9:20 AM</span></span>
+            <span class="cam-usage"><span>Usage</span><span class="cam-track"><span class="cam-bar"></span></span><span class="cam-percent"></span></span>
+          </span>
+        </button>
+
+        <button class="cam-account" type="button" data-account="Work" data-initials="GL" data-remaining="76" aria-pressed="false">
+          <span class="cam-avatar work">GL</span>
+          <span class="cam-main">
+            <span class="cam-name-line"><span class="cam-name">Galaxy Work</span><span class="cam-reset">Resets Aug 27, 3:40 PM</span></span>
+            <span class="cam-usage"><span>Usage</span><span class="cam-track"><span class="cam-bar"></span></span><span class="cam-percent"></span></span>
+          </span>
+        </button>
+
+        <button class="cam-account" type="button" data-account="Backup" data-initials="BA" data-remaining="100" aria-pressed="false">
+          <span class="cam-avatar spare">BA</span>
+          <span class="cam-main">
+            <span class="cam-name-line"><span class="cam-name">Backup</span><span class="cam-reset">Resets Aug 29, 11:05 AM</span></span>
+            <span class="cam-usage"><span>Usage</span><span class="cam-track"><span class="cam-bar"></span></span><span class="cam-percent"></span></span>
+          </span>
+        </button>
+      </div>
+
+      <div class="cam-footer">
+        <button class="cam-action cam-open-manage" type="button"><span class="cam-action-icon">◎</span><span>Manage accounts</span></button>
+        <button class="cam-action cam-open-settings" type="button"><span class="cam-action-icon">⚙︎</span><span>Settings</span></button>
+      </div>
+
+      <div class="cam-confirm-view" hidden>
+        <div class="cam-confirm-body">
+          <h2 class="cam-confirm-title">Switch account?</h2>
+          <div class="cam-confirm-target">Switch to <strong class="cam-confirm-name">Galaxy Work</strong></div>
+          <ul class="cam-confirm-effects">
+            <li>Codex Desktop will restart.</li>
+            <li>Existing Terminal sessions keep their current account.</li>
+            <li>New Codex sessions use <span class="cam-confirm-inline-name">Galaxy Work</span>.</li>
+          </ul>
+          <div class="cam-confirm-actions">
+            <button class="cam-confirm-button cam-cancel-switch" type="button">Cancel</button>
+            <button class="cam-confirm-button primary cam-apply-switch" type="button">Switch account</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cam-manage-view" hidden>
+        <div class="cam-settings-head">
+          <button class="cam-back cam-manage-back" type="button" aria-label="Back">‹</button>
+          <span>Manage accounts</span>
+        </div>
+        <div class="cam-manage-list">
+          <div class="cam-managed-account">
+            <span class="cam-avatar">ZL</span>
+            <span class="cam-managed-copy"><span class="cam-managed-name">Zhao Liu</span><span class="cam-managed-email">personal@example.com</span></span>
+            <button class="cam-remove" type="button">Remove</button>
+          </div>
+          <div class="cam-managed-account">
+            <span class="cam-avatar work">GL</span>
+            <span class="cam-managed-copy"><span class="cam-managed-name">Galaxy Work</span><span class="cam-managed-email">work@example.com</span></span>
+            <button class="cam-remove" type="button">Remove</button>
+          </div>
+          <div class="cam-managed-account">
+            <span class="cam-avatar spare">BA</span>
+            <span class="cam-managed-copy"><span class="cam-managed-name">Backup</span><span class="cam-managed-email">backup@example.com</span></span>
+            <button class="cam-remove" type="button">Remove</button>
+          </div>
+        </div>
+        <div class="cam-manage-add">
+          <button class="cam-action" type="button"><span class="cam-action-icon">＋</span><span>Add account</span></button>
+        </div>
+      </div>
+
+      <div class="cam-settings-view" hidden>
+        <div class="cam-settings-head">
+          <button class="cam-back" type="button" aria-label="Back">‹</button>
+          <span>Settings</span>
+        </div>
+        <div class="cam-settings-body">
+          <div class="cam-setting simple">
+            <span class="cam-setting-copy"><span class="cam-setting-name">Launch at login</span></span>
+            <button class="cam-switch" type="button" role="switch" aria-label="Launch at login" aria-pressed="true"></button>
+          </div>
+          <div class="cam-setting simple">
+            <span class="cam-setting-copy"><span class="cam-setting-name">Language</span></span>
+            <select class="cam-select" aria-label="Language">
+              <option selected>System Default</option>
+              <option>English</option>
+              <option>简体中文</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('codex-account-menu-demo');
+      const trigger = root.querySelector('.cam-trigger');
+      const triggerLabel = root.querySelector('.cam-trigger-label');
+      const popover = root.querySelector('.cam-popover');
+      const accounts = Array.from(root.querySelectorAll('.cam-account'));
+      const accountList = root.querySelector('.cam-list');
+      const footer = root.querySelector('.cam-footer');
+      const settingsView = root.querySelector('.cam-settings-view');
+      const manageView = root.querySelector('.cam-manage-view');
+      const confirmView = root.querySelector('.cam-confirm-view');
+      const openSettings = root.querySelector('.cam-open-settings');
+      const openManage = root.querySelector('.cam-open-manage');
+      const settingsBack = root.querySelector('.cam-settings-view .cam-back');
+      const manageBack = root.querySelector('.cam-manage-back');
+      const switches = Array.from(root.querySelectorAll('.cam-switch'));
+      const confirmName = root.querySelector('.cam-confirm-name');
+      const confirmInlineName = root.querySelector('.cam-confirm-inline-name');
+      const cancelSwitch = root.querySelector('.cam-cancel-switch');
+      const applySwitch = root.querySelector('.cam-apply-switch');
+      let pendingAccount = null;
+
+      const syncUsage = (account) => {
+        const remaining = Math.max(0, Math.min(100, Number(account.dataset.remaining)));
+        account.querySelector('.cam-bar').style.setProperty('--remaining', `${remaining}%`);
+        account.querySelector('.cam-percent').textContent = `${remaining}% left`;
+      };
+
+      accounts.forEach(syncUsage);
+
+      trigger.addEventListener('click', () => {
+        const willOpen = popover.hasAttribute('hidden');
+        popover.toggleAttribute('hidden', !willOpen);
+        trigger.setAttribute('aria-expanded', String(willOpen));
+      });
+
+      accounts.forEach((account) => {
+        account.addEventListener('click', () => {
+          if (account.getAttribute('aria-pressed') === 'true') return;
+          pendingAccount = account;
+          confirmName.textContent = account.querySelector('.cam-name').textContent;
+          confirmInlineName.textContent = account.querySelector('.cam-name').textContent;
+          accountList.hidden = true;
+          footer.hidden = true;
+          settingsView.hidden = true;
+          manageView.hidden = true;
+          confirmView.hidden = false;
+        });
+      });
+
+      const showSettings = () => {
+        accountList.hidden = true;
+        footer.hidden = true;
+        manageView.hidden = true;
+        confirmView.hidden = true;
+        settingsView.hidden = false;
+      };
+
+      const showManage = () => {
+        accountList.hidden = true;
+        footer.hidden = true;
+        settingsView.hidden = true;
+        confirmView.hidden = true;
+        manageView.hidden = false;
+      };
+
+      const showAccounts = () => {
+        settingsView.hidden = true;
+        manageView.hidden = true;
+        confirmView.hidden = true;
+        accountList.hidden = false;
+        footer.hidden = false;
+      };
+
+      openSettings.addEventListener('click', showSettings);
+      openManage.addEventListener('click', showManage);
+
+      settingsBack.addEventListener('click', showAccounts);
+      manageBack.addEventListener('click', showAccounts);
+      cancelSwitch.addEventListener('click', showAccounts);
+      applySwitch.addEventListener('click', () => {
+        if (!pendingAccount) return;
+        const label = pendingAccount.dataset.account;
+        const remaining = pendingAccount.dataset.remaining;
+        accounts.forEach((row) => row.setAttribute('aria-pressed', String(row === pendingAccount)));
+        triggerLabel.textContent = `${label} · ${remaining}%`;
+        pendingAccount = null;
+        showAccounts();
+      });
+
+      switches.forEach((control) => {
+        control.addEventListener('click', () => {
+          control.setAttribute('aria-pressed', String(control.getAttribute('aria-pressed') !== 'true'));
+        });
+      });
+
+      root.querySelectorAll('.cam-remove').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (button.textContent === 'Confirm') {
+            button.closest('.cam-managed-account').remove();
+          } else {
+            button.textContent = 'Confirm';
+          }
+        });
+      });
+
+      const localPreviewView = new URLSearchParams(window.location.search).get('view');
+      const parentPreviewView = new URLSearchParams(window.parent.location.search).get('view');
+      const previewView = localPreviewView || parentPreviewView;
+      if (previewView === 'settings') showSettings();
+      if (previewView === 'manage') showManage();
+      if (previewView === 'confirm') accounts[1].click();
+    })();
+  </script>
+</div>
