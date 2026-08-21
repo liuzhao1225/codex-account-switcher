@@ -40,6 +40,21 @@ Create a local development app bundle:
 
 The bundle is written to `.build/release/Codex Account Switcher Lite.app`.
 
+## Signed GitHub releases
+
+Pushing a `v*` tag runs the release workflow. It builds the arm64 app, signs it with Developer ID and hardened runtime, submits it to Apple notarization, staples the ticket, validates the installed-app signature, and creates the GitHub Release only after every check succeeds.
+
+Configure the `appstore-production` GitHub Environment with these secrets:
+
+- `CSC_NAME`
+- `MACOS_CERTIFICATE_P12_BASE64`
+- `MACOS_CERTIFICATE_PASSWORD`
+- `APP_STORE_CONNECT_API_KEY_P8_BASE64`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_ISSUER_ID`
+
+Keep the `.p12`, its password, and the App Store Connect `.p8` outside the repository. The notarization credentials must use an App Store Connect Team API key with an Issuer ID.
+
 ## Visual prototype
 
 The early visual prototype is available at [`prototype/index.html`](prototype/index.html). The native implementation and product documents define current behavior.
@@ -63,7 +78,7 @@ Then open <http://127.0.0.1:8765/>.
 - Settings contains only language selection.
 - Every popover opening starts on the account-switching page.
 - Persisted weekly Usage stays visible during refresh and is replaced after a successful response. Every refresh trigger schedules the next refresh for five minutes later, including while the popover is closed.
-- Switching follows one direct sequence and stops on the first error.
+- Switching asks Codex Desktop to quit, force-quits it after a short grace period when an active-chat confirmation blocks shutdown, replaces the active credentials, and reopens Desktop. It stops on the first error.
 - There is no automatic rollback, retry, transaction journal, credential backup, or crash recovery workflow.
 
 ## Documentation

@@ -175,6 +175,8 @@ After confirmation, disable additional account actions while the six-stage opera
 - `Saving selected account…`
 - `Opening Codex Desktop…`
 
+If Codex Desktop displays its `Quit ChatGPT?` warning for active local chats, the switcher force-quits the `com.openai.codex` Desktop process after a two-second normal-exit grace period and continues the switch. The user does not manually confirm or restart Desktop.
+
 The stages are not configurable. A failure banner identifies the failed stage and retains the underlying diagnostic message.
 
 ### 7.4 Success

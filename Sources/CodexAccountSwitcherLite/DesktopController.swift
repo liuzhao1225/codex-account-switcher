@@ -3,6 +3,8 @@ import Foundation
 
 enum DesktopControllerError: LocalizedError, Sendable {
     case applicationNotFound
+    case quitRequestFailed
+    case forceQuitFailed
     case didNotExit
     case reopenFailed
 
@@ -10,8 +12,12 @@ enum DesktopControllerError: LocalizedError, Sendable {
         switch self {
         case .applicationNotFound:
             "The Codex Desktop application could not be found."
+        case .quitRequestFailed:
+            "Codex Desktop rejected the quit request."
+        case .forceQuitFailed:
+            "Codex Desktop rejected the force-quit request."
         case .didNotExit:
-            "Codex Desktop did not exit within five seconds."
+            "Codex Desktop did not exit within 15 seconds after the force-quit request."
         case .reopenFailed:
             "Codex Desktop could not be reopened. Open it manually to continue."
         }
@@ -28,16 +34,32 @@ struct DesktopController: DesktopControlling {
             return bundleIdentifiers.contains(bundleIdentifier)
         }
         guard !running.isEmpty else { return }
-        running.forEach { _ = $0.terminate() }
+        for application in running where !application.isTerminated {
+            let processIdentifier = application.processIdentifier
+            guard application.terminate() || !isDesktopRunning(processIdentifier: processIdentifier) else {
+                throw DesktopControllerError.quitRequestFailed
+            }
+        }
 
         let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: .seconds(5))
-        while clock.now < deadline {
-            let remains = NSWorkspace.shared.runningApplications.contains { application in
-                guard let bundleIdentifier = application.bundleIdentifier else { return false }
-                return bundleIdentifiers.contains(bundleIdentifier)
+        let gracefulDeadline = clock.now.advanced(by: .seconds(2))
+        while clock.now < gracefulDeadline {
+            if !isDesktopRunning { return }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+
+        for application in runningDesktopApplications where !application.isTerminated {
+            let processIdentifier = application.processIdentifier
+            guard application.forceTerminate()
+                    || !isDesktopRunning(processIdentifier: processIdentifier)
+            else {
+                throw DesktopControllerError.forceQuitFailed
             }
-            if !remains { return }
+        }
+
+        let deadline = clock.now.advanced(by: .seconds(15))
+        while clock.now < deadline {
+            if !isDesktopRunning { return }
             try await Task.sleep(for: .milliseconds(100))
         }
         throw DesktopControllerError.didNotExit
@@ -65,5 +87,20 @@ struct DesktopController: DesktopControlling {
         return applicationPaths
             .map(URL.init(fileURLWithPath:))
             .first(where: { FileManager.default.fileExists(atPath: $0.path) })
+    }
+
+    private var isDesktopRunning: Bool {
+        !runningDesktopApplications.isEmpty
+    }
+
+    private var runningDesktopApplications: [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications.filter { application in
+            guard let bundleIdentifier = application.bundleIdentifier else { return false }
+            return bundleIdentifiers.contains(bundleIdentifier)
+        }
+    }
+
+    private func isDesktopRunning(processIdentifier: pid_t) -> Bool {
+        runningDesktopApplications.contains { $0.processIdentifier == processIdentifier }
     }
 }

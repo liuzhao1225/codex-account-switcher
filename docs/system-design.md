@@ -388,7 +388,7 @@ func open() async throws
 
 Use `NSRunningApplication` for the Codex Desktop bundle identifier and call `terminate()`.
 
-Wait until the process exits or a small fixed timeout expires. If it does not exit, return an error. Do not force-kill it in the MVP.
+Codex Desktop can display the `Quit ChatGPT?` confirmation while work is active. Allow two seconds for a normal exit; if Desktop is still running, call `NSRunningApplication.forceTerminate()` for the same `com.openai.codex` application. This is deterministic and does not depend on screenshots, coordinates, localization, or Accessibility access. After the force-quit request, allow up to 15 seconds for Electron and its helper processes to exit; return a clear error if the request is rejected or Desktop remains running.
 
 If Desktop is not running, `close()` succeeds immediately.
 

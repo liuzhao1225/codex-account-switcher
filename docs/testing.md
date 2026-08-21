@@ -124,15 +124,16 @@ With two real test accounts:
 3. open menu and confirm weekly Usage for both;
 4. start a Codex CLI under A;
 5. switch A → B;
-6. confirm Desktop reopens as B;
-7. confirm the existing CLI was not terminated;
-8. start a new CLI and confirm it uses B;
-9. switch B → A;
-10. disconnect network and confirm cached Usage remains visible with a warning;
-11. remove the cache, disconnect network, and confirm Usage unavailable appears;
-12. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
-13. force identity mismatch and confirm no rollback message appears;
-14. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
+6. with an active local chat, confirm the switcher closes Desktop without visual automation or manual interaction;
+7. confirm Desktop reopens as B without manual confirmation or restart;
+8. confirm the existing CLI was not terminated;
+9. start a new CLI and confirm it uses B;
+10. switch B → A;
+11. disconnect network and confirm cached Usage remains visible with a warning;
+12. remove the cache, disconnect network, and confirm Usage unavailable appears;
+13. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
+14. force identity mismatch and confirm no rollback message appears;
+15. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
 
 ## 7. Repository checks
 
