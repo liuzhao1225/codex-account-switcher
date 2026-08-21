@@ -273,8 +273,10 @@ Changing language updates the visible switcher UI immediately and persists the s
 - popover should appear immediately from local metadata;
 - persisted weekly Usage is rendered before refresh subprocesses complete;
 - Usage refresh begins at application launch and whenever the popover opens;
+- every refresh trigger replaces the pending timer with a refresh scheduled five minutes after that trigger;
 - account refreshes run concurrently and overlapping triggers share the active refresh round;
-- no periodic timer or automatic retry runs;
+- one app-owned timer remains active while the popover is closed;
+- no automatic retry runs after an individual request fails;
 - one failed account does not prevent other rows from rendering;
 - switch actions are disabled while one switch is in progress.
 
@@ -299,5 +301,6 @@ The MVP is accepted when:
 15. existing CLI processes are not terminated;
 16. newly started CLI processes observe the selected active `auth.json`;
 17. cached Usage stays visible during refresh and is replaced after success;
-18. inactive accounts can be added and removed; active accounts cannot be removed;
-19. only `main` is required for the repository's steady state.
+18. closing the popover does not stop the pending five-minute background cache refresh;
+19. inactive accounts can be added and removed; active accounts cannot be removed;
+20. only `main` is required for the repository's steady state.

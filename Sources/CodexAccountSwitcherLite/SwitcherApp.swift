@@ -12,8 +12,7 @@ struct SwitcherApp: App {
             Image(systemName: "person.2.circle")
                 .accessibilityLabel("Codex Account Switcher Lite")
                 .task {
-                    await model.start()
-                    model.refreshWeeklyUsage()
+                    await model.startBackgroundUsageRefresh()
                 }
         }
         .menuBarExtraStyle(.window)

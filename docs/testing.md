@@ -111,6 +111,7 @@ Verify:
 - switch confirmation describes Desktop and CLI consequences;
 - canceling switch or removal keeps the popover open and performs no mutation;
 - account rows display cached Usage while refresh runs;
+- a short-interval timer test proves that a manual refresh postpones the previous deadline and cancellation stops later rounds;
 - active profile remove button is disabled;
 - no 5-hour control or text exists.
 
@@ -129,8 +130,9 @@ With two real test accounts:
 9. switch B → A;
 10. disconnect network and confirm cached Usage remains visible with a warning;
 11. remove the cache, disconnect network, and confirm Usage unavailable appears;
-12. force identity mismatch and confirm no rollback message appears;
-13. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
+12. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
+13. force identity mismatch and confirm no rollback message appears;
+14. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
 
 ## 7. Repository checks
 

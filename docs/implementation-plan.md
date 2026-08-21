@@ -99,6 +99,7 @@ Implement:
 - reset-time formatting;
 - persistent `usage-cache.json`;
 - refresh on application launch and every popover opening;
+- one reschedulable five-minute refresh timer while the app remains running;
 - concurrent single-flight refresh rounds;
 - `Usage unavailable` errors.
 
@@ -166,6 +167,7 @@ Before merging MVP code, verify:
 - every new popover opening starts on the account list;
 - account management has no rename path;
 - cached Usage is loaded before refresh and updated only after success;
+- background refresh continues while the popover is closed;
 - active account is a row highlight;
 - CLI processes are not enumerated or killed;
 - errors include the failed stage;

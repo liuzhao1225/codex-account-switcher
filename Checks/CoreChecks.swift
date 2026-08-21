@@ -291,6 +291,64 @@ struct CoreChecks {
             "deleted profile is not revived in usage cache"
         )
 
+        let scheduledRequestCountURL = root.appending(path: "scheduled-rate-limit-request-count")
+        let scheduledCodex = root.appending(path: "scheduled-codex")
+        try createExecutable(at: scheduledCodex, body: """
+        state=0
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) state=2 ;;
+            *initialize*) state=1; printf '%s\\n' '{"id":0,"result":{}}' ;;
+            *rateLimits*)
+              test "$state" -eq 2 || exit 16
+              printf '%s\\n' 'request' >> '\(scheduledRequestCountURL.path)'
+              printf '%s\\n' '{"id":1,"result":{"rateLimits":{"primary":{"usedPercent":56,"windowDurationMins":10080,"resetsAt":1750000000}}}}'
+              ;;
+            *account*read*) printf '%s\\n' '{"id":1,"result":{"account":{"type":"chatgpt","email":"user@example.com","accountId":"acct-123"},"requiresOpenaiAuth":true}}' ;;
+          esac
+        done
+        """)
+        let scheduledClient = CodexClient(
+            locator: CodexExecutableLocator(explicitURL: scheduledCodex),
+            requestTimeout: .seconds(3)
+        )
+        let scheduledModel = AppModel(
+            store: store,
+            codex: scheduledClient,
+            switchService: ReopenFailureSwitchService(store: store)
+        )
+        await scheduledModel.startBackgroundUsageRefresh(every: .seconds(3))
+        try await waitForLineCount(at: scheduledRequestCountURL, atLeast: 2)
+        await scheduledModel.waitForWeeklyUsageRefresh()
+
+        try await Task.sleep(for: .seconds(1))
+        scheduledModel.refreshWeeklyUsage()
+        try await waitForLineCount(at: scheduledRequestCountURL, atLeast: 4)
+        await scheduledModel.waitForWeeklyUsageRefresh()
+
+        try await Task.sleep(for: .milliseconds(2_500))
+        try require(
+            lineCount(at: scheduledRequestCountURL) == 4,
+            "manual refresh postpones the previously scheduled refresh"
+        )
+
+        try await waitForLineCount(at: scheduledRequestCountURL, atLeast: 6)
+        await scheduledModel.waitForWeeklyUsageRefresh()
+        scheduledModel.stopBackgroundUsageRefresh()
+        let countAfterBackgroundCancellation = lineCount(at: scheduledRequestCountURL)
+        scheduledModel.refreshWeeklyUsage()
+        try await waitForLineCount(
+            at: scheduledRequestCountURL,
+            atLeast: countAfterBackgroundCancellation + 2
+        )
+        await scheduledModel.waitForWeeklyUsageRefresh()
+        let countAfterStoppedManualRefresh = lineCount(at: scheduledRequestCountURL)
+        try await Task.sleep(for: .milliseconds(3_200))
+        try require(
+            lineCount(at: scheduledRequestCountURL) == countAfterStoppedManualRefresh,
+            "manual refresh does not restart a stopped background schedule"
+        )
+
         let usageCacheURL = support.appending(path: "usage-cache.json")
         guard Darwin.chflags(usageCacheURL.path, UInt32(UF_IMMUTABLE)) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
@@ -314,7 +372,7 @@ struct CoreChecks {
             activeHomeURL: activeHome
         ).loadUsageCache()
         try require(
-            cacheAfterFailedWrite.entries.first(where: { $0.profileID == first.id })?.usage.remainingPercent == 43,
+            cacheAfterFailedWrite.entries.first(where: { $0.profileID == first.id })?.usage.remainingPercent == 44,
             "failed cache replacement preserves the previous complete file"
         )
         let cacheTemporaryFiles = try fileManager.contentsOfDirectory(atPath: support.path)
@@ -352,7 +410,7 @@ struct CoreChecks {
         failureModel.refreshWeeklyUsage()
         await failureModel.waitForWeeklyUsageRefresh()
         try require(
-            failureModel.usageStates[first.id]?.displayedUsage?.remainingPercent == 43,
+            failureModel.usageStates[first.id]?.displayedUsage?.remainingPercent == 44,
             "failed refresh retains cached usage"
         )
         try require(

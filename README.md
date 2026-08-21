@@ -17,7 +17,7 @@ It is not an account router, proxy, recovery manager, or policy layer.
 The repository includes the macOS 14+ SwiftUI application. It provides:
 
 - a compact native menu-bar popover with one weekly Usage row per account;
-- persisted weekly Usage that remains visible while launch and popover openings refresh in the background;
+- persisted weekly Usage that remains visible while launch, a reschedulable five-minute background timer, and popover openings refresh it;
 - independent `CODEX_HOME` profile directories and local account metadata;
 - first-launch import of an existing `~/.codex/auth.json` account;
 - Codex app-server integration for identity, login, and rate limits;
@@ -62,7 +62,7 @@ Then open <http://127.0.0.1:8765/>.
 - Manage Accounts and Settings replace the content inside the same popover.
 - Settings contains only language selection.
 - Every popover opening starts on the account-switching page.
-- Persisted weekly Usage stays visible during refresh and is replaced after a successful response.
+- Persisted weekly Usage stays visible during refresh and is replaced after a successful response. Every refresh trigger schedules the next refresh for five minutes later, including while the popover is closed.
 - Switching follows one direct sequence and stops on the first error.
 - There is no automatic rollback, retry, transaction journal, credential backup, or crash recovery workflow.
 

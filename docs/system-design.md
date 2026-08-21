@@ -359,16 +359,17 @@ The switcher starts app-server with `CODEX_HOME` set to that directory. This let
 
 ### 10.2 Refresh behavior
 
-At application launch and whenever the popover opens:
+At application launch, when the pending five-minute timer fires, and whenever the popover opens:
 
 1. load account metadata and persisted weekly Usage;
 2. render cached values immediately without replacing them with a loading state;
 3. refresh all accounts concurrently;
-4. share one active refresh task when triggers overlap;
-5. publish and persist each successful result as it completes;
-6. retain cached Usage with a warning on failure, or show unavailable when no cache exists.
+4. replace the pending timer with one scheduled five minutes after the latest trigger;
+5. share one active refresh task when launch, timer, and popover triggers overlap;
+6. publish and persist each successful result as it completes;
+7. retain cached Usage with a warning on failure, or show unavailable when no cache exists.
 
-There is no periodic timer, helper daemon, exponential backoff, or silent retry.
+The app owns one pending timer while it runs. Every launch, timer, or popover trigger cancels the previous timer and schedules the next deadline five minutes later. The timer remains active while the popover is closed. There is no helper daemon, exponential backoff, or silent retry.
 
 ### 10.3 Persisting refreshed credentials
 

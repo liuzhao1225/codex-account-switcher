@@ -54,7 +54,7 @@ remainingPercent = clamp(100 - weekly.usedPercent, 0, 100)
 
 The progress-bar width and text use the same `remainingPercent` value.
 
-The last successful weekly value is persisted per account. App launch and every popover opening request a background refresh. Cached Usage remains visible while that refresh runs and a successful response replaces both display and cache. A refresh failure keeps cached Usage with a warning; without cached data the row shows `Usage unavailable`.
+The last successful weekly value is persisted per account. App launch and every popover opening request a refresh. Each trigger replaces the pending background timer with one scheduled for five minutes after that trigger. Cached Usage remains visible while refresh runs, and a successful response replaces both display and cache. A refresh failure keeps cached Usage with a warning; without cached data the row shows `Usage unavailable`. Overlapping triggers share the active refresh round.
 
 The application does not substitute another quota window.
 

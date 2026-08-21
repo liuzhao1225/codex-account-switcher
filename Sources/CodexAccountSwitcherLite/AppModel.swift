@@ -21,6 +21,9 @@ final class AppModel: ObservableObject {
     private let switchService: any SwitchServicing
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
+    private var nextUsageRefreshTask: Task<Void, Never>?
+    private var backgroundUsageRefreshInterval: Duration = .seconds(300)
+    private var isBackgroundUsageRefreshEnabled = false
 
     init(
         store: AccountStore,
@@ -87,6 +90,9 @@ final class AppModel: ObservableObject {
     }
 
     func refreshWeeklyUsage() {
+        if isBackgroundUsageRefreshEnabled {
+            scheduleNextWeeklyUsageRefresh()
+        }
         guard !accounts.isEmpty, usageRefreshTask == nil else { return }
         usageRefreshTask = Task { [weak self] in
             guard let self else { return }
@@ -97,6 +103,34 @@ final class AppModel: ObservableObject {
 
     func waitForWeeklyUsageRefresh() async {
         await usageRefreshTask?.value
+    }
+
+    func startBackgroundUsageRefresh(every interval: Duration = .seconds(300)) async {
+        backgroundUsageRefreshInterval = interval
+        isBackgroundUsageRefreshEnabled = true
+        await start()
+        refreshWeeklyUsage()
+    }
+
+    func stopBackgroundUsageRefresh() {
+        isBackgroundUsageRefreshEnabled = false
+        nextUsageRefreshTask?.cancel()
+        nextUsageRefreshTask = nil
+    }
+
+    private func scheduleNextWeeklyUsageRefresh() {
+        nextUsageRefreshTask?.cancel()
+        let interval = backgroundUsageRefreshInterval
+        nextUsageRefreshTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: interval)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, let self else { return }
+            self.nextUsageRefreshTask = nil
+            self.refreshWeeklyUsage()
+        }
     }
 
     private func performWeeklyUsageRefresh() async {
