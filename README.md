@@ -40,20 +40,11 @@ Create a local development app bundle:
 
 The bundle is written to `.build/release/Codex Account Switcher Lite.app`.
 
-## Signed GitHub releases
+## GitHub releases
 
-Pushing a `v*` tag runs the release workflow. It builds the arm64 app, signs it with Developer ID and hardened runtime, submits it to Apple notarization, staples the ticket, validates the installed-app signature, and creates the GitHub Release only after every check succeeds.
+Pushing a `v*` tag runs the release workflow. It builds and verifies an arm64 app, packages it as a versioned ZIP, publishes its SHA-256 checksum, and creates a GitHub prerelease.
 
-Configure the `appstore-production` GitHub Environment with these secrets:
-
-- `CSC_NAME`
-- `MACOS_CERTIFICATE_P12_BASE64`
-- `MACOS_CERTIFICATE_PASSWORD`
-- `APP_STORE_CONNECT_API_KEY_P8_BASE64`
-- `APP_STORE_CONNECT_API_KEY_ID`
-- `APP_STORE_CONNECT_ISSUER_ID`
-
-Keep the `.p12`, its password, and the App Store Connect `.p8` outside the repository. The notarization credentials must use an App Store Connect Team API key with an Issuer ID.
+The GitHub build is ad-hoc signed and is not notarized by Apple. After downloading it, Control-click the app and choose **Open**. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway**.
 
 ## Visual prototype
 
