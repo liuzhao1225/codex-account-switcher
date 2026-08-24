@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcherLite_CodexAccountSwitcherLite.bundle"
-APP_VERSION=${RELEASE_VERSION:-0.1.0}
+APP_VERSION=${RELEASE_VERSION:-0.1.1}
 
 cd "$PROJECT_DIR"
 BUILD_ARGUMENTS=(-c release)

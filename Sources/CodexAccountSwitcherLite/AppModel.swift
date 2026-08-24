@@ -1,9 +1,36 @@
 import Foundation
+import ServiceManagement
 import SwiftUI
 
 private enum UsageRefreshResult: Sendable {
     case success(UUID, WeeklyUsage)
     case failure(UUID, String)
+}
+
+enum LaunchAtLoginState: Equatable {
+    case disabled
+    case enabled
+    case requiresApproval
+    case unavailable
+
+    init(status: SMAppService.Status) {
+        switch status {
+        case .notRegistered:
+            self = .disabled
+        case .enabled:
+            self = .enabled
+        case .requiresApproval:
+            self = .requiresApproval
+        case .notFound:
+            self = .unavailable
+        @unknown default:
+            self = .unavailable
+        }
+    }
+
+    var isOn: Bool {
+        self == .enabled || self == .requiresApproval
+    }
 }
 
 @MainActor
@@ -15,6 +42,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isMutating = false
     @Published var visibleError: OperationError?
     @Published private(set) var activeIdentityConfirmed = true
+    @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 
     private let store: AccountStore
     private let codex: CodexClient
@@ -62,9 +90,22 @@ final class AppModel: ObservableObject {
         return usageStates[activeAccountID]?.displayedUsage?.remainingPercent
     }
 
+    var launchesAtLogin: Bool {
+        launchAtLoginState.isOn
+    }
+
+    var launchAtLoginRequiresApproval: Bool {
+        launchAtLoginState == .requiresApproval
+    }
+
+    var launchAtLoginUnavailable: Bool {
+        launchAtLoginState == .unavailable
+    }
+
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        refreshLaunchAtLoginStatus()
         do {
             settings = try await store.loadSettings()
             var registry = try await store.loadRegistry()
@@ -266,6 +307,29 @@ final class AppModel: ObservableObject {
         } catch {
             showError(error)
         }
+    }
+
+    func refreshLaunchAtLoginStatus() {
+        launchAtLoginState = LaunchAtLoginState(status: SMAppService.mainApp.status)
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        let service = SMAppService.mainApp
+        do {
+            if enabled {
+                try service.register()
+            } else {
+                try service.unregister()
+            }
+            refreshLaunchAtLoginStatus()
+        } catch {
+            refreshLaunchAtLoginStatus()
+            showError(error)
+        }
+    }
+
+    func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
     }
 
     func dismissError() {

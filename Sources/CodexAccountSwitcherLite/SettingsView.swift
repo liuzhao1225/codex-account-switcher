@@ -16,6 +16,46 @@ struct SettingsView: View {
 
             VStack(spacing: 0) {
                 HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(model.text("launch_at_login"))
+                        if model.launchAtLoginRequiresApproval {
+                            Text(model.text("launch_at_login_requires_approval"))
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else if model.launchAtLoginUnavailable {
+                            Text(model.text("launch_at_login_unavailable"))
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { model.launchesAtLogin },
+                        set: { enabled in model.setLaunchAtLogin(enabled) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .fixedSize()
+                    .accessibilityLabel(Text(model.text("launch_at_login")))
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+
+                if model.launchAtLoginRequiresApproval {
+                    Button(model.text("open_system_settings")) {
+                        model.openLoginItemsSettings()
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Divider()
+                    .padding(.leading, 14)
+
+                HStack {
                     Text(model.text("show_menu_bar_percentage"))
                     Spacer()
                     Toggle("", isOn: Binding(
@@ -25,6 +65,7 @@ struct SettingsView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .fixedSize()
+                    .accessibilityLabel(Text(model.text("show_menu_bar_percentage")))
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 44)
@@ -50,6 +91,9 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 44)
             }
+        }
+        .onAppear {
+            model.refreshLaunchAtLoginStatus()
         }
     }
 }

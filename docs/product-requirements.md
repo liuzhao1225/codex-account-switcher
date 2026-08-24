@@ -247,19 +247,23 @@ Remove first opens a confirmation page inside the popover. Cancel and the header
 
 ## 9. Settings
 
-The in-popover Settings page contains one field:
+The in-popover Settings page contains three fields:
 
 ```text
+Launch at Login                [toggle]
+Show Percentage in Menu Bar   [toggle]
 Language  [System Default ▾]
 ```
 
-Options:
+Launch at Login reads and writes the main app's macOS Login Item registration. It shows a direct approval message and System Settings link for `requiresApproval`, and an unavailable message for `notFound`. The macOS status is the only source of truth and is not persisted in `settings.json`.
+
+Show Percentage in Menu Bar and Language persist in `settings.json`. Language options are:
 
 - System Default;
 - English;
 - 简体中文.
 
-Changing language updates the visible switcher UI immediately and persists the selected value.
+Changing either persisted setting updates the visible switcher UI immediately.
 
 ## 10. Accessibility
 
@@ -293,7 +297,7 @@ The MVP is accepted when:
 5. the current row is highlighted without a checkmark;
 6. the footer contains equal-width Manage Accounts, Settings, and Quit actions;
 7. the popover is 326 points wide and all secondary pages navigate inside it;
-8. Settings contains only language and opens inside the popover;
+8. Settings contains launch-at-login, menu-bar percentage, and language controls inside the popover;
 9. every popover opening starts on the account list;
 10. canceling switch or removal performs no mutation and keeps the popover open;
 11. Quit and Command-Q terminate the application and remain available during mutations;
@@ -305,4 +309,5 @@ The MVP is accepted when:
 17. cached Usage stays visible during refresh and is replaced after success;
 18. closing the popover does not stop the pending five-minute background cache refresh;
 19. inactive accounts can be added and removed; active accounts cannot be removed;
-20. only `main` is required for the repository's steady state.
+20. launch-at-login registration reflects the current macOS Login Item status and exposes approval requirements directly;
+21. only `main` is required for the repository's steady state.

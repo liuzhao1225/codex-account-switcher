@@ -17,7 +17,7 @@ Deliver:
 - highlighted current row;
 - one `Usage` bar per row;
 - equal-width Manage Accounts, Settings, and Quit footer actions;
-- in-popover Manage Accounts and language-only Settings pages;
+- in-popover Manage Accounts and Settings pages;
 - in-popover switch confirmation page with safe cancel behavior.
 
 Use fixture data matching the HTML prototype.
@@ -134,10 +134,9 @@ Implement:
 - English strings;
 - Simplified Chinese strings;
 - System Default language selection;
+- launch-at-login registration through `SMAppService.mainApp`;
 - app icon and menu-bar icon;
 - local `.app` packaging script.
-
-Launch at login is not part of this milestone.
 
 ## 9. Suggested first implementation order
 
@@ -162,7 +161,7 @@ Before merging MVP code, verify:
 - no transaction journal exists;
 - no catch-and-continue behavior exists;
 - short-duration rate-limit windows are not presented;
-- Settings contains only language;
+- Settings contains launch-at-login, menu-bar percentage, and language controls;
 - Manage Accounts and Settings stay inside the popover;
 - every new popover opening starts on the account list;
 - account management has no rename path;

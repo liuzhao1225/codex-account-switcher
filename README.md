@@ -8,7 +8,7 @@ The product is intentionally narrow:
 - show one weekly `Usage` value and its reset time;
 - switch the active Codex authentication file;
 - add and remove local account snapshots;
-- choose the UI language.
+- choose launch-at-login, menu-bar percentage, and UI language settings.
 
 It is not an account router, proxy, recovery manager, or policy layer.
 
@@ -24,6 +24,7 @@ The repository includes the macOS 14+ SwiftUI application. It provides:
 - the fixed six-stage Desktop account switch pipeline;
 - add and remove account flows;
 - English, Simplified Chinese, and system-default UI language choices.
+- a native macOS launch-at-login switch backed by the system Login Item state.
 
 Build and check it from Terminal:
 
@@ -66,7 +67,7 @@ Then open <http://127.0.0.1:8765/>.
 - The current account is shown by row highlight rather than a checkmark or `Current` label.
 - The footer contains equal-width `Manage Accounts`, `Settings`, and `Quit` actions.
 - Manage Accounts and Settings replace the content inside the same popover.
-- Settings contains only language selection.
+- Settings contains launch-at-login, menu-bar percentage, and language controls.
 - Every popover opening starts on the account-switching page.
 - Persisted weekly Usage stays visible during refresh and is replaced after a successful response. Every refresh trigger schedules the next refresh for five minutes later, including while the popover is closed.
 - Switching asks Codex Desktop to quit, force-quits it after a short grace period when an active-chat confirmation blocks shutdown, replaces the active credentials, and reopens Desktop. It stops on the first error.

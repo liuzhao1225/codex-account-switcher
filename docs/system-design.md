@@ -57,6 +57,7 @@ Recommended stack:
 - SwiftUI for UI;
 - `MenuBarExtra` for the status item and popover;
 - AppKit for process discovery and application lifecycle;
+- Service Management for the main app's Login Item registration and authorization state;
 - Foundation `FileManager`, `Process`, and JSON coding;
 - Codex app-server JSON-RPC over stdio for identity and Usage reads.
 
@@ -72,12 +73,14 @@ flowchart LR
     Switch[SwitchService]
     Codex[CodexClient]
     Desktop[DesktopController]
+    Login[macOS Login Items]
     FS[Local files]
 
     UI --> VM
     VM --> Store
     VM --> Switch
     VM --> Codex
+    VM --> Login
     Switch --> Store
     Switch --> Desktop
     Switch --> Codex
@@ -121,7 +124,7 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 
 ~/Library/Application Support/Codex Account Switcher Lite/
 ├── accounts.json                     # profile metadata and active account ID
-├── settings.json                     # selected language
+├── settings.json                     # language and menu-bar percentage
 ├── usage-cache.json                  # last successful weekly Usage per profile
 └── accounts/
     ├── <profile-id>/
@@ -166,9 +169,12 @@ The implementation sets these permissions when creating files. It does not build
 
 ```json
 {
-  "language": "system"
+  "language": "system",
+  "showsMenuBarPercentage": true
 }
 ```
+
+Launch-at-login state is owned by macOS Service Management and is read from `SMAppService.mainApp.status`. It is never copied into `settings.json`.
 
 `usage-cache.json` stores `profileID`, normalized weekly Usage, and `fetchedAt` for each last successful response. No switch phase, rollback reference, or recovery journal is stored.
 
@@ -284,7 +290,7 @@ The client communicates with newline-delimited JSON-RPC messages over stdin/stdo
 Basic handshake:
 
 ```json
-{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher_lite","title":"Codex Account Switcher Lite","version":"0.1.0"}}}
+{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher_lite","title":"Codex Account Switcher Lite","version":"0.1.1"}}}
 {"method":"initialized","params":{}}
 ```
 
@@ -632,6 +638,7 @@ The order is intentionally direct. If metadata save fails after directory deleti
 @Published private(set) var activeAccountID: UUID?
 @Published private(set) var usageStates: [UUID: UsageViewState] = [:]
 @Published private(set) var settings: AppSettings = .default
+@Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 @Published private(set) var isMutating = false
 @Published var visibleError: OperationError?
 ```
@@ -701,7 +708,6 @@ Do not add the following unless a new product decision explicitly requires it:
 - helper process that stays resident;
 - 5-hour Usage row;
 - Usage details panel;
-- launch-at-login setting;
 - switch-behavior settings;
 - CLI process control;
 - automatic account selection.

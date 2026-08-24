@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import ServiceManagement
 
 enum CheckFailure: Error {
     case failed(String)
@@ -95,6 +96,23 @@ private func createExecutable(at url: URL, body: String) throws {
 @main
 struct CoreChecks {
     @MainActor static func main() async throws {
+        try require(
+            LaunchAtLoginState(status: .notRegistered) == .disabled,
+            "not-registered launch-at-login state"
+        )
+        try require(
+            LaunchAtLoginState(status: .enabled) == .enabled,
+            "enabled launch-at-login state"
+        )
+        try require(
+            LaunchAtLoginState(status: .requiresApproval) == .requiresApproval,
+            "approval-required launch-at-login state"
+        )
+        try require(
+            LaunchAtLoginState(status: .notFound) == .unavailable,
+            "unavailable launch-at-login state"
+        )
+
         let weekly = try WeeklyUsageNormalizer.normalize([
             RateLimitWindow(usedPercent: 90, windowDurationMins: 300, resetsAt: 1),
             RateLimitWindow(usedPercent: 58, windowDurationMins: 10_080, resetsAt: 1_750_000_000),

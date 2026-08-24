@@ -125,13 +125,16 @@ Removal uses an in-popover confirmation page. Cancel and Back return to the acco
 
 ## 8. Settings
 
-Settings contains only:
+Settings contains:
 
+- `Launch at Login`: register or unregister the main app through macOS Service Management;
+- `Show Percentage in Menu Bar`: show or hide the active account's remaining percentage;
 - `Language`: `System Default`, `English`, `简体中文`.
+
+The launch-at-login control reads the current macOS Login Item status directly. It does not duplicate that state in `settings.json`. A registered item that requires approval shows a direct link to the Login Items section in System Settings.
 
 The following controls are intentionally absent:
 
-- Launch at login;
 - restart behavior;
 - CLI behavior;
 - confirmation behavior;

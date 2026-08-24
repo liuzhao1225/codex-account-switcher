@@ -107,7 +107,9 @@ Verify:
 - footer contains equal-width Manage Accounts, Settings, and Quit actions;
 - Manage Accounts and Settings navigate inside the popover;
 - reopening after closing a secondary page starts on the account list;
-- Settings contains only Language;
+- Settings contains Launch at Login, Show Percentage in Menu Bar, and Language;
+- Login Item status maps `notRegistered`, `enabled`, `requiresApproval`, and `notFound` to disabled, enabled, approval-required, and unavailable UI states;
+- both Settings toggles expose localized accessibility labels;
 - switch confirmation describes Desktop and CLI consequences;
 - canceling switch or removal keeps the popover open and performs no mutation;
 - account rows display cached Usage while refresh runs;
@@ -116,6 +118,14 @@ Verify:
 - no 5-hour control or text exists.
 
 ## 6. Manual test matrix
+
+With the packaged application:
+
+1. open Settings and enable Launch at Login;
+2. confirm `sfltool dumpbtm` contains `com.liuzhao.codex-account-switcher-lite`;
+3. if macOS reports approval required, use the displayed System Settings link, approve the item, and confirm the Toggle becomes enabled after reopening Settings;
+4. quit the app, sign out and back in, and confirm the menu-bar item appears automatically;
+5. disable Launch at Login and confirm the system registration is removed.
 
 With two real test accounts:
 
@@ -145,6 +155,6 @@ no 5-hour UI strings
 no rollback implementation
 no transaction journal
 no Keychain implementation
-no launch-at-login setting
+launch-at-login state comes from macOS Service Management
 no account-rename UI or model operation
 ```
