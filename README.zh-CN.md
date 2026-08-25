@@ -48,7 +48,7 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 - **顾问、外包与多客户开发者：** 在打开下一个客户仓库前，明确选择对应的 Codex 登录账号。
 - **高频 Codex 用户：** 在开始长任务前比较每周用量和重置时间，选择合适的账号。
 
-如果你正在搜索 **Codex 账号切换器**、**Codex 多账号切换**、**Codex profile switcher**，或者希望在 **macOS 上使用多个 Codex 账号**，这个项目提供了面向 Codex Desktop 和新启动 Codex CLI 会话的本地工作流。
+如果你正在搜索 **Codex 账号切换器**、**Codex 多账号切换**、**Codex profile switcher**，或者希望在 **macOS 上无需反复退出登录即可切换多个 Codex 账号**，这个项目提供了面向 Codex Desktop 和新启动 Codex CLI 会话的本地工作流。
 
 ## 下载
 
@@ -164,9 +164,9 @@ swift test
 
 ## 常见问题
 
-### 可以在一台 Mac 上使用多个 Codex 账号吗？
+### 如何在不反复退出登录的情况下切换多个 Codex 账号？
 
-可以。每个账号保存一次后，即可从 macOS 菜单栏选择当前配置。应用面向你本人拥有或获准使用的个人、工作与客户账号。
+每个账号保存一次后，即可从 macOS 菜单栏选择当前配置，无需重复完整的浏览器登录流程。应用面向你本人拥有或获准使用的个人、工作与客户账号。
 
 ### 是否同时支持 Codex Desktop 和 Codex CLI？
 

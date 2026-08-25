@@ -48,7 +48,7 @@ The app stores independent authentication snapshots in local profile directories
 - **Consultants and multi-client developers:** label and switch between client-specific Codex logins before opening the next repository.
 - **Heavy Codex users:** compare weekly usage and reset times before choosing the account for a long-running task.
 
-If you searched for a **Codex account switcher**, **Codex profile switcher**, or a way to use **multiple Codex accounts on macOS**, this project provides a focused local workflow for Codex Desktop and newly launched Codex CLI sessions.
+If you searched for a **Codex account switcher**, **Codex profile switcher**, or a way to switch **multiple Codex accounts on macOS without logging out each time**, this project provides a focused local workflow for Codex Desktop and newly launched Codex CLI sessions.
 
 ## Download
 
@@ -164,9 +164,9 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 
 ## Frequently asked questions
 
-### Can I use multiple Codex accounts on one Mac?
+### How do I switch between multiple Codex accounts without logging out each time?
 
-Yes. Save each account once, then select the active profile from the macOS menu bar. The app is designed for accounts you own or are authorized to use, such as personal, work, and client accounts.
+Save each account once, then select the active profile from the macOS menu bar without repeating the full browser login flow. The app is designed for accounts you own or are authorized to use, such as personal, work, and client accounts.
 
 ### Does it work with Codex Desktop and Codex CLI?
 
