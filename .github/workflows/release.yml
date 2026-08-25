@@ -146,6 +146,12 @@ jobs:
           hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "$artifact"
           mount_attached=true
           mounted_app="$mount_point/Codex Account Switcher.app"
+          mounted_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mounted_app/Contents/Info.plist")
+          test "$mounted_version" = "$RELEASE_VERSION"
+          mounted_icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$mounted_app/Contents/Info.plist")
+          test "$mounted_icon" = "AppIcon"
+          test -s "$mounted_app/Contents/Resources/AppIcon.icns"
+          file "$mounted_app/Contents/Resources/AppIcon.icns" | grep -q 'Mac OS X icon'
           codesign --verify --deep --strict --verbose=4 "$mounted_app"
           xcrun stapler validate -v "$mounted_app"
           spctl --assess --type execute --verbose=4 "$mounted_app"
@@ -167,5 +173,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "$artifact" "$artifact.sha256" \
             --title "Codex Account Switcher ${GITHUB_REF_NAME}" \
             --notes-file .github/release-notes.md \
-            --prerelease \
+            --latest \
             --verify-tag
