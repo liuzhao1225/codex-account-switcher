@@ -38,6 +38,8 @@
 
 <p align="center"><strong>Your Codex accounts, one menu away.</strong></p>
 
+<p align="center">Created by <a href="https://liuzhao1225.github.io/">Zhao Liu</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
+
 Codex Account Switcher is an open-source Codex profile switcher for developers who use multiple ChatGPT accounts with Codex on one Mac. Open the menu to identify the active personal, work, or client account, compare each saved account's remaining weekly allowance and reset time, then switch Codex Desktop without repeating the full login flow.
 
 The app stores independent authentication snapshots in local profile directories, switches the active `~/.codex/auth.json`, and restarts Codex Desktop so the next task opens on the selected account. Newly started Codex CLI processes use the same selected authentication while shared local Codex configuration and sessions remain in place.

@@ -38,6 +38,8 @@
 
 <p align="center"><strong>你的 Codex 账号，一步直达。</strong></p>
 
+<p align="center">作者：<a href="https://liuzhao1225.github.io/">刘朝宇宙</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
+
 Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同一台 Mac 上使用多个 ChatGPT 账号运行 Codex 的开发者。打开菜单即可确认当前个人、工作或客户账号，比较每个已保存账号的剩余每周用量与重置时间，然后切换 Codex Desktop，无需每次重新完成完整登录流程。
 
 应用把相互独立的认证快照保存在本地配置目录，切换当前 `~/.codex/auth.json`，并重启 Codex Desktop，让下一项任务使用所选账号。之后新启动的 Codex CLI 进程使用相同认证，共享的本地 Codex 配置与会话继续保留。
