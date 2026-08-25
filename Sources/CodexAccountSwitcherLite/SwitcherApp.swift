@@ -48,10 +48,10 @@ private struct MenuBarLogo: View {
             .compactMap { Bundle(url: $0) }
             .first
         guard let url = resourceBundle?.url(
-            forResource: "openai-account-switcher",
-            withExtension: "svg"
+            forResource: "account-switcher-logo",
+            withExtension: "png"
         ), let image = NSImage(contentsOf: url) else {
-            preconditionFailure("Missing openai-account-switcher.svg")
+            preconditionFailure("Missing account-switcher-logo.png")
         }
         image.isTemplate = true
         return image
@@ -61,7 +61,7 @@ private struct MenuBarLogo: View {
         Image(nsImage: Self.image)
             .resizable()
             .scaledToFit()
-            .frame(width: 10, height: 10)
+            .frame(width: 16, height: 16)
     }
 }
 

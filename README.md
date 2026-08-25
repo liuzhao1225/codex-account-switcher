@@ -1,12 +1,11 @@
 <p align="center">
-  <img src="assets/readme-logo.svg" width="96" height="96" alt="Codex Account Switcher Lite logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/account-switcher-logo-white.png">
+    <img src="assets/account-switcher-logo.png" width="96" height="96" alt="Codex Account Switcher Lite logo">
+  </picture>
 </p>
 
 <h1 align="center">Codex Account Switcher Lite</h1>
-
-<p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a>
-</p>
 
 <p align="center">
   <strong>Switch accounts. Keep your flow.</strong><br>
@@ -23,12 +22,15 @@
 </p>
 
 <p align="center">
+  <a href="https://liuzhao1225.github.io/codex-account-switcher-lite/"><b>Website</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="#features"><b>Features</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#privacy-and-scope"><b>Privacy</b></a> ·
   <a href="#development"><b>Development</b></a> ·
-  <a href="docs/README.md"><b>Documentation</b></a>
+  <a href="docs/README.md"><b>Documentation</b></a> ·
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">简体中文</a>
 </p>
 
 ![Codex Account Switcher Lite showing three fictional demo accounts, weekly usage, and fast switching from the macOS menu bar](assets/codex-account-switcher-lite-hero.png)

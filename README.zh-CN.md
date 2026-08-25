@@ -1,12 +1,11 @@
 <p align="center">
-  <img src="assets/readme-logo.svg" width="96" height="96" alt="Codex Account Switcher Lite Logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/account-switcher-logo-white.png">
+    <img src="assets/account-switcher-logo.png" width="96" height="96" alt="Codex Account Switcher Lite Logo">
+  </picture>
 </p>
 
 <h1 align="center">Codex Account Switcher Lite</h1>
-
-<p align="center">
-  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a>
-</p>
 
 <p align="center">
   <strong>切换账号，保持专注。</strong><br>
@@ -23,12 +22,15 @@
 </p>
 
 <p align="center">
+  <a href="https://liuzhao1225.github.io/codex-account-switcher-lite/"><b>网站</b></a> ·
   <a href="#下载"><b>下载</b></a> ·
   <a href="#功能"><b>功能</b></a> ·
   <a href="#工作原理"><b>工作原理</b></a> ·
   <a href="#隐私与范围"><b>隐私</b></a> ·
   <a href="#开发"><b>开发</b></a> ·
-  <a href="docs/README.md"><b>项目文档</b></a>
+  <a href="docs/README.md"><b>项目文档</b></a> ·
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">简体中文</a>
 </p>
 
 ![Codex Account Switcher Lite 在 macOS 菜单栏中展示三个虚构演示账号、每周用量和快速切换功能](assets/codex-account-switcher-lite-hero.png)

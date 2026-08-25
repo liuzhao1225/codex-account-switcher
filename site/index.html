@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Account Switcher Lite | Switch Codex accounts on macOS</title>
+    <meta name="description" content="A native macOS menu-bar app for comparing Codex account limits and switching local profiles in seconds.">
+    <meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#080b10" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
+    <link rel="canonical" href="https://liuzhao1225.github.io/codex-account-switcher-lite/">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="preload" href="assets/product-panel.webp" as="image" type="image/webp" fetchpriority="high">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Codex Account Switcher Lite">
+    <meta property="og:description" content="Switch accounts. Keep your flow.">
+    <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher-lite/">
+    <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher-lite/assets/og-image.png">
+    <meta property="og:image:width" content="1774">
+    <meta property="og:image:height" content="887">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Codex Account Switcher Lite",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "macOS 14 or later",
+        "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher-lite/releases",
+        "softwareVersion": "0.1.1",
+        "license": "https://opensource.org/license/mit",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-copy="skip">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Codex Account Switcher Lite home">
+          <span class="brand-mark" aria-hidden="true">
+            <img class="logo-light" src="assets/account-switcher-logo.png" alt="">
+            <img class="logo-dark" src="assets/account-switcher-logo-white.png" alt="">
+          </span>
+          <span class="brand-name">Account Switcher</span>
+        </a>
+
+        <div class="nav-links">
+          <a href="#features" data-copy="navFeatures">Features</a>
+          <a href="#workflow" data-copy="navWorkflow">How it works</a>
+          <a href="#privacy" data-copy="navPrivacy">Privacy</a>
+        </div>
+
+        <div class="nav-actions">
+          <button class="text-control" type="button" data-theme-toggle aria-label="Switch color theme">Dark</button>
+          <button class="text-control" type="button" data-lang-toggle aria-label="切换到中文">中文</button>
+          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher-lite/releases" data-copy="download">Download</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-shell">
+          <div class="hero-copy">
+            <p class="eyebrow hero-enter" data-copy="heroEyebrow">Open source for macOS</p>
+            <h1 class="hero-title hero-enter">
+              <span data-copy="heroLineOne">Switch accounts.</span>
+              <span class="accent-line" data-copy="heroLineTwo">Keep your flow.</span>
+            </h1>
+            <p class="hero-summary hero-enter" data-copy="heroSummary">Compare weekly limits, switch Codex identities, and stay in flow from one native macOS menu.</p>
+            <div class="hero-actions hero-enter">
+              <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher-lite/releases" data-copy="downloadMac">Download for macOS</a>
+              <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher-lite" data-copy="viewGitHub">View on GitHub</a>
+            </div>
+          </div>
+
+          <div class="hero-visual" aria-label="Codex Account Switcher Lite product preview">
+            <div class="menu-bar-slab" aria-hidden="true"></div>
+            <div class="hero-image-frame">
+              <img src="assets/product-panel.webp" width="990" height="800" alt="Codex Account Switcher Lite showing three fictional accounts and weekly usage" fetchpriority="high">
+            </div>
+            <div class="floating-mark" aria-hidden="true">
+              <img class="logo-light" src="assets/account-switcher-logo.png" alt="">
+              <img class="logo-dark" src="assets/account-switcher-logo-white.png" alt="">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="capability-rail" aria-label="Product highlights">
+        <div class="rail-shell">
+          <div class="rail-item">
+            <span data-copy="railUsageLabel">Weekly limits</span>
+            <strong data-copy="railUsageValue">Visible</strong>
+          </div>
+          <div class="rail-item">
+            <span data-copy="railResetLabel">Reset times</span>
+            <strong data-copy="railResetValue">Comparable</strong>
+          </div>
+          <div class="rail-item">
+            <span data-copy="railProfilesLabel">Account profiles</span>
+            <strong data-copy="railProfilesValue">Local</strong>
+          </div>
+          <div class="rail-item">
+            <span data-copy="railInterfaceLabel">Interface</span>
+            <strong data-copy="railInterfaceValue">Native SwiftUI</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-stage section-space" id="features">
+        <div class="section-shell">
+          <div class="section-heading" data-reveal>
+            <h2 data-copy="productTitle">Every choice, in one menu.</h2>
+            <p data-copy="productBody">Compare remaining allowance and reset time before deciding which Codex account should take the next task.</p>
+          </div>
+
+          <figure class="product-canvas" data-reveal>
+            <img src="assets/product-hero.webp" width="1774" height="887" loading="lazy" alt="A full product view with fictional account names and macOS menu-bar controls">
+          </figure>
+        </div>
+      </section>
+
+      <section class="feature-section section-space">
+        <div class="section-shell">
+          <div class="section-heading narrow" data-reveal>
+            <h2 data-copy="featureTitle">Built around the real workflow.</h2>
+            <p data-copy="featureBody">A focused native utility with local profiles, clear usage context, and one deliberate switch action.</p>
+          </div>
+
+          <div class="bento-grid">
+            <figure class="bento-cell bento-visual" data-reveal>
+              <img src="assets/account-switcher-material.webp" width="1536" height="1024" loading="lazy" alt="Account switcher logo formed in graphite and glass">
+            </figure>
+
+            <article class="bento-cell bento-accent" data-reveal>
+              <h3 data-copy="featureKnowTitle">Know before you switch.</h3>
+              <p data-copy="featureKnowBody">See remaining weekly allowance and reset time for every saved account.</p>
+            </article>
+
+            <article class="bento-cell bento-code" data-reveal>
+              <div class="profile-path" aria-hidden="true">
+                <span>CODEX_HOME</span>
+                <strong>profiles/work</strong>
+                <strong>profiles/research</strong>
+              </div>
+              <div>
+                <h3 data-copy="featureLocalTitle">Independent local profiles.</h3>
+                <p data-copy="featureLocalBody">Each saved identity keeps its own local authentication snapshot.</p>
+              </div>
+            </article>
+
+            <article class="bento-cell bento-quiet" data-reveal>
+              <h3 data-copy="featureLoginTitle">Ready after sign-in.</h3>
+              <p data-copy="featureLoginBody">Launch at login keeps the switcher waiting in the macOS menu bar.</p>
+            </article>
+
+            <article class="bento-cell bento-language" data-reveal>
+              <div class="language-display" aria-hidden="true">EN<br>简</div>
+              <div>
+                <h3 data-copy="featureLanguageTitle">Speaks your system language.</h3>
+                <p data-copy="featureLanguageBody">Use English, Simplified Chinese, or follow macOS automatically.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="workflow-section section-space" id="workflow">
+        <div class="section-shell">
+          <div class="workflow-intro" data-reveal>
+            <h2 data-copy="workflowTitle">Three moves. One clean handoff.</h2>
+            <p data-copy="workflowBody">The order stays simple because every action has one job.</p>
+          </div>
+
+          <ol class="sequence-list">
+            <li data-reveal>
+              <span class="sequence-index">1</span>
+              <h3 data-copy="saveTitle">Save accounts</h3>
+              <p data-copy="saveBody">Import the current Codex login or add another account.</p>
+            </li>
+            <li data-reveal>
+              <span class="sequence-index">2</span>
+              <h3 data-copy="compareTitle">Compare usage</h3>
+              <p data-copy="compareBody">Check allowance and reset time directly from the menu bar.</p>
+            </li>
+            <li data-reveal>
+              <span class="sequence-index">3</span>
+              <h3 data-copy="switchTitle">Confirm the switch</h3>
+              <p data-copy="switchBody">Let the app update the active profile and reopen Codex Desktop.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="privacy-section section-space" id="privacy">
+        <div class="privacy-shell section-shell">
+          <div class="locality-mark" aria-hidden="true" data-reveal>LOCAL</div>
+          <div class="privacy-copy" data-reveal>
+            <h2 data-copy="privacyTitle">Your identities stay on this Mac.</h2>
+            <p data-copy="privacyBody">The app uses independent local profile directories and runs without an account proxy or routing service.</p>
+          </div>
+          <div class="privacy-facts">
+            <p data-reveal data-copy="privacyFactOne">Credentials stay inside local Codex profile directories.</p>
+            <p data-reveal data-copy="privacyFactTwo">Existing terminal processes keep their current runtime state.</p>
+            <p data-reveal data-copy="privacyFactThree">Every switch stops on the first reported error.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="download-section section-space" id="download">
+        <div class="download-shell section-shell" data-reveal>
+          <p class="eyebrow" data-copy="downloadEyebrow">Available now</p>
+          <h2 data-copy="downloadTitle">Keep the next account one menu away.</h2>
+          <p class="download-summary" data-copy="downloadBody">Download the Apple Silicon build, move it to Applications, and keep your next account ready.</p>
+          <div class="release-requirements">
+            <span data-copy="requirementMac">macOS 14+</span>
+            <span data-copy="requirementChip">Apple Silicon</span>
+            <span data-copy="requirementLicense">MIT License</span>
+          </div>
+          <div class="download-actions">
+            <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher-lite/releases" data-copy="downloadMac">Download for macOS</a>
+            <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher-lite" data-copy="viewSource">View source</a>
+          </div>
+          <p class="release-note" data-copy="releaseNote">The current build uses ad-hoc signing and has not been notarized. Follow the first-launch guide in the README if macOS blocks it.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-shell">
+        <div class="footer-brand">
+          <span class="brand-mark" aria-hidden="true">
+            <img class="logo-light" src="assets/account-switcher-logo.png" alt="">
+            <img class="logo-dark" src="assets/account-switcher-logo-white.png" alt="">
+          </span>
+          <span>Codex Account Switcher Lite</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/liuzhao1225/codex-account-switcher-lite">GitHub</a>
+          <a href="https://github.com/liuzhao1225/codex-account-switcher-lite/releases" data-copy="releases">Releases</a>
+          <a href="https://github.com/liuzhao1225/codex-account-switcher-lite/blob/main/LICENSE">MIT</a>
+        </div>
+        <p data-copy="footerCopy">Open source. Built for focused Codex work.</p>
+      </div>
+    </footer>
+  </body>
+</html>
