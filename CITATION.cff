@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Codex Account Switcher, please cite this repository."
+title: "Codex Account Switcher"
+type: software
+authors:
+  - name: "liuzhao1225"
+repository-code: "https://github.com/liuzhao1225/codex-account-switcher"
+url: "https://liuzhao1225.github.io/codex-account-switcher/"
+license: MIT
+version: 0.1.2
+date-released: 2026-08-25
+keywords:
+  - Codex account switcher
+  - Codex profile switcher
+  - macOS menu bar
+  - multiple Codex accounts
+  - Codex Desktop
+  - Codex CLI

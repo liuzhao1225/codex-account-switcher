@@ -1,44 +1,137 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Codex Account Switcher | Switch Codex accounts on macOS</title>
-    <meta name="description" content="A native macOS menu-bar app for comparing Codex account limits and switching local profiles in seconds.">
+    <title>Codex Account Switcher for macOS | Multiple Codex Accounts</title>
+    <meta name="description" content="Open-source native macOS menu bar app to switch personal, work, and client Codex accounts, compare weekly usage, and update Codex Desktop and CLI.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="author" content="liuzhao1225">
+    <meta name="application-name" content="Codex Account Switcher">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#101010" media="(prefers-color-scheme: dark)">
     <meta name="color-scheme" content="light dark">
     <link rel="canonical" href="https://liuzhao1225.github.io/codex-account-switcher/">
+    <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/">
+    <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/">
+    <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="preload" href="assets/account-switcher-usage.png" as="image" type="image/png" fetchpriority="high">
+    <link rel="preload" href="assets/account-switcher-usage.webp" as="image" type="image/webp" fetchpriority="high">
 
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Codex Account Switcher">
-    <meta property="og:description" content="Switch accounts. Keep your flow.">
+    <meta property="og:site_name" content="Codex Account Switcher">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="zh_CN">
+    <meta property="og:title" content="Codex Account Switcher for macOS">
+    <meta property="og:description" content="Switch personal, work, and client Codex accounts from one native macOS menu. Compare weekly usage before the next task.">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
     <meta property="og:image:height" content="887">
+    <meta property="og:image:alt" content="Codex Account Switcher for macOS showing three local Codex profiles and weekly usage">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Codex Account Switcher for macOS">
+    <meta name="twitter:description" content="Switch multiple Codex Desktop and CLI accounts from one native macOS menu.">
+    <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
+    <meta name="twitter:image:alt" content="Codex Account Switcher for macOS showing three local Codex profiles and weekly usage">
 
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Codex Account Switcher",
-        "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "macOS 14 or later",
-        "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases",
-        "softwareVersion": "0.1.2",
-        "license": "https://opensource.org/license/mit",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/#website",
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/",
+            "name": "Codex Account Switcher",
+            "description": "Open-source native macOS account switcher for Codex Desktop and Codex CLI.",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/#software",
+            "name": "Codex Account Switcher",
+            "alternateName": ["Codex Switcher", "Codex Profile Switcher"],
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/",
+            "description": "A native macOS menu bar app for switching between multiple personal, work, and client Codex accounts and comparing weekly usage.",
+            "applicationCategory": "UtilitiesApplication",
+            "applicationSubCategory": "DeveloperTool",
+            "operatingSystem": "macOS 14 or later",
+            "softwareVersion": "0.1.2",
+            "isAccessibleForFree": true,
+            "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases",
+            "codeRepository": "https://github.com/liuzhao1225/codex-account-switcher",
+            "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
+            "screenshot": "https://liuzhao1225.github.io/codex-account-switcher/assets/product-hero.webp",
+            "license": "https://opensource.org/license/mit",
+            "author": {
+              "@type": "Person",
+              "name": "liuzhao1225",
+              "url": "https://github.com/liuzhao1225"
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            },
+            "featureList": [
+              "Switch multiple Codex accounts from the macOS menu bar",
+              "Compare remaining weekly usage and reset times",
+              "Use local authentication profile directories",
+              "Update Codex Desktop and newly started Codex CLI sessions"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Can I use multiple Codex accounts on one Mac?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Save each authorized personal, work, or client account once, then select the active profile from the macOS menu bar."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Codex Account Switcher work with Codex Desktop and Codex CLI?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their state, while newly started Codex CLI processes use the selected authentication."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where are Codex account profiles stored?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Saved authentication snapshots use user-only local directories under Library Application Support. The active credential remains at ~/.codex/auth.json."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does the app proxy Codex traffic or rotate accounts automatically?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Every account switch is manual and confirmed. The app does not run a proxy, route model traffic, or automatically rotate accounts."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is Codex Account Switcher an official OpenAI product?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. It is an independent MIT-licensed open-source project for macOS."
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>
@@ -52,18 +145,19 @@
             <img class="logo-light" src="assets/account-switcher-logo.png" alt="">
             <img class="logo-dark" src="assets/account-switcher-logo-white.png" alt="">
           </span>
-          <span class="brand-name">Account Switcher</span>
+          <span class="brand-name brand-name-full">Codex Account Switcher</span>
+          <span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
         </a>
 
         <div class="nav-links">
-          <a href="#features" data-copy="navFeatures">Features</a>
+          <a href="#use-cases">Use cases</a>
           <a href="#workflow" data-copy="navWorkflow">How it works</a>
-          <a href="#privacy" data-copy="navPrivacy">Privacy</a>
+          <a href="#faq">FAQ</a>
         </div>
 
         <div class="nav-actions">
           <button class="text-control" type="button" data-theme-toggle aria-label="Switch color theme">Dark</button>
-          <button class="text-control" type="button" data-lang-toggle aria-label="切换到中文">中文</button>
+          <a class="text-control language-link" href="zh-CN/" hreflang="zh-CN" lang="zh-CN" aria-label="查看简体中文网站">简体中文</a>
           <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="download">Download</a>
         </div>
       </nav>
@@ -78,16 +172,16 @@
               <span data-copy="heroLineOne">Switch accounts.</span>
               <span class="accent-line" data-copy="heroLineTwo">Keep your flow.</span>
             </h1>
-            <p class="hero-summary hero-enter" data-copy="heroSummary">Compare weekly limits, switch Codex identities, and stay in flow from one native macOS menu.</p>
+            <p class="hero-summary hero-enter">Switch personal, work, and client Codex accounts, compare weekly usage, and continue from one native macOS menu.</p>
             <div class="hero-actions hero-enter">
               <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="downloadMac">Download for macOS</a>
               <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher" data-copy="viewGitHub">View on GitHub</a>
             </div>
           </div>
 
-          <div class="hero-visual" aria-label="Codex Account Switcher product preview">
+          <div class="hero-visual">
             <div class="hero-image-frame">
-              <img src="assets/account-switcher-usage.png" data-src-en="assets/account-switcher-usage.png" data-src-zh="assets/account-switcher-usage.zh-CN.png" data-alt-en="Codex Account Switcher showing three fictional accounts and weekly usage" data-alt-zh="Codex Account Switcher 展示三个虚构账号及每周用量" width="624" height="500" alt="Codex Account Switcher showing three fictional accounts and weekly usage" fetchpriority="high">
+              <img src="assets/account-switcher-usage.webp" width="624" height="500" alt="Codex Account Switcher showing three fictional accounts and weekly usage" fetchpriority="high">
             </div>
           </div>
         </div>
@@ -96,16 +190,16 @@
       <section class="capability-rail" aria-label="Product highlights">
         <div class="rail-shell">
           <div class="rail-item">
-            <span data-copy="railUsageLabel">Weekly limits</span>
-            <strong data-copy="railUsageValue">Visible</strong>
+            <span>Accounts</span>
+            <strong>Personal, work, client</strong>
           </div>
           <div class="rail-item">
-            <span data-copy="railResetLabel">Reset times</span>
-            <strong data-copy="railResetValue">Comparable</strong>
+            <span>Weekly usage</span>
+            <strong>Visible before switching</strong>
           </div>
           <div class="rail-item">
-            <span data-copy="railProfilesLabel">Account profiles</span>
-            <strong data-copy="railProfilesValue">Local</strong>
+            <span>Authentication profiles</span>
+            <strong>Stored locally</strong>
           </div>
           <div class="rail-item">
             <span data-copy="railInterfaceLabel">Interface</span>
@@ -114,11 +208,38 @@
         </div>
       </section>
 
+      <section class="audience-section section-space" id="use-cases">
+        <div class="audience-shell section-shell">
+          <div class="audience-intro">
+            <h2>Multiple Codex accounts.<br>One Mac.</h2>
+            <p>Keep the account for the next repository clear before Codex Desktop opens.</p>
+          </div>
+
+          <div class="audience-list">
+            <article class="audience-item audience-item-primary">
+              <p class="audience-label">Personal and work</p>
+              <h3>Separate identities without separate computers.</h3>
+              <p>Move between personal projects and managed workspaces while keeping each Codex login available locally.</p>
+            </article>
+            <article class="audience-item">
+              <p class="audience-label">Consultants and client work</p>
+              <h3>Choose the right client account first.</h3>
+              <p>Save multiple authorized Codex profiles and confirm the active identity before opening a client repository.</p>
+            </article>
+            <article class="audience-item">
+              <p class="audience-label">Long Codex tasks</p>
+              <h3>Check weekly usage before you start.</h3>
+              <p>Compare remaining allowance and reset times across saved accounts from the macOS menu bar.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="product-stage section-space" id="features">
         <div class="section-shell">
           <div class="section-heading">
-            <h2 data-copy="productTitle">Every choice, in one menu.</h2>
-            <p data-copy="productBody">Compare remaining allowance and reset time before deciding which Codex account should take the next task.</p>
+            <h2>Codex account switching, in one menu.</h2>
+            <p>See the active profile, remaining weekly allowance, and reset time before deciding which Codex account should take the next task.</p>
           </div>
 
           <figure class="product-canvas">
@@ -130,13 +251,13 @@
       <section class="feature-section section-space">
         <div class="section-shell">
           <div class="section-heading narrow">
-            <h2 data-copy="featureTitle">Built around the real workflow.</h2>
-            <p data-copy="featureBody">A focused native utility with local profiles, clear usage context, and one deliberate switch action.</p>
+            <h2>Built for Codex Desktop on macOS.</h2>
+            <p>A focused native utility with local authentication profiles, clear usage context, and one deliberate switch action.</p>
           </div>
 
           <div class="feature-layout">
             <figure class="feature-visual">
-              <img src="assets/account-switcher-usage.png" data-src-en="assets/account-switcher-usage.png" data-src-zh="assets/account-switcher-usage.zh-CN.png" data-alt-en="Front-facing account menu comparing weekly usage for three fictional Codex profiles" data-alt-zh="正面展示三个虚构 Codex 账号每周用量的账号菜单" width="624" height="500" loading="lazy" alt="Front-facing account menu comparing weekly usage for three fictional Codex profiles">
+              <img src="assets/account-switcher-usage.webp" width="624" height="500" loading="lazy" alt="Front-facing account menu comparing weekly usage for three fictional Codex profiles">
             </figure>
 
             <div class="feature-list">
@@ -189,6 +310,38 @@
         </div>
       </section>
 
+      <section class="faq-section section-space" id="faq">
+        <div class="faq-shell section-shell">
+          <div class="faq-intro">
+            <h2>Codex account switching, explained.</h2>
+            <p>Direct answers about multiple accounts, Codex Desktop, CLI behavior, local storage, and privacy.</p>
+          </div>
+
+          <div class="faq-list">
+            <details open>
+              <summary>Can I use multiple Codex accounts on one Mac?</summary>
+              <p>Yes. Save each account once, then select the active profile from the macOS menu bar. Use accounts you own or are authorized to use, including personal, work, and client accounts.</p>
+            </details>
+            <details>
+              <summary>Does it work with Codex Desktop and Codex CLI?</summary>
+              <p>The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their loaded state; newly started Codex CLI processes use the selected authentication.</p>
+            </details>
+            <details>
+              <summary>Where are Codex account profiles stored?</summary>
+              <p>Saved authentication snapshots use user-only local directories under Library Application Support. The active Codex credential remains at <code>~/.codex/auth.json</code>.</p>
+            </details>
+            <details>
+              <summary>Does it proxy traffic or rotate accounts automatically?</summary>
+              <p>No. Every account switch is manual and confirmed. The app does not run a proxy, route model traffic, or automatically rotate accounts.</p>
+            </details>
+            <details>
+              <summary>Is this an official OpenAI product?</summary>
+              <p>No. Codex Account Switcher is independent MIT-licensed open-source software for macOS.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
       <section class="privacy-section section-space" id="privacy">
         <div class="privacy-shell section-shell">
           <div class="locality-mark" data-copy="privacyLabel">On-device by design</div>
@@ -237,7 +390,7 @@
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="releases">Releases</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT</a>
         </div>
-        <p data-copy="footerCopy">Open source. Built for focused Codex work.</p>
+          <p>Independent open-source software. Not affiliated with OpenAI.</p>
       </div>
     </footer>
   </body>
