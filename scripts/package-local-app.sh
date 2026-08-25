@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
+APP_ICON="$PROJECT_DIR/assets/AppIcon.icns"
 APP_VERSION=${RELEASE_VERSION:-0.1.3}
 CODESIGN_IDENTITY=${CODESIGN_IDENTITY:--}
 
@@ -27,12 +28,14 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BUILD_DIR/CodexAccountSwitcher" "$MACOS_DIR/CodexAccountSwitcher"
 chmod 0755 "$MACOS_DIR/CodexAccountSwitcher"
 ditto "$BUILD_DIR/$RESOURCE_BUNDLE" "$RESOURCES_DIR/$RESOURCE_BUNDLE"
+ditto "$APP_ICON" "$RESOURCES_DIR/AppIcon.icns"
 
 /usr/bin/plutil -create xml1 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleDevelopmentRegion -string en "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleDisplayName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleExecutable -string CodexAccountSwitcher "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleIdentifier -string com.liuzhao.codex-account-switcher "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleIconFile -string AppIcon "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundlePackageType -string APPL "$CONTENTS_DIR/Info.plist"
