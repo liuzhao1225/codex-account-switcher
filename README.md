@@ -5,6 +5,10 @@
 <h1 align="center">Codex Account Switcher Lite</h1>
 
 <p align="center">
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <strong>Switch accounts. Keep your flow.</strong><br>
   A lightweight native macOS menu-bar switcher for Codex Desktop and newly started Codex CLI sessions.
 </p>
@@ -15,6 +19,7 @@
   <img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
   <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-f05138?logo=swift&logoColor=white">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-f5c542.svg"></a>
 </p>
 
 <p align="center">
@@ -147,4 +152,4 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 
 ## License
 
-This repository does not currently include a license file, and GitHub reports no declared license. A license badge should be added after the project owner selects and publishes the intended terms.
+Codex Account Switcher Lite is released under the [MIT License](LICENSE).
