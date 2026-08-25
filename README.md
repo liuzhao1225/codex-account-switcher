@@ -94,7 +94,7 @@ Existing terminal processes keep their current runtime state. Start a new Codex 
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.1](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.1) |
+| Apple Silicon build | Available in [v0.1.2](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.2) |
 | Automated checks | `swift test` and core checks run in the release workflow |
 | Code signing | Ad-hoc signature |
 | Apple notarization | Pending |

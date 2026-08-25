@@ -290,7 +290,7 @@ The client communicates with newline-delimited JSON-RPC messages over stdin/stdo
 Basic handshake:
 
 ```json
-{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.1"}}}
+{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.2"}}}
 {"method":"initialized","params":{}}
 ```
 

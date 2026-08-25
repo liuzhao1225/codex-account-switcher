@@ -94,7 +94,7 @@ Codex Account Switcher 面向需要在 Codex 中使用多个 ChatGPT 账号的�
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.1](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.1) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.2](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.2) 提供 |
 | 自动检查 | 发布工作流运行 `swift test` 和核心检查 |
 | 代码签名 | Ad-hoc 签名 |
 | Apple 公证 | 待完成 |
