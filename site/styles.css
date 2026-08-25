@@ -1101,6 +1101,10 @@ html[lang="zh-CN"] .download-shell h2 {
   letter-spacing: -0.055em;
 }
 
+html[lang="zh-CN"] .hero-title {
+  font-size: clamp(44px, 4.1vw, 58px);
+}
+
 @media (max-width: 1099px) {
   .nav-shell,
   .hero-shell,
@@ -1131,6 +1135,10 @@ html[lang="zh-CN"] .download-shell h2 {
   .hero-title {
     font-size: clamp(40px, 5.2vw, 56px);
     letter-spacing: -0.057em;
+  }
+
+  html[lang="zh-CN"] .hero-title {
+    font-size: clamp(38px, 4.8vw, 50px);
   }
 
   .hero-summary {
