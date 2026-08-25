@@ -40,7 +40,7 @@ struct SwitcherApp: App {
 }
 
 private struct MenuBarLogo: View {
-    private static let logicalSize = NSSize(width: 16, height: 16)
+    private static let logicalSize = NSSize(width: 17.5, height: 17.5)
 
     private static let image: NSImage = {
         let resourceBundleName = "CodexAccountSwitcherLite_CodexAccountSwitcherLite.bundle"
@@ -62,7 +62,7 @@ private struct MenuBarLogo: View {
 
     var body: some View {
         Image(nsImage: Self.image)
-            .frame(width: 16, height: 16)
+            .frame(width: 17.5, height: 17.5)
             .accessibilityHidden(true)
     }
 }
