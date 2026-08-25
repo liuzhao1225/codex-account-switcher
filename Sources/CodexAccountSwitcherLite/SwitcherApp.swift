@@ -40,6 +40,8 @@ struct SwitcherApp: App {
 }
 
 private struct MenuBarLogo: View {
+    private static let logicalSize = NSSize(width: 16, height: 16)
+
     private static let image: NSImage = {
         let resourceBundleName = "CodexAccountSwitcherLite_CodexAccountSwitcherLite.bundle"
         let resourceBundle = [Bundle.main.resourceURL, Bundle.main.bundleURL]
@@ -53,15 +55,15 @@ private struct MenuBarLogo: View {
         ), let image = NSImage(contentsOf: url) else {
             preconditionFailure("Missing account-switcher-logo.png")
         }
+        image.size = logicalSize
         image.isTemplate = true
         return image
     }()
 
     var body: some View {
         Image(nsImage: Self.image)
-            .resizable()
-            .scaledToFit()
             .frame(width: 16, height: 16)
+            .accessibilityHidden(true)
     }
 }
 
