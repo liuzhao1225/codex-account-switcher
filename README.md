@@ -61,8 +61,8 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 3. Open the DMG and move **Codex Account Switcher.app** to Applications.
 4. Launch the app and look for the switcher in the macOS menu bar.
 
-> [!WARNING]
-> The current public build is signed with a Developer ID Application certificate and has not yet been notarized by Apple. On first launch, Control-click the app and choose **Open**. If macOS still blocks it, open **System Settings → Privacy & Security → Open Anyway**. Apple notarization remains release-hardening work.
+> [!NOTE]
+> The current DMG and app are signed with a Developer ID Application certificate, notarized by Apple, and stapled for offline ticket validation. After copying the app to Applications, it should open through the normal macOS launch flow.
 
 ### System requirements
 
@@ -106,12 +106,12 @@ Existing terminal processes keep their current runtime state. Start a new Codex 
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.3](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.3) |
+| Apple Silicon build | Available in [v0.1.4](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4) |
 | Automated checks | `swift test` and core checks run in the release workflow |
 | Code signing | Developer ID Application |
-| Apple notarization | Pending |
+| Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
-| DMG release | Available in v0.1.3 |
+| DMG release | Available in v0.1.4 |
 
 ## Development
 

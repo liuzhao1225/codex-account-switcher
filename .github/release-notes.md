@@ -2,7 +2,7 @@
 
 Codex Account Switcher is an open-source native macOS menu bar app for switching between multiple personal, work, and client Codex accounts. It compares each saved profile's weekly usage and reset time, switches Codex Desktop, and updates authentication for newly started Codex CLI sessions.
 
-This arm64 GitHub build requires macOS 14 or later. It is signed with a Developer ID Application certificate and is not yet notarized by Apple.
+This arm64 GitHub build requires macOS 14 or later. The app and DMG are signed with a Developer ID Application certificate, notarized by Apple, and stapled for offline ticket validation.
 
 ### Core workflow
 
@@ -13,15 +13,15 @@ This arm64 GitHub build requires macOS 14 or later. It is signed with a Develope
 
 ### What's new
 
-- Package the app as a Developer ID signed DMG.
-- Replace the previous ZIP asset with a DMG and its SHA-256 checksum.
-- Keep Apple notarization explicitly pending.
+- Add the native application icon to the packaged app and Finder.
+- Notarize and staple the signed app before placing it in the DMG.
+- Notarize and staple the signed DMG, then verify both artifacts with Gatekeeper.
 
 ### Install
 
 1. Download and open the `Codex-Account-Switcher-*-macos-arm64.dmg` asset.
 2. Drag `Codex Account Switcher.app` to Applications.
-3. Control-click the app and choose **Open**. If macOS still blocks it, open **System Settings → Privacy & Security** and choose **Open Anyway**.
+3. Open the app normally from Applications.
 
 The release includes a SHA-256 checksum file for verifying the downloaded DMG.
 

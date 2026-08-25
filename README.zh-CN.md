@@ -61,8 +61,8 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 3. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 4. 启动应用，在 macOS 菜单栏中找到账号切换器。
 
-> [!WARNING]
-> 当前公开版本已使用 Developer ID Application 证书签名，尚未完成 Apple 公证。首次启动时，请按住 Control 点击应用并选择“打开”。如果 macOS 仍然阻止启动，请前往“系统设置 → 隐私与安全性 → 仍要打开”。Apple 公证仍属于后续发布加固工作。
+> [!NOTE]
+> 当前 DMG 和应用均已使用 Developer ID Application 证书签名、完成 Apple 公证并附加离线票据。将应用复制到“应用程序”后，即可按 macOS 正常启动流程打开。
 
 ### 系统要求
 
@@ -106,12 +106,12 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.3](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.3) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.4](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4) 提供 |
 | 自动检查 | 发布工作流运行 `swift test` 和核心检查 |
 | 代码签名 | Developer ID Application |
-| Apple 公证 | 待完成 |
+| Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.3 提供 |
+| DMG 发布 | 已在 v0.1.4 提供 |
 
 ## 开发
 
