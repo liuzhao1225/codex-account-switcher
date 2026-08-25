@@ -57,12 +57,12 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
 1. 打开 [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases)。
-2. 下载最新的 `macos-arm64.zip` 文件，可同时下载对应的 SHA-256 校验文件。
-3. 解压，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
+2. 下载最新的 `macos-arm64.dmg` 文件及其 SHA-256 校验文件。
+3. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 4. 启动应用，在 macOS 菜单栏中找到账号切换器。
 
 > [!WARNING]
-> 当前公开版本使用 ad-hoc 签名，尚未完成 Apple 公证。首次启动时，请按住 Control 点击应用并选择“打开”。如果 macOS 仍然阻止启动，请前往“系统设置 → 隐私与安全性 → 仍要打开”。Developer ID 签名、Apple 公证和 DMG 分发仍属于后续发布加固工作。
+> 当前公开版本已使用 Developer ID Application 证书签名，尚未完成 Apple 公证。首次启动时，请按住 Control 点击应用并选择“打开”。如果 macOS 仍然阻止启动，请前往“系统设置 → 隐私与安全性 → 仍要打开”。Apple 公证仍属于后续发布加固工作。
 
 ### 系统要求
 
@@ -70,7 +70,7 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 | --- | --- |
 | macOS | 14 Sonoma 或更高版本 |
 | 处理器 | Apple Silicon（`arm64`） |
-| 分发形式 | GitHub 预发布 ZIP |
+| 分发形式 | GitHub 预发布 DMG |
 | 集成范围 | Codex Desktop 和新启动的 Codex CLI 进程 |
 
 ## 功能
@@ -106,12 +106,12 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.2](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.2) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.3](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.3) 提供 |
 | 自动检查 | 发布工作流运行 `swift test` 和核心检查 |
-| 代码签名 | Ad-hoc 签名 |
+| 代码签名 | Developer ID Application |
 | Apple 公证 | 待完成 |
-| 分发容器 | ZIP 和 SHA-256 校验文件 |
-| DMG 发布 | 计划中 |
+| 分发容器 | DMG 和 SHA-256 校验文件 |
+| DMG 发布 | 已在 v0.1.3 提供 |
 
 ## 开发
 

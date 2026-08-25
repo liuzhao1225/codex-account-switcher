@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
-APP_VERSION=${RELEASE_VERSION:-0.1.2}
+APP_VERSION=${RELEASE_VERSION:-0.1.3}
 CODESIGN_IDENTITY=${CODESIGN_IDENTITY:--}
 
 cd "$PROJECT_DIR"
@@ -37,7 +37,7 @@ ditto "$BUILD_DIR/$RESOURCE_BUNDLE" "$RESOURCES_DIR/$RESOURCE_BUNDLE"
 /usr/bin/plutil -insert CFBundleName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundlePackageType -string APPL "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleShortVersionString -string "$APP_VERSION" "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleVersion -string 2 "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleVersion -string 3 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 14.0 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert LSUIElement -bool true "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert NSHighResolutionCapable -bool true "$CONTENTS_DIR/Info.plist"

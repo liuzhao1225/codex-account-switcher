@@ -13,9 +13,9 @@ This arm64 GitHub build requires macOS 14 or later. It is signed with a Develope
 
 ### What's new
 
-- Add a **Launch at Login** setting backed by macOS Service Management.
-- Show direct guidance when the Login Item requires approval or is unavailable.
-- Add localized accessibility labels for Settings toggles.
+- Package the app as a Developer ID signed DMG.
+- Replace the previous ZIP asset with a DMG and its SHA-256 checksum.
+- Keep Apple notarization explicitly pending.
 
 ### Install
 

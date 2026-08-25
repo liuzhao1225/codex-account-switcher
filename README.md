@@ -57,12 +57,12 @@ If you searched for a **Codex account switcher**, **Codex profile switcher**, or
 The current public build targets **Apple Silicon** and requires **macOS 14 or later**.
 
 1. Open [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases).
-2. Download the latest `macos-arm64.zip` asset and its optional SHA-256 file.
-3. Unzip the archive and move **Codex Account Switcher.app** to Applications.
+2. Download the latest `macos-arm64.dmg` asset and its SHA-256 file.
+3. Open the DMG and move **Codex Account Switcher.app** to Applications.
 4. Launch the app and look for the switcher in the macOS menu bar.
 
 > [!WARNING]
-> The current public build is ad-hoc signed and has not yet been notarized by Apple. On first launch, Control-click the app and choose **Open**. If macOS still blocks it, open **System Settings → Privacy & Security → Open Anyway**. Developer ID signing, notarization, and DMG distribution remain release-hardening work.
+> The current public build is signed with a Developer ID Application certificate and has not yet been notarized by Apple. On first launch, Control-click the app and choose **Open**. If macOS still blocks it, open **System Settings → Privacy & Security → Open Anyway**. Apple notarization remains release-hardening work.
 
 ### System requirements
 
@@ -70,7 +70,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | --- | --- |
 | macOS | 14 Sonoma or later |
 | Processor | Apple Silicon (`arm64`) |
-| Distribution | GitHub prerelease ZIP |
+| Distribution | GitHub prerelease DMG |
 | Integrations | Codex Desktop and newly started Codex CLI processes |
 
 ## Features
@@ -106,12 +106,12 @@ Existing terminal processes keep their current runtime state. Start a new Codex 
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.2](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.2) |
+| Apple Silicon build | Available in [v0.1.3](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.3) |
 | Automated checks | `swift test` and core checks run in the release workflow |
-| Code signing | Ad-hoc signature |
+| Code signing | Developer ID Application |
 | Apple notarization | Pending |
-| Distribution container | ZIP with SHA-256 checksum |
-| DMG release | Planned |
+| Distribution container | DMG with SHA-256 checksum |
+| DMG release | Available in v0.1.3 |
 
 ## Development
 
