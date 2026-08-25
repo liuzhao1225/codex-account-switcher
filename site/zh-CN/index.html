@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Codex Account Switcher | macOS Codex 多账号切换器</title>
-    <meta name="description" content="原生 macOS 菜单栏 Codex 多账号切换器，无需反复退出登录即可切换 Codex Desktop 与 CLI 账号、比较每周用量并保留本地配置。">
+    <meta name="description" content="原生 macOS Codex 多账号切换器与用量监控工具，无需反复退出登录即可切换 Codex Desktop 与 CLI 账号、比较每周限额并保留本地配置。">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="刘朝 Zhao Liu">
     <meta name="application-name" content="Codex Account Switcher">
@@ -106,6 +106,14 @@
                 "acceptedAnswer": {
                   "@type": "Answer",
                   "text": "确认切换后，应用会关闭并重新打开 Codex Desktop。已经运行的 CLI 进程保留原状态，新启动的 Codex CLI 进程使用刚刚选择的认证。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "可以同时监控多个 Codex 账号的用量吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "可以。macOS 菜单会比较每个已保存账号的每周剩余额度和重置时间，方便你在开始长任务前选择账号。"
                 }
               },
               {
@@ -325,6 +333,10 @@
             <details>
               <summary>是否同时支持 Codex Desktop 和 Codex CLI？</summary>
               <p>确认切换后，应用会关闭并重新打开 Codex Desktop。已经运行的 CLI 进程保留原状态，新启动的 Codex CLI 进程使用刚刚选择的认证。</p>
+            </details>
+            <details>
+              <summary>可以同时监控多个 Codex 账号的用量吗？</summary>
+              <p>可以。macOS 菜单会比较每个已保存账号的每周剩余额度和重置时间，方便你在开始长任务前选择账号。</p>
             </details>
             <details>
               <summary>Codex 账号配置保存在哪里？</summary>

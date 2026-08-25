@@ -174,6 +174,10 @@ Save each account once, then select the active profile from the macOS menu bar w
 
 The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their loaded state; newly started Codex CLI processes use the selected authentication.
 
+### Can I monitor Codex usage across multiple accounts?
+
+Yes. The macOS menu compares the remaining weekly allowance and reset time for every saved profile, so you can choose an account before starting a long Codex task.
+
 ### Where are Codex profiles stored?
 
 Saved authentication snapshots use user-only local directories under `~/Library/Application Support/Codex Account Switcher/`. The active Codex credential remains at `~/.codex/auth.json`.

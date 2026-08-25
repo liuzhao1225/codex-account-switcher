@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Codex Account Switcher for macOS | Multiple Codex Accounts</title>
-    <meta name="description" content="Native macOS menu bar app to switch multiple Codex Desktop and CLI accounts without relogging, compare weekly usage, and keep local profiles.">
+    <meta name="description" content="Native macOS Codex account switcher and usage monitor for multiple Codex Desktop and CLI accounts. Switch without repeated login, compare weekly limits, and keep profiles local.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="google-site-verification" content="e68dcucbS3A-bP9dQZ8w8vst9n-SrIzpB1pU5_zDFDg">
     <meta name="author" content="Zhao Liu">
@@ -107,6 +107,14 @@
                 "acceptedAnswer": {
                   "@type": "Answer",
                   "text": "The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their state, while newly started Codex CLI processes use the selected authentication."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I monitor Codex usage across multiple accounts?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. The macOS menu compares the remaining weekly allowance and reset time for every saved profile, so you can choose an account before starting a long Codex task."
                 }
               },
               {
@@ -329,6 +337,10 @@
             <details>
               <summary>Does it work with Codex Desktop and Codex CLI?</summary>
               <p>The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their loaded state; newly started Codex CLI processes use the selected authentication.</p>
+            </details>
+            <details>
+              <summary>Can I monitor Codex usage across multiple accounts?</summary>
+              <p>Yes. The macOS menu compares the remaining weekly allowance and reset time for every saved profile, so you can choose an account before starting a long Codex task.</p>
             </details>
             <details>
               <summary>Where are Codex account profiles stored?</summary>
