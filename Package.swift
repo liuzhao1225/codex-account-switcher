@@ -3,20 +3,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodexAccountSwitcherLite",
+    name: "CodexAccountSwitcher",
     defaultLocalization: "en",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .executable(
-            name: "CodexAccountSwitcherLite",
-            targets: ["CodexAccountSwitcherLite"]
+            name: "CodexAccountSwitcher",
+            targets: ["CodexAccountSwitcher"]
         ),
     ],
     targets: [
         .executableTarget(
-            name: "CodexAccountSwitcherLite",
+            name: "CodexAccountSwitcher",
             resources: [
                 .process("Resources"),
             ],
@@ -26,8 +26,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "CodexAccountSwitcherLiteTests",
-            dependencies: ["CodexAccountSwitcherLite"],
+            name: "CodexAccountSwitcherTests",
+            dependencies: ["CodexAccountSwitcher"],
             swiftSettings: [
                 .unsafeFlags([
                     "-F",

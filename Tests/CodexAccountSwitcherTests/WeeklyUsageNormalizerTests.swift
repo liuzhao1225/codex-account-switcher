@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import CodexAccountSwitcherLite
+@testable import CodexAccountSwitcher
 
 struct WeeklyUsageNormalizerTests {
     @Test func selectsLongestWeeklyWindowAndCalculatesRemaining() throws {

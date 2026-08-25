@@ -122,7 +122,7 @@ Verify:
 With the packaged application:
 
 1. open Settings and enable Launch at Login;
-2. confirm `sfltool dumpbtm` contains `com.liuzhao.codex-account-switcher-lite`;
+2. confirm `sfltool dumpbtm` contains `com.liuzhao.codex-account-switcher`;
 3. if macOS reports approval required, use the displayed System Settings link, approve the item, and confirm the Toggle becomes enabled after reopening Settings;
 4. quit the app, sign out and back in, and confirm the menu-bar item appears automatically;
 5. disable Launch at Login and confirm the system registration is removed.

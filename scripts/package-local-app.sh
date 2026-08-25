@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
-RESOURCE_BUNDLE="CodexAccountSwitcherLite_CodexAccountSwitcherLite.bundle"
+RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
 APP_VERSION=${RELEASE_VERSION:-0.1.1}
 
 cd "$PROJECT_DIR"
@@ -15,7 +15,7 @@ fi
 
 swift build "${BUILD_ARGUMENTS[@]}"
 BUILD_DIR=$(swift build "${BUILD_ARGUMENTS[@]}" --show-bin-path)
-APP_DIR="$BUILD_DIR/Codex Account Switcher Lite.app"
+APP_DIR="$BUILD_DIR/Codex Account Switcher.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
@@ -23,17 +23,17 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 rm -rf "$APP_DIR"
 
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
-cp "$BUILD_DIR/CodexAccountSwitcherLite" "$MACOS_DIR/CodexAccountSwitcherLite"
-chmod 0755 "$MACOS_DIR/CodexAccountSwitcherLite"
+cp "$BUILD_DIR/CodexAccountSwitcher" "$MACOS_DIR/CodexAccountSwitcher"
+chmod 0755 "$MACOS_DIR/CodexAccountSwitcher"
 ditto "$BUILD_DIR/$RESOURCE_BUNDLE" "$RESOURCES_DIR/$RESOURCE_BUNDLE"
 
 /usr/bin/plutil -create xml1 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleDevelopmentRegion -string en "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleDisplayName -string "Codex Account Switcher Lite" "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleExecutable -string CodexAccountSwitcherLite "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleIdentifier -string com.liuzhao.codex-account-switcher-lite "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleDisplayName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleExecutable -string CodexAccountSwitcher "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleIdentifier -string com.liuzhao.codex-account-switcher "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleName -string "Codex Account Switcher Lite" "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundlePackageType -string APPL "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleShortVersionString -string "$APP_VERSION" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleVersion -string 1 "$CONTENTS_DIR/Info.plist"

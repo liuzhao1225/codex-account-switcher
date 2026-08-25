@@ -33,9 +33,9 @@ struct SwitcherApp: App {
         guard model.settings.showsMenuBarPercentage,
               let remainingPercent = model.activeRemainingPercent
         else {
-            return "Codex Account Switcher Lite"
+            return "Codex Account Switcher"
         }
-        return "Codex Account Switcher Lite, \(remainingPercent)%"
+        return "Codex Account Switcher, \(remainingPercent)%"
     }
 }
 
@@ -43,7 +43,7 @@ private struct MenuBarLogo: View {
     private static let logicalSize = NSSize(width: 17.5, height: 17.5)
 
     private static let image: NSImage = {
-        let resourceBundleName = "CodexAccountSwitcherLite_CodexAccountSwitcherLite.bundle"
+        let resourceBundleName = "CodexAccountSwitcher_CodexAccountSwitcher.bundle"
         let resourceBundle = [Bundle.main.resourceURL, Bundle.main.bundleURL]
             .compactMap { $0 }
             .map { $0.appending(path: resourceBundleName) }

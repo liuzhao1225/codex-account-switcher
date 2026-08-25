@@ -1,6 +1,6 @@
 import ServiceManagement
 import Testing
-@testable import CodexAccountSwitcherLite
+@testable import CodexAccountSwitcher
 
 struct LaunchAtLoginStateTests {
     @Test func mapsEveryServiceManagementStatus() {

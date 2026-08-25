@@ -21,19 +21,34 @@ actor AccountStore: AccountStoring {
     let activeHomeURL: URL
 
     private let fileManager: FileManager
+    private let legacyBaseURL: URL?
     private var registry: AccountRegistry?
     private var usageCache: UsageCache?
 
     init(
         baseURL: URL? = nil,
+        legacyBaseURL: URL? = nil,
         activeHomeURL: URL? = nil,
         fileManager: FileManager = .default
     ) {
         self.fileManager = fileManager
-        self.baseURL = baseURL ?? fileManager.urls(
+        let applicationSupportURL = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
-        )[0].appending(path: "Codex Account Switcher Lite", directoryHint: .isDirectory)
+        )[0]
+        if let baseURL {
+            self.baseURL = baseURL
+            self.legacyBaseURL = legacyBaseURL
+        } else {
+            self.baseURL = applicationSupportURL.appending(
+                path: "Codex Account Switcher",
+                directoryHint: .isDirectory
+            )
+            self.legacyBaseURL = applicationSupportURL.appending(
+                path: "Codex Account Switcher Lite",
+                directoryHint: .isDirectory
+            )
+        }
         self.activeHomeURL = activeHomeURL
             ?? fileManager.homeDirectoryForCurrentUser.appending(path: ".codex", directoryHint: .isDirectory)
     }
@@ -209,6 +224,11 @@ actor AccountStore: AccountStoring {
     }
 
     private func prepareDirectories() throws {
+        if !fileManager.fileExists(atPath: baseURL.path),
+           let legacyBaseURL,
+           fileManager.fileExists(atPath: legacyBaseURL.path) {
+            try fileManager.moveItem(at: legacyBaseURL, to: baseURL)
+        }
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: baseURL.path)
         try fileManager.createDirectory(at: profilesURL, withIntermediateDirectories: true)

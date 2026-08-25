@@ -2,7 +2,7 @@
 
 ## 1. Product principle
 
-Codex Account Switcher Lite is a simple switcher. Every persistent control must directly support one of four jobs:
+Codex Account Switcher is a simple switcher. Every persistent control must directly support one of four jobs:
 
 1. inspect account Usage;
 2. select an account;
@@ -102,10 +102,10 @@ When a step fails, execution stops and the exact error is shown. The system does
 The MVP uses ordinary local files with user-only permissions.
 
 - Codex active credential: `~/.codex/auth.json`
-- Switcher registry: `~/Library/Application Support/Codex Account Switcher Lite/accounts.json`
-- Switcher settings: `~/Library/Application Support/Codex Account Switcher Lite/settings.json`
-- Weekly Usage cache: `~/Library/Application Support/Codex Account Switcher Lite/usage-cache.json`
-- Saved account credential: `~/Library/Application Support/Codex Account Switcher Lite/accounts/<profile-id>/auth.json`
+- Switcher registry: `~/Library/Application Support/Codex Account Switcher/accounts.json`
+- Switcher settings: `~/Library/Application Support/Codex Account Switcher/settings.json`
+- Weekly Usage cache: `~/Library/Application Support/Codex Account Switcher/usage-cache.json`
+- Saved account credential: `~/Library/Application Support/Codex Account Switcher/accounts/<profile-id>/auth.json`
 
 macOS Keychain is not used in the MVP. It adds implementation complexity without adding user-visible switching value.
 

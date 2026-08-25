@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/account-switcher-logo-white.png">
-    <img src="assets/account-switcher-logo.png" width="96" height="96" alt="Codex Account Switcher Lite Logo">
+    <img src="assets/account-switcher-logo.png" width="96" height="96" alt="Codex Account Switcher Logo">
   </picture>
 </p>
 
-<h1 align="center">Codex Account Switcher Lite</h1>
+<h1 align="center">Codex Account Switcher</h1>
 
 <p align="center">
   <strong>切换账号，保持专注。</strong><br>
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/liuzhao1225/codex-account-switcher-lite/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher-lite?include_prereleases&sort=semver&label=release&color=2563eb"></a>
-  <a href="https://github.com/liuzhao1225/codex-account-switcher-lite/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher-lite/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?include_prereleases&sort=semver&label=release&color=2563eb"></a>
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
   <img alt="macOS 14 或更高版本" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
   <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-f05138?logo=swift&logoColor=white">
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://liuzhao1225.github.io/codex-account-switcher-lite/"><b>网站</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>网站</b></a> ·
   <a href="#下载"><b>下载</b></a> ·
   <a href="#功能"><b>功能</b></a> ·
   <a href="#工作原理"><b>工作原理</b></a> ·
@@ -33,11 +33,11 @@
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-![Codex Account Switcher Lite 在 macOS 菜单栏中展示三个虚构演示账号、每周用量和快速切换功能](assets/codex-account-switcher-lite-hero.png)
+![Codex Account Switcher 在 macOS 菜单栏中展示三个虚构演示账号、每周用量和快速切换功能](assets/codex-account-switcher-hero.zh-CN.png)
 
 <p align="center"><strong>你的 Codex 账号，一步直达。</strong></p>
 
-Codex Account Switcher Lite 面向需要在 Codex 中使用多个 ChatGPT 账号的用户。打开菜单即可比较各账号剩余的每周用量和重置时间，然后选择下一步使用的账号。
+Codex Account Switcher 面向需要在 Codex 中使用多个 ChatGPT 账号的用户。打开菜单即可比较各账号剩余的每周用量和重置时间，然后选择下一步使用的账号。
 
 应用在本地保存相互独立的账号快照，切换当前 Codex 身份验证信息，并重启 Codex Desktop，让新会话使用所选账号。之后新启动的 Codex CLI 进程也会使用同一份身份验证信息。
 
@@ -45,9 +45,9 @@ Codex Account Switcher Lite 面向需要在 Codex 中使用多个 ChatGPT 账号
 
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
-1. 打开 [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher-lite/releases)。
+1. 打开 [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases)。
 2. 下载最新的 `macos-arm64.zip` 文件，可同时下载对应的 SHA-256 校验文件。
-3. 解压，将 **Codex Account Switcher Lite.app** 移入“应用程序”文件夹。
+3. 解压，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 4. 启动应用，在 macOS 菜单栏中找到账号切换器。
 
 > [!WARNING]
@@ -94,7 +94,7 @@ Codex Account Switcher Lite 面向需要在 Codex 中使用多个 ChatGPT 账号
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.1](https://github.com/liuzhao1225/codex-account-switcher-lite/releases/tag/v0.1.1) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.1](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.1) 提供 |
 | 自动检查 | 发布工作流运行 `swift test` 和核心检查 |
 | 代码签名 | Ad-hoc 签名 |
 | Apple 公证 | 待完成 |
@@ -106,8 +106,8 @@ Codex Account Switcher Lite 面向需要在 Codex 中使用多个 ChatGPT 账号
 项目使用 Swift 6.2 构建，是面向 macOS 14 及更高版本的原生 SwiftUI 应用。
 
 ```bash
-git clone https://github.com/liuzhao1225/codex-account-switcher-lite.git
-cd codex-account-switcher-lite
+git clone https://github.com/liuzhao1225/codex-account-switcher.git
+cd codex-account-switcher
 swift build
 swift test
 ./scripts/run-core-checks.sh
@@ -119,12 +119,12 @@ swift test
 ./scripts/package-local-app.sh
 ```
 
-应用包将生成到 `.build/release/Codex Account Switcher Lite.app`。
+应用包将生成到 `.build/release/Codex Account Switcher.app`。
 
 ### 项目结构
 
 ```text
-Sources/CodexAccountSwitcherLite/   SwiftUI 应用、账号状态、切换逻辑和本地化
+Sources/CodexAccountSwitcher/   SwiftUI 应用、账号状态、切换逻辑和本地化
 Tests/                              存储、客户端、切换和登录项的 Swift 测试
 Checks/                             独立的核心行为检查
 scripts/                            本地打包和验证命令
@@ -134,7 +134,7 @@ prototype/                          早期浏览器视觉原型
 
 ## 参与贡献
 
-请使用 [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher-lite/issues) 提交错误报告和范围明确的功能建议。发起 Pull Request 前请运行：
+请使用 [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) 提交错误报告和范围明确的功能建议。发起 Pull Request 前请运行：
 
 ```bash
 swift test
@@ -154,4 +154,4 @@ swift test
 
 ## 许可证
 
-Codex Account Switcher Lite 基于 [MIT License](LICENSE) 发布。
+Codex Account Switcher 基于 [MIT License](LICENSE) 发布。

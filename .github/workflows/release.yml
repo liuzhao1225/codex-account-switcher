@@ -37,12 +37,12 @@ jobs:
           set -euo pipefail
           export RELEASE_VERSION="${GITHUB_REF_NAME#v}"
           app_path=$(./scripts/package-local-app.sh | tail -n 1)
-          artifact=".build/artifacts/Codex-Account-Switcher-Lite-${GITHUB_REF_NAME}-macos-arm64.zip"
+          artifact=".build/artifacts/Codex-Account-Switcher-${GITHUB_REF_NAME}-macos-arm64.zip"
 
           mkdir -p .build/artifacts
           rm -f "$artifact" "$artifact.sha256"
           codesign --verify --deep --strict --verbose=4 "$app_path"
-          file "$app_path/Contents/MacOS/CodexAccountSwitcherLite"
+          file "$app_path/Contents/MacOS/CodexAccountSwitcher"
           ditto -c -k --sequesterRsrc --keepParent "$app_path" "$artifact"
           (
             cd "$(dirname "$artifact")"
@@ -55,9 +55,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          artifact=".build/artifacts/Codex-Account-Switcher-Lite-${GITHUB_REF_NAME}-macos-arm64.zip"
+          artifact=".build/artifacts/Codex-Account-Switcher-${GITHUB_REF_NAME}-macos-arm64.zip"
           gh release create "$GITHUB_REF_NAME" "$artifact" "$artifact.sha256" \
-            --title "Codex Account Switcher Lite ${GITHUB_REF_NAME}" \
+            --title "Codex Account Switcher ${GITHUB_REF_NAME}" \
             --notes-file .github/release-notes.md \
             --prerelease \
             --verify-tag

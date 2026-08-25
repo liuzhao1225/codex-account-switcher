@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import CodexAccountSwitcherLite
+@testable import CodexAccountSwitcher
 
 struct AccountStoreTests {
     @Test func persistsProfilesAndEnforcesLifecycleRules() async throws {
@@ -121,6 +121,30 @@ struct AccountStoreTests {
         )
         #expect(try await reloadedStore.loadSettings() == updatedSettings)
         #expect(try permissions(settingsURL) == 0o600)
+    }
+
+    @Test func migratesLegacyApplicationSupportDirectory() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "codex-switcher-migration-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let legacy = root.appending(path: "Codex Account Switcher Lite", directoryHint: .isDirectory)
+        let current = root.appending(path: "Codex Account Switcher", directoryHint: .isDirectory)
+        let activeHome = root.appending(path: "active", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: activeHome, withIntermediateDirectories: true)
+        try Data(#"{"accounts":[],"version":1}"#.utf8).write(
+            to: legacy.appending(path: "accounts.json")
+        )
+
+        let store = AccountStore(
+            baseURL: current,
+            legacyBaseURL: legacy,
+            activeHomeURL: activeHome
+        )
+        _ = try await store.loadRegistry()
+
+        #expect(FileManager.default.fileExists(atPath: current.appending(path: "accounts.json").path))
+        #expect(!FileManager.default.fileExists(atPath: legacy.path))
     }
 
     private func permissions(_ url: URL) throws -> Int {

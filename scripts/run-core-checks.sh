@@ -7,14 +7,14 @@ mkdir -p "$output_dir"
 
 swiftc \
   -parse-as-library \
-  "$project_dir/Sources/CodexAccountSwitcherLite/Models.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/WeeklyUsageNormalizer.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/AccountStore.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/SwitchService.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/DesktopController.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/CodexClient.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/Localization.swift" \
-  "$project_dir/Sources/CodexAccountSwitcherLite/AppModel.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/Models.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/WeeklyUsageNormalizer.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/AccountStore.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/SwitchService.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/DesktopController.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/CodexClient.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/Localization.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/AppModel.swift" \
   "$project_dir/Checks/CoreChecks.swift" \
   -framework AppKit \
   -framework SwiftUI \

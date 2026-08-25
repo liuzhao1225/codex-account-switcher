@@ -1,6 +1,6 @@
 # Documentation
 
-This directory defines the MVP for Codex Account Switcher Lite.
+This directory defines the MVP for Codex Account Switcher.
 
 ## Documents
 
@@ -14,7 +14,7 @@ This directory defines the MVP for Codex Account Switcher Lite.
 
 ## Product definition
 
-Codex Account Switcher Lite is a local macOS menu-bar utility. It manages a small set of authentication snapshots and copies the selected snapshot into Codex's active authentication location.
+Codex Account Switcher is a local macOS menu-bar utility. It manages a small set of authentication snapshots and copies the selected snapshot into Codex's active authentication location.
 
 The intended user flow is:
 

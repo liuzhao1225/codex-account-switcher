@@ -1,12 +1,12 @@
 const copy = {
   en: {
-    title: "Codex Account Switcher Lite | Switch Codex accounts on macOS",
+    title: "Codex Account Switcher | Switch Codex accounts on macOS",
     description: "A native macOS menu-bar app for comparing Codex account limits and switching local profiles in seconds.",
     skip: "Skip to content",
     navFeatures: "Features",
     navWorkflow: "How it works",
     navPrivacy: "Privacy",
-    download: "Download",
+    download: "Download for macOS",
     heroEyebrow: "Open source for macOS",
     heroLineOne: "Switch accounts.",
     heroLineTwo: "Keep your flow.",
@@ -42,6 +42,7 @@ const copy = {
     switchTitle: "Confirm the switch",
     switchBody: "Let the app update the active profile and reopen Codex Desktop.",
     privacyTitle: "Your identities stay on this Mac.",
+    privacyLabel: "On-device by design",
     privacyBody: "The app uses independent local profile directories and runs without an account proxy or routing service.",
     privacyFactOne: "Credentials stay inside local Codex profile directories.",
     privacyFactTwo: "Existing terminal processes keep their current runtime state.",
@@ -52,19 +53,19 @@ const copy = {
     requirementMac: "macOS 14+",
     requirementChip: "Apple Silicon",
     requirementLicense: "MIT License",
-    viewSource: "View source",
+    viewSource: "View on GitHub",
     releaseNote: "The current build uses ad-hoc signing and has not been notarized. Follow the first-launch guide in the README if macOS blocks it.",
     releases: "Releases",
     footerCopy: "Open source. Built for focused Codex work."
   },
   zh: {
-    title: "Codex Account Switcher Lite | macOS Codex 账号切换器",
+    title: "Codex Account Switcher | macOS Codex 账号切换器",
     description: "在 macOS 菜单栏中比较 Codex 账号用量，并快速切换本地账号配置。",
     skip: "跳到主要内容",
     navFeatures: "功能",
     navWorkflow: "工作原理",
     navPrivacy: "隐私",
-    download: "下载",
+    download: "下载 macOS 版",
     heroEyebrow: "开源 macOS 工具",
     heroLineOne: "切换账号。",
     heroLineTwo: "保持专注。",
@@ -100,6 +101,7 @@ const copy = {
     switchTitle: "确认切换",
     switchBody: "由应用更新当前配置，并重新打开 Codex Desktop。",
     privacyTitle: "账号身份留在这台 Mac。",
+    privacyLabel: "专为本地运行而设计",
     privacyBody: "应用使用相互独立的本地配置目录，不依赖账号代理或路由服务。",
     privacyFactOne: "认证信息保存在本地 Codex 配置目录中。",
     privacyFactTwo: "已经运行的终端进程会保留当前状态。",
@@ -110,7 +112,7 @@ const copy = {
     requirementMac: "macOS 14+",
     requirementChip: "Apple Silicon",
     requirementLicense: "MIT 许可证",
-    viewSource: "查看源码",
+    viewSource: "在 GitHub 查看",
     releaseNote: "当前版本使用 ad-hoc 签名，尚未完成 Apple 公证。如果 macOS 阻止启动，请按照 README 中的首次启动说明操作。",
     releases: "版本发布",
     footerCopy: "开源，为专注的 Codex 工作而生。"
@@ -135,6 +137,17 @@ function applyLanguage(nextLanguage) {
     const key = element.dataset.copy;
     if (copy[language][key]) {
       element.textContent = copy[language][key];
+    }
+  });
+
+  document.querySelectorAll("[data-src-en][data-src-zh]").forEach((image) => {
+    const source = language === "zh" ? image.dataset.srcZh : image.dataset.srcEn;
+    const alt = language === "zh" ? image.dataset.altZh : image.dataset.altEn;
+    if (image.getAttribute("src") !== source) {
+      image.setAttribute("src", source);
+    }
+    if (alt) {
+      image.setAttribute("alt", alt);
     }
   });
 
@@ -178,21 +191,5 @@ languageButton.addEventListener("click", () => {
 });
 
 colorPreference.addEventListener("change", updateThemeLabel);
-
-const revealElements = document.querySelectorAll("[data-reveal]");
-if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  const revealObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("is-visible");
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.16, rootMargin: "0px 0px -6% 0px" });
-
-  revealElements.forEach((element) => revealObserver.observe(element));
-} else {
-  revealElements.forEach((element) => element.classList.add("is-visible"));
-}
 
 applyLanguage(language);

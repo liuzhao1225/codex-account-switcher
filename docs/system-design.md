@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Codex Account Switcher Lite is a native macOS menu-bar application that manages multiple local Codex authentication snapshots.
+Codex Account Switcher is a native macOS menu-bar application that manages multiple local Codex authentication snapshots.
 
 The system has one core operation:
 
@@ -93,7 +93,7 @@ The application is a single process. There is no daemon and no local network ser
 ## 5. Source layout
 
 ```text
-Sources/CodexAccountSwitcherLite/
+Sources/CodexAccountSwitcher/
 ├── SwitcherApp.swift
 ├── AppModel.swift
 ├── MenuBarPopover.swift
@@ -108,7 +108,7 @@ Sources/CodexAccountSwitcherLite/
 ├── SwitchService.swift
 └── DesktopController.swift
 
-Tests/CodexAccountSwitcherLiteTests/
+Tests/CodexAccountSwitcherTests/
 Checks/CoreChecks.swift
 ```
 
@@ -122,7 +122,7 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 ~/.codex/
 └── auth.json                         # active credential used by Codex
 
-~/Library/Application Support/Codex Account Switcher Lite/
+~/Library/Application Support/Codex Account Switcher/
 ├── accounts.json                     # profile metadata and active account ID
 ├── settings.json                     # language and menu-bar percentage
 ├── usage-cache.json                  # last successful weekly Usage per profile
@@ -136,7 +136,7 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 Directory permissions:
 
 ```text
-Codex Account Switcher Lite directory 0700
+Codex Account Switcher directory 0700
 accounts/<profile-id>                 0700
 auth.json                             0600
 accounts.json / settings.json         0600
@@ -290,7 +290,7 @@ The client communicates with newline-delimited JSON-RPC messages over stdin/stdo
 Basic handshake:
 
 ```json
-{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher_lite","title":"Codex Account Switcher Lite","version":"0.1.1"}}}
+{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.1"}}}
 {"method":"initialized","params":{}}
 ```
 
@@ -358,7 +358,7 @@ This prevents a blocked row refresh from hanging indefinitely without creating a
 Each account directory acts as a minimal Codex home for identity and Usage calls:
 
 ```text
-~/Library/Application Support/Codex Account Switcher Lite/accounts/<profile-id>/auth.json
+~/Library/Application Support/Codex Account Switcher/accounts/<profile-id>/auth.json
 ```
 
 The switcher starts app-server with `CODEX_HOME` set to that directory. This lets it read Usage without changing the active `~/.codex/auth.json`.
