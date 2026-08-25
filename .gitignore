@@ -6,3 +6,4 @@ DerivedData/
 .env
 env.txt
 .venv/
+.secrets/
