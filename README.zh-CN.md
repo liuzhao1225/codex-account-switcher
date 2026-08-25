@@ -23,6 +23,7 @@
 
 <p align="center">
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"><b>网站</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"><b>切换指南</b></a> ·
   <a href="#下载"><b>下载</b></a> ·
   <a href="#适用人群"><b>使用场景</b></a> ·
   <a href="#功能"><b>功能</b></a> ·

@@ -20,4 +20,22 @@
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/" />
   </url>
+  <url>
+    <loc>https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/" />
+  </url>
+  <url>
+    <loc>https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/" />
+  </url>
 </urlset>

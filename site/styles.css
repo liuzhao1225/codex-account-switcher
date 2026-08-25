@@ -730,6 +730,18 @@ main[id] {
   margin-top: 20px;
 }
 
+.inline-link {
+  display: inline-block;
+  margin-top: 20px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.inline-link:hover {
+  color: var(--accent-hover);
+}
+
 .faq-list {
   border-top: 1px solid var(--line-strong);
 }
@@ -872,6 +884,186 @@ main[id] {
   background: var(--page-muted);
 }
 
+/* Long-form product guides */
+.article-hero {
+  padding: clamp(72px, 10vw, 128px) 0 clamp(56px, 7vw, 88px);
+  border-bottom: 1px solid var(--line);
+  background: var(--page);
+}
+
+.article-shell {
+  width: min(calc(100% - 64px), 1120px);
+  margin-inline: auto;
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 34px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.breadcrumbs a:hover {
+  color: var(--text);
+}
+
+.article-hero h1 {
+  max-width: 940px;
+  margin-top: 18px;
+  padding-bottom: 0.08em;
+  font-size: clamp(44px, 6.4vw, 76px);
+  font-weight: 710;
+  letter-spacing: -0.06em;
+  line-height: 1.04;
+}
+
+.article-lede {
+  max-width: 760px;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  font-size: clamp(19px, 2vw, 23px);
+  line-height: 1.55;
+  letter-spacing: -0.015em;
+}
+
+.article-meta {
+  margin-top: 22px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.article-visual {
+  margin-top: 48px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.article-body {
+  padding: clamp(72px, 9vw, 116px) 0;
+}
+
+.article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: clamp(64px, 9vw, 112px);
+}
+
+.article-main {
+  min-width: 0;
+}
+
+.article-main section + section {
+  margin-top: 72px;
+}
+
+.article-main h2 {
+  padding-bottom: 0.08em;
+  font-size: clamp(30px, 3.8vw, 46px);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 1.12;
+}
+
+.article-main h3 {
+  margin-top: 32px;
+  font-size: 22px;
+  font-weight: 660;
+  letter-spacing: -0.025em;
+}
+
+.article-main p,
+.article-main li {
+  color: var(--text-secondary);
+  font-size: 17px;
+  line-height: 1.72;
+}
+
+.article-main p {
+  margin-top: 18px;
+}
+
+.article-main ul,
+.article-main ol {
+  margin: 20px 0 0;
+  padding-left: 24px;
+}
+
+.article-main li + li {
+  margin-top: 9px;
+}
+
+.article-main strong {
+  color: var(--text);
+  font-weight: 660;
+}
+
+.article-main code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-tint);
+  color: var(--text);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.article-callout {
+  margin-top: 28px;
+  padding: 24px 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface-raised);
+}
+
+.article-callout p:first-child {
+  margin-top: 0;
+}
+
+.article-aside {
+  position: sticky;
+  top: calc(var(--header-height) + 36px);
+  align-self: start;
+  padding-top: 4px;
+}
+
+.article-aside strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.article-aside nav {
+  display: grid;
+  gap: 13px;
+  margin-top: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.article-aside a {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.article-aside a:hover {
+  color: var(--accent);
+}
+
+.article-cta {
+  margin-top: 80px;
+  padding: clamp(32px, 5vw, 52px);
+  border-radius: var(--panel-radius);
+  background: var(--accent-soft);
+}
+
+.article-cta h2 {
+  max-width: 720px;
+}
+
 .footer-shell {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto minmax(260px, 1fr);
@@ -994,6 +1186,10 @@ html[lang="zh-CN"] .download-shell h2 {
   .footer-shell p {
     grid-column: 1 / -1;
     text-align: left;
+  }
+
+  .article-shell {
+    width: min(calc(100% - 48px), 1120px);
   }
 }
 
@@ -1252,6 +1448,39 @@ html[lang="zh-CN"] .download-shell h2 {
 
   .footer-shell p {
     grid-column: auto;
+  }
+
+  .article-shell {
+    width: min(calc(100% - 32px), 1120px);
+  }
+
+  .article-hero {
+    padding: 56px 0 48px;
+  }
+
+  .article-hero h1 {
+    font-size: clamp(40px, 12vw, 54px);
+  }
+
+  .article-visual {
+    margin-top: 36px;
+  }
+
+  .article-body {
+    padding: 64px 0 80px;
+  }
+
+  .article-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .article-aside {
+    display: none;
+  }
+
+  .article-main section + section {
+    margin-top: 56px;
   }
 }
 

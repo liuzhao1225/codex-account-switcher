@@ -23,6 +23,7 @@
 
 <p align="center">
   <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>Website</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"><b>Switching guide</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="#who-it-is-for"><b>Use cases</b></a> ·
   <a href="#features"><b>Features</b></a> ·
