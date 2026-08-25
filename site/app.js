@@ -124,8 +124,14 @@ const languageButton = document.querySelector("[data-lang-toggle]");
 const themeButton = document.querySelector("[data-theme-toggle]");
 const description = document.querySelector('meta[name="description"]');
 const colorPreference = window.matchMedia("(prefers-color-scheme: dark)");
+const requestedLanguage = new URLSearchParams(window.location.search).get("lang")?.toLowerCase();
+const linkedLanguage = requestedLanguage === "en"
+  ? "en"
+  : requestedLanguage === "zh" || requestedLanguage === "zh-cn"
+    ? "zh"
+    : null;
 
-let language = localStorage.getItem("site-language") || (navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
+let language = linkedLanguage || localStorage.getItem("site-language") || (navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
 
 function applyLanguage(nextLanguage) {
   language = nextLanguage;
@@ -154,6 +160,9 @@ function applyLanguage(nextLanguage) {
   languageButton.textContent = language === "zh" ? "EN" : "中文";
   languageButton.setAttribute("aria-label", language === "zh" ? "Switch to English" : "切换到中文");
   localStorage.setItem("site-language", language);
+  const url = new URL(window.location.href);
+  url.searchParams.set("lang", language === "zh" ? "zh-CN" : "en");
+  window.history.replaceState({}, "", url);
   updateThemeLabel();
 }
 

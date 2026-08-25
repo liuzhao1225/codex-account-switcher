@@ -395,8 +395,10 @@ main[id] {
 
 .hero-image-frame {
   position: relative;
+  width: min(100%, 624px);
+  margin-inline: auto;
   overflow: hidden;
-  border: 1px solid var(--line);
+  aspect-ratio: 624 / 500;
   border-radius: var(--panel-radius);
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -412,6 +414,7 @@ main[id] {
 }
 
 .hero-image-frame img {
+  display: block;
   width: 100%;
   height: auto;
 }
@@ -523,14 +526,17 @@ main[id] {
 }
 
 .feature-visual {
+  width: min(100%, 624px);
+  margin-inline: auto;
   overflow: hidden;
-  border: 1px solid var(--line);
+  aspect-ratio: 624 / 500;
   border-radius: var(--panel-radius);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
 .feature-visual img {
+  display: block;
   width: 100%;
   height: auto;
 }
@@ -873,8 +879,16 @@ html[lang="zh-CN"] .download-shell h2 {
   }
 
   .hero-shell {
+    display: flex;
+    flex-direction: column;
     grid-template-columns: 1fr;
     gap: 42px;
+    min-width: 0;
+    max-width: calc(100% - 32px);
+  }
+
+  .hero-copy {
+    width: 100%;
   }
 
   .hero-title {
@@ -901,8 +915,16 @@ html[lang="zh-CN"] .download-shell h2 {
   }
 
   .hero-visual {
-    width: calc(100% + 8px);
-    margin-left: -4px;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  .hero-image-frame,
+  .hero-image-frame img {
+    width: min(100%, 624px);
+    min-width: 0;
+    max-width: 100%;
   }
 
   .rail-shell {

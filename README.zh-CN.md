@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>网站</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/?lang=zh-CN"><b>网站</b></a> ·
   <a href="#下载"><b>下载</b></a> ·
   <a href="#功能"><b>功能</b></a> ·
   <a href="#工作原理"><b>工作原理</b></a> ·

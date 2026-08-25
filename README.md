@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>Website</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/?lang=en"><b>Website</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="#features"><b>Features</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
