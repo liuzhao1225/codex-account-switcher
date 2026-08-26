@@ -32,11 +32,12 @@ function updateThemeLabel() {
     ? { light: "浅色", dark: "深色" }
     : { light: "Light", dark: "Dark" };
 
-  themeButton.textContent = labels[nextTheme];
-  themeButton.setAttribute(
-    "aria-label",
-    isChinese ? `切换到${labels[nextTheme]}模式` : `Switch to ${labels[nextTheme].toLowerCase()} mode`
-  );
+  const actionLabel = isChinese
+    ? `切换到${labels[nextTheme]}模式`
+    : `Switch to ${labels[nextTheme].toLowerCase()} mode`;
+  themeButton.dataset.nextTheme = nextTheme;
+  themeButton.setAttribute("aria-label", actionLabel);
+  themeButton.setAttribute("title", actionLabel);
 }
 
 const savedTheme = localStorage.getItem("site-theme");

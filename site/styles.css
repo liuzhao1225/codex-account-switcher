@@ -272,6 +272,39 @@ main[id] {
   white-space: nowrap;
 }
 
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.github-link:hover {
+  background: var(--surface-tint);
+}
+
+.github-link:active {
+  transform: translateY(1px);
+}
+
+.github-link img {
+  width: 18px;
+  height: 18px;
+}
+
+:root[data-theme="dark"] .github-link img {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .github-link img {
+    filter: invert(1);
+  }
+}
+
 .text-control {
   display: inline-flex;
   align-items: center;
@@ -286,6 +319,48 @@ main[id] {
 
 .text-control:hover {
   background: var(--surface-tint);
+}
+
+.theme-toggle {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+}
+
+.language-link {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+}
+
+.language-link::before {
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  content: "";
+  -webkit-mask: url("assets/language.svg") center / contain no-repeat;
+  mask: url("assets/language.svg") center / contain no-repeat;
+}
+
+.theme-toggle::before {
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  content: "";
+  -webkit-mask: url("assets/moon.svg") center / contain no-repeat;
+  mask: url("assets/moon.svg") center / contain no-repeat;
+}
+
+:root[data-theme="dark"] .theme-toggle::before {
+  -webkit-mask-image: url("assets/sun.svg");
+  mask-image: url("assets/sun.svg");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle::before {
+    -webkit-mask-image: url("assets/sun.svg");
+    mask-image: url("assets/sun.svg");
+  }
 }
 
 .button {
@@ -319,6 +394,21 @@ main[id] {
   min-height: 36px;
   padding-inline: 14px;
   font-size: 14px;
+}
+
+.download-link {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.download-link::before {
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  content: "";
+  -webkit-mask: url("assets/download.svg") center / contain no-repeat;
+  mask: url("assets/download.svg") center / contain no-repeat;
 }
 
 .button-secondary {
@@ -1296,7 +1386,7 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 
 @media (max-width: 1099px) {
   :root {
-    --header-height: 108px;
+    --header-height: 64px;
   }
 
   .nav-shell,
@@ -1308,19 +1398,8 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
   }
 
   .nav-shell {
-    grid-template-columns: minmax(200px, 1fr) auto;
-    grid-template-rows: 64px 44px;
-    gap: 0 16px;
-  }
-
-  .nav-shell .brand {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .nav-shell .nav-actions {
-    grid-column: 2;
-    grid-row: 1;
+    grid-template-columns: minmax(190px, 1fr) auto minmax(320px, 1fr);
+    gap: 16px;
   }
 
   .entity-shell {
@@ -1329,13 +1408,7 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
   }
 
   .nav-links {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: flex-start;
-    min-width: 0;
-    overflow-x: auto;
-    border-top: 1px solid var(--line);
-    scrollbar-width: none;
+    justify-content: center;
   }
 
   .nav-links::-webkit-scrollbar {
@@ -1425,9 +1498,25 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
   }
 }
 
+@media (max-width: 919px) {
+  .nav-shell {
+    grid-template-columns: minmax(150px, 1fr) auto minmax(235px, 1fr);
+    gap: 8px;
+  }
+
+  .brand-name-full {
+    display: none;
+  }
+
+  .brand-name-compact {
+    display: inline;
+  }
+
+}
+
 @media (max-width: 767px) {
   :root {
-    --header-height: 104px;
+    --header-height: 64px;
   }
 
   .nav-shell,
@@ -1439,9 +1528,8 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
   }
 
   .nav-shell {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 60px 44px;
-    gap: 0 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px;
   }
 
   .nav-links {
@@ -1450,25 +1538,23 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 
   .nav-links a {
     min-height: 34px;
-    padding-inline: 8px;
-    font-size: 13px;
+    padding-inline: 6px;
+    font-size: 12.5px;
   }
 
-  .brand-name-full {
-    display: none;
-  }
-
+  .brand-name-full,
   .brand-name-compact {
-    display: inline;
-  }
-
-  .nav-actions .button {
     display: none;
   }
 
   .text-control {
-    padding-inline: 8px;
-    font-size: 13px;
+    padding-inline: 6px;
+    font-size: 12.5px;
+  }
+
+  .github-link {
+    width: 32px;
+    height: 32px;
   }
 
   .hero {
@@ -1743,30 +1829,42 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 }
 
 @media (max-width: 370px) {
-  :root {
-    --header-height: 140px;
-  }
-
   .nav-shell {
-    grid-template-rows: 60px 80px;
+    width: min(calc(100% - 20px), var(--content));
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px;
   }
 
-  .nav-links {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
-    overflow: visible;
-    padding-block: 4px;
+  .nav-shell .brand {
+    display: none;
   }
 
   .nav-links a {
-    justify-content: center;
-    min-width: 0;
+    padding-inline: 4px;
+    font-size: 12px;
   }
 
-  .brand-name-full,
-  .brand-name-compact {
-    display: none;
+  .nav-actions {
+    gap: 2px;
+  }
+
+  .theme-toggle,
+  .language-link,
+  .github-link {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+  }
+
+  .download-link {
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .text-control {
+    padding-inline: 4px;
+    font-size: 12px;
   }
 }
 

@@ -24,7 +24,7 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
-    <meta property="og:title" content="Mac Codex 多账号切换器——无需终端和配置">
+    <meta property="og:title" content="Mac Codex 多账号切换器，无需终端和配置">
     <meta property="og:description" content="账号添加一次，之后从 Mac 菜单栏选择。免费、本地运行、开源，并已完成 Apple 公证。">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
@@ -32,13 +32,13 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher 在简洁的 Mac 菜单栏应用中展示三个账号">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Mac Codex 多账号切换器——无需终端和配置">
+    <meta name="twitter:title" content="Mac Codex 多账号切换器，无需终端和配置">
     <meta name="twitter:description" content="账号添加一次，之后从 Mac 菜单栏选择；应用会自动完成 Codex Desktop 交接。">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta name="twitter:image:alt" content="Codex Account Switcher 在简洁的 Mac 菜单栏应用中展示三个账号">
 
-    <link rel="stylesheet" href="../styles.css">
-    <script src="../app.js" defer></script>
+    <link rel="stylesheet" href="../styles.css?v=20260826-nav">
+    <script src="../app.js?v=20260826-nav" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -169,7 +169,7 @@
 
     <header class="site-header">
       <nav class="nav-shell" aria-label="主要导航">
-        <a class="brand" href="#top" aria-label="Codex Account Switcher 首页">
+        <a class="brand" href="./" aria-label="Codex Account Switcher 首页">
           <span class="brand-mark" aria-hidden="true">
             <img class="logo-light" src="../assets/account-switcher-logo.png" alt="">
             <img class="logo-dark" src="../assets/account-switcher-logo-white.png" alt="">
@@ -178,17 +178,17 @@
           <span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
         </a>
 
-        <div class="nav-links">
-          <a href="#top" aria-current="page">首页</a>
-          <a href="#workflow">工作原理</a>
-          <a href="guides/codex-multiple-accounts/">切换账号</a>
-          <a href="about/">关于项目</a>
+        <div class="nav-links" id="site-nav-links">
+          <a href="./" aria-current="page">产品</a>
+          <a href="guides/codex-multiple-accounts/">使用指南</a>
+          <a href="about/">关于</a>
         </div>
 
         <div class="nav-actions">
-          <button class="text-control" type="button" data-theme-toggle aria-label="切换颜色模式">深色</button>
-          <a class="text-control language-link" href="../" hreflang="en" lang="en" aria-label="View the English website">English</a>
-          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">下载</a>
+          <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="切换到深色模式"></button>
+          <a class="text-control language-link" href="../" hreflang="en" lang="en" aria-label="查看英文网站" title="English"></a>
+          <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="在 GitHub 查看 Codex Account Switcher" title="GitHub"><img src="../assets/github.svg" alt=""></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" aria-label="下载 Codex Account Switcher macOS 版" title="下载 macOS 版"></a>
         </div>
       </nav>
     </header>
@@ -205,7 +205,7 @@
             <p class="hero-summary hero-enter">账号添加一次，之后从菜单栏选择。无需终端命令，无需修改配置文件。</p>
             <div class="hero-actions hero-enter">
               <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">免费下载 Mac 版</a>
-              <a class="button button-secondary" href="#workflow">查看使用方法</a>
+              <a class="button button-secondary" href="guides/codex-multiple-accounts/">阅读使用指南</a>
             </div>
           </div>
 
@@ -439,11 +439,10 @@
           <span>Codex Account Switcher</span>
         </div>
         <div class="footer-links">
-          <a href="#top">首页</a>
-          <a href="#workflow">工作原理</a>
-          <a href="guides/codex-multiple-accounts/">切换账号</a>
-          <a href="about/">关于项目</a>
-          <a href="guides/codex-account/">Codex Account 详解</a>
+          <a href="./">产品</a>
+          <a href="guides/codex-multiple-accounts/">使用指南</a>
+          <a href="about/">关于</a>
+          <a href="guides/codex-account/">Codex 账号原理</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">版本发布</a>
         </div>

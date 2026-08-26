@@ -25,7 +25,7 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="en_US">
     <meta property="og:locale:alternate" content="zh_CN">
-    <meta property="og:title" content="Switch Codex Accounts on Mac—Without Terminal Setup">
+    <meta property="og:title" content="Switch Codex Accounts on Mac: No Terminal Setup">
     <meta property="og:description" content="Add your accounts once, then choose from the Mac menu bar. Free, local, open source, and Apple notarized.">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
@@ -33,13 +33,13 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing three accounts in a simple Mac menu-bar app">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Switch Codex Accounts on Mac—Without Terminal Setup">
+    <meta name="twitter:title" content="Switch Codex Accounts on Mac: No Terminal Setup">
     <meta name="twitter:description" content="Add your accounts once, then choose from the Mac menu bar. The app completes the Codex Desktop handoff.">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta name="twitter:image:alt" content="Codex Account Switcher showing three accounts in a simple Mac menu-bar app">
 
-    <link rel="stylesheet" href="styles.css">
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20260826-nav">
+    <script src="app.js?v=20260826-nav" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -186,7 +186,7 @@
 
     <header class="site-header">
       <nav class="nav-shell" aria-label="Primary navigation">
-        <a class="brand" href="#top" aria-label="Codex Account Switcher home">
+        <a class="brand" href="./" aria-label="Codex Account Switcher home">
           <span class="brand-mark" aria-hidden="true">
             <img class="logo-light" src="assets/account-switcher-logo.png" alt="">
             <img class="logo-dark" src="assets/account-switcher-logo-white.png" alt="">
@@ -195,17 +195,17 @@
           <span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
         </a>
 
-        <div class="nav-links">
-          <a href="#top" aria-current="page">Home</a>
-          <a href="#workflow" data-copy="navWorkflow">How it works</a>
-          <a href="guides/switch-multiple-codex-accounts/">Switch accounts</a>
+        <div class="nav-links" id="site-nav-links">
+          <a href="./" aria-current="page">Product</a>
+          <a href="guides/switch-multiple-codex-accounts/">Guide</a>
           <a href="about/">About</a>
         </div>
 
         <div class="nav-actions">
-          <button class="text-control" type="button" data-theme-toggle aria-label="Switch color theme">Dark</button>
-          <a class="text-control language-link" href="zh-CN/" hreflang="zh-CN" lang="zh-CN" aria-label="查看简体中文网站">简体中文</a>
-          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" data-copy="download">Download</a>
+          <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
+          <a class="text-control language-link" href="zh-CN/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
+          <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="assets/github.svg" alt=""></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
         </div>
       </nav>
     </header>
@@ -223,7 +223,7 @@
             <p class="hero-summary hero-enter">Add your accounts once, then choose from the menu bar. No Terminal commands or config-file editing.</p>
             <div class="hero-actions hero-enter">
               <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" data-copy="downloadMac">Download free for Mac</a>
-              <a class="button button-secondary" href="#workflow" data-copy="viewGitHub">See how it works</a>
+              <a class="button button-secondary" href="guides/switch-multiple-codex-accounts/">Read the guide</a>
             </div>
           </div>
 
@@ -468,11 +468,10 @@
           <span>Codex Account Switcher</span>
         </div>
         <div class="footer-links">
-          <a href="#top">Home</a>
-          <a href="#workflow">How it works</a>
-          <a href="guides/switch-multiple-codex-accounts/">Switch accounts</a>
+          <a href="./">Product</a>
+          <a href="guides/switch-multiple-codex-accounts/">Guide</a>
           <a href="about/">About</a>
-          <a href="guides/codex-account/">Codex account explained</a>
+          <a href="guides/codex-account/">Codex account reference</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="releases">Releases</a>
         </div>
