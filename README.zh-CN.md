@@ -31,6 +31,7 @@
   <a href="#功能"><b>功能</b></a> ·
   <a href="#工作原理"><b>工作原理</b></a> ·
   <a href="#隐私与范围"><b>隐私</b></a> ·
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>讨论区</b></a> ·
   <a href="#开发"><b>开发</b></a> ·
   <a href="docs/README.md"><b>项目文档</b></a> ·
   <a href="README.md">English</a> ·
@@ -101,6 +102,12 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 已经运行的终端进程会保留原有运行状态。启动新的 Codex CLI 进程即可使用刚刚选择的账号。
 
+## 征集反馈
+
+账号切换存在一个重要的边界问题：已经运行的 CLI 进程可能继续使用其启动时加载的认证状态，即使当前选择的账号已经改变。欢迎参与公开讨论：[切换账号后，已经运行的 Codex CLI 会话应如何处理？](https://github.com/liuzhao1225/codex-account-switcher/discussions/1)
+
+欢迎分享其他账号切换方案的实际体验和工具对比。当前重点征集的问题包括：应用是否应提示正在运行的 CLI 进程、Desktop 与 CLI 是否需要分别选择账号，以及每周用量是否适合直接显示在切换菜单中。
+
 ## 隐私与范围
 
 - 账号快照保存在相互独立的本地 `CODEX_HOME` 配置目录中。
@@ -155,7 +162,7 @@ prototype/                          早期浏览器视觉原型
 
 ## 参与贡献
 
-请使用 [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) 提交错误报告和范围明确的功能建议。发起 Pull Request 前请运行：
+请使用 [GitHub Discussions](https://github.com/liuzhao1225/codex-account-switcher/discussions) 讨论工作流、产品想法和工具对比，使用 [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) 提交错误报告和范围明确的功能建议。发起 Pull Request 前请运行：
 
 ```bash
 swift test

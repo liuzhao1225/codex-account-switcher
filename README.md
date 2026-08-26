@@ -31,6 +31,7 @@
   <a href="#features"><b>Features</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#privacy-and-scope"><b>Privacy</b></a> ·
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>Discussions</b></a> ·
   <a href="#development"><b>Development</b></a> ·
   <a href="docs/README.md"><b>Documentation</b></a> ·
   <a href="README.md">English</a> ·
@@ -101,6 +102,12 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
 
+## Feedback wanted
+
+Account switching has an important edge case: a running CLI process can keep the authentication state it loaded even after the selected profile changes. Join the public discussion about [how already-running Codex CLI sessions should behave after an account switch](https://github.com/liuzhao1225/codex-account-switcher/discussions/1).
+
+Feedback from other account-switching workflows is welcome, including comparisons with other tools. Useful questions include whether the app should warn about running CLI processes, whether Desktop and CLI should support separate selected profiles, and whether weekly usage belongs directly in the switch menu.
+
 ## Privacy and scope
 
 - Account snapshots live in independent local `CODEX_HOME` profile directories.
@@ -155,7 +162,7 @@ prototype/                          Early browser-based visual prototype
 
 ## Contributing
 
-Use [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) for bug reports and focused feature proposals. Run the following checks before opening a pull request:
+Use [GitHub Discussions](https://github.com/liuzhao1225/codex-account-switcher/discussions) for workflow questions, product ideas, and comparisons. Use [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) for bug reports and focused feature proposals. Run the following checks before opening a pull request:
 
 ```bash
 swift test
