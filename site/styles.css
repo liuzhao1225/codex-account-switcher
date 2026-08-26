@@ -228,7 +228,7 @@ main[id] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -240,9 +240,27 @@ main[id] {
   transition: color 140ms ease, background 140ms ease;
 }
 
+.nav-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding-inline: 10px;
+  border-radius: 8px;
+}
+
 .nav-links a:hover,
 .text-control:hover {
   color: var(--text);
+}
+
+.nav-links a:hover {
+  background: var(--surface-tint);
+}
+
+.nav-links a[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-weight: 680;
 }
 
 .nav-actions {
@@ -1022,6 +1040,11 @@ main[id] {
   box-shadow: var(--shadow-soft);
 }
 
+.article-visual img {
+  width: 100%;
+  height: auto;
+}
+
 .article-body {
   padding: clamp(72px, 9vw, 116px) 0;
 }
@@ -1272,6 +1295,10 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 }
 
 @media (max-width: 1099px) {
+  :root {
+    --header-height: 108px;
+  }
+
   .nav-shell,
   .hero-shell,
   .rail-shell,
@@ -1282,6 +1309,18 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 
   .nav-shell {
     grid-template-columns: minmax(200px, 1fr) auto;
+    grid-template-rows: 64px 44px;
+    gap: 0 16px;
+  }
+
+  .nav-shell .brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .nav-shell .nav-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .entity-shell {
@@ -1290,7 +1329,21 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
   }
 
   .nav-links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    min-width: 0;
+    overflow-x: auto;
+    border-top: 1px solid var(--line);
+    scrollbar-width: none;
+  }
+
+  .nav-links::-webkit-scrollbar {
     display: none;
+  }
+
+  .nav-links a {
+    flex: 0 0 auto;
   }
 
   .hero {
@@ -1374,7 +1427,7 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 
 @media (max-width: 767px) {
   :root {
-    --header-height: 60px;
+    --header-height: 104px;
   }
 
   .nav-shell,
@@ -1387,7 +1440,18 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 
   .nav-shell {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
+    grid-template-rows: 60px 44px;
+    gap: 0 10px;
+  }
+
+  .nav-links {
+    gap: 0;
+  }
+
+  .nav-links a {
+    min-height: 34px;
+    padding-inline: 8px;
+    font-size: 13px;
   }
 
   .brand-name-full {
@@ -1679,6 +1743,27 @@ html[lang="zh-CN"] .hero-title .zh-account-word {
 }
 
 @media (max-width: 370px) {
+  :root {
+    --header-height: 140px;
+  }
+
+  .nav-shell {
+    grid-template-rows: 60px 80px;
+  }
+
+  .nav-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    overflow: visible;
+    padding-block: 4px;
+  }
+
+  .nav-links a {
+    justify-content: center;
+    min-width: 0;
+  }
+
   .brand-name-full,
   .brand-name-compact {
     display: none;
