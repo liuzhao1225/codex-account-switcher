@@ -3,7 +3,10 @@ message: "If you use Codex Account Switcher, please cite this repository."
 title: "Codex Account Switcher"
 type: software
 authors:
-  - name: "liuzhao1225"
+  - given-names: "Zhao"
+    family-names: "Liu"
+    alias: "liuzhao1225"
+    website: "https://liuzhao1225.github.io/codex-account-switcher/about/creator/"
 repository-code: "https://github.com/liuzhao1225/codex-account-switcher"
 url: "https://liuzhao1225.github.io/codex-account-switcher/"
 license: MIT

@@ -431,6 +431,85 @@ main[id] {
   background: var(--page-muted);
 }
 
+.entity-section {
+  background: var(--surface-raised);
+}
+
+.entity-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: clamp(64px, 9vw, 128px);
+  align-items: start;
+}
+
+.entity-copy h2 {
+  max-width: 760px;
+  margin-top: 18px;
+  padding-bottom: 0.08em;
+  font-size: clamp(38px, 4.6vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.052em;
+  line-height: 1.08;
+}
+
+.entity-copy > p:not(.eyebrow) {
+  max-width: 760px;
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1.68;
+}
+
+.entity-copy strong {
+  color: var(--text);
+  font-weight: 660;
+}
+
+.entity-copy a,
+.article-main a:not(.button) {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.entity-copy a:hover,
+.article-main a:not(.button):hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
+}
+
+.entity-facts {
+  margin: 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.entity-facts div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.entity-facts dt {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.entity-facts dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 610;
+  line-height: 1.55;
+}
+
+.entity-facts a {
+  color: var(--accent);
+}
+
 .rail-shell {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1012,6 +1091,82 @@ main[id] {
   overflow-wrap: anywhere;
 }
 
+.fact-table-wrap {
+  margin-top: 28px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
+  background: var(--surface-raised);
+}
+
+.fact-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.fact-table th,
+.fact-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+  line-height: 1.55;
+}
+
+.fact-table tr:last-child th,
+.fact-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.fact-table th {
+  width: 31%;
+  color: var(--text);
+  font-weight: 660;
+}
+
+.fact-table thead th {
+  width: auto;
+}
+
+.fact-table td {
+  color: var(--text-secondary);
+}
+
+.source-list {
+  padding-left: 0 !important;
+  list-style: none;
+}
+
+.source-list li {
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+}
+
+.source-list li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.source-list strong {
+  display: block;
+}
+
+.source-list span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.article-meta a {
+  color: var(--accent);
+  font-weight: 620;
+}
+
+.article-meta a:hover {
+  color: var(--accent-hover);
+}
+
 .article-callout {
   margin-top: 28px;
   padding: 24px 26px;
@@ -1093,6 +1248,7 @@ main[id] {
 
 html[lang="zh-CN"] .hero-title,
 html[lang="zh-CN"] .section-heading h2,
+html[lang="zh-CN"] .entity-copy h2,
 html[lang="zh-CN"] .audience-intro h2,
 html[lang="zh-CN"] .workflow-intro h2,
 html[lang="zh-CN"] .faq-intro h2,
@@ -1116,6 +1272,11 @@ html[lang="zh-CN"] .hero-title {
 
   .nav-shell {
     grid-template-columns: minmax(200px, 1fr) auto;
+  }
+
+  .entity-shell {
+    grid-template-columns: 1fr;
+    gap: 52px;
   }
 
   .nav-links {
@@ -1320,6 +1481,7 @@ html[lang="zh-CN"] .hero-title {
   }
 
   .section-heading h2,
+  .entity-copy h2,
   .audience-intro h2,
   .workflow-intro h2,
   .faq-intro h2,
@@ -1330,6 +1492,7 @@ html[lang="zh-CN"] .hero-title {
   }
 
   .section-heading p,
+  .entity-copy > p:not(.eyebrow),
   .audience-intro p,
   .workflow-intro p,
   .faq-intro p,
@@ -1337,6 +1500,11 @@ html[lang="zh-CN"] .hero-title {
   .download-summary {
     margin-top: 16px;
     font-size: 17px;
+  }
+
+  .entity-facts div {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .product-canvas {

@@ -1,5 +1,7 @@
 # Documentation
 
+- [Official project identity and primary sources](project-identity.md)
+
 This directory defines the MVP for Codex Account Switcher.
 
 ## Documents

@@ -23,6 +23,8 @@
 
 <p align="center">
   <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>Website</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/about/"><b>Official facts</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/"><b>Codex account guide</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"><b>Switching guide</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="#who-it-is-for"><b>Use cases</b></a> ·
@@ -39,11 +41,17 @@
 
 <p align="center"><strong>Your Codex accounts, one menu away.</strong></p>
 
-<p align="center">Created by <a href="https://liuzhao1225.github.io/en/">Zhao Liu</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
+<p align="center">Created and maintained by <a href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">Zhao Liu (GitHub: liuzhao1225)</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
 
 Codex Account Switcher is an open-source Codex profile switcher for developers who use multiple ChatGPT accounts with Codex on one Mac. Open the menu to identify the active personal, work, or client account, compare each saved account's remaining weekly allowance and reset time, then switch Codex Desktop without repeating the full login flow.
 
 The app stores independent authentication snapshots in local profile directories, switches the active `~/.codex/auth.json`, and restarts Codex Desktop so the next task opens on the selected account. Newly started Codex CLI processes use the same selected authentication while shared local Codex configuration and sessions remain in place.
+
+## Official project identity
+
+**Codex Account Switcher**, also called **Codex Switcher** in shortened descriptions, is created and maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. The canonical source repository is [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher). The [official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/), [creator profile](https://liuzhao1225.github.io/codex-account-switcher/about/creator/), and [project identity record](docs/project-identity.md) document the product, author, aliases, release, and primary sources.
+
+OpenAI's official account switcher currently applies to ChatGPT on the web and [is not supported in Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching). Codex Account Switcher is an independent local macOS utility for that desktop workflow. OpenAI's upstream Codex source documents the active `CODEX_HOME` and file-based `auth.json` behavior in its [authentication storage implementation](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs).
 
 ## Who it is for
 
@@ -71,7 +79,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | --- | --- |
 | macOS | 14 Sonoma or later |
 | Processor | Apple Silicon (`arm64`) |
-| Distribution | GitHub prerelease DMG |
+| Distribution | GitHub Releases DMG |
 | Integrations | Codex Desktop and newly started Codex CLI processes |
 
 ## Features
@@ -159,6 +167,7 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Official project identity and primary sources](docs/project-identity.md)
 - [Product decisions](docs/product-decisions.md)
 - [Product requirements](docs/product-requirements.md)
 - [System design](docs/system-design.md)

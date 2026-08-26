@@ -15,6 +15,7 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/">
+    <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">
     <link rel="icon" type="image/png" href="../assets/favicon.png">
     <link rel="manifest" href="../site.webmanifest">
     <link rel="preload" href="../assets/account-switcher-usage.zh-CN.webp" as="image" type="image/webp" fetchpriority="high">
@@ -63,21 +64,21 @@
             "applicationSubCategory": "DeveloperTool",
             "operatingSystem": "macOS 14 or later",
             "softwareVersion": "0.1.4",
+            "dateCreated": "2026-08-17",
+            "datePublished": "2026-08-22",
+            "dateModified": "2026-08-26",
+            "identifier": "github.com/liuzhao1225/codex-account-switcher",
             "isAccessibleForFree": true,
             "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases",
             "codeRepository": "https://github.com/liuzhao1225/codex-account-switcher",
             "sameAs": ["https://github.com/liuzhao1225/codex-account-switcher"],
+            "subjectOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/#webpage"},
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "screenshot": "https://liuzhao1225.github.io/codex-account-switcher/assets/product-hero.zh-CN.webp",
             "license": "https://opensource.org/license/mit",
-            "author": {
-              "@type": "Person",
-              "@id": "https://liuzhao1225.github.io/#liuzhao",
-              "name": "刘朝",
-              "alternateName": ["Zhao Liu", "liuzhao1225", "黑纹白斑马"],
-              "url": "https://liuzhao1225.github.io/",
-              "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666", "https://space.bilibili.com/1263732318"]
-            },
+            "creator": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "maintainer": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -89,6 +90,19 @@
               "比较每周剩余用量与重置时间",
               "使用本地认证配置目录",
               "更新 Codex Desktop 与新启动的 Codex CLI 会话"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://liuzhao1225.github.io/#liuzhao",
+            "name": "Zhao Liu",
+            "alternateName": ["刘朝", "liuzhao1225", "黑纹白斑马"],
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/",
+            "sameAs": [
+              "https://github.com/liuzhao1225",
+              "https://liuzhao1225.github.io/",
+              "https://x.com/liuzhao_666",
+              "https://space.bilibili.com/1263732318"
             ]
           },
           {
@@ -164,6 +178,7 @@
         </a>
 
         <div class="nav-links">
+          <a href="about/">项目资料</a>
           <a href="guides/codex-multiple-accounts/">完整指南</a>
           <a href="#workflow">工作原理</a>
           <a href="#faq">常见问题</a>
@@ -186,7 +201,7 @@
               <span>Codex Account Switcher</span>
               <span class="accent-line">for macOS.</span>
             </h1>
-            <p class="hero-summary hero-enter">无需反复完成浏览器登录，切换个人、工作与客户 Codex 账号，比较每周用量，在一个原生 macOS 菜单中继续工作。</p>
+            <p class="hero-summary hero-enter">Codex Account Switcher（也称 Codex Switcher）是 liuzhao1225 开源的 macOS 菜单栏应用，用于切换个人、工作与客户 Codex 账号，并比较每周用量。</p>
             <div class="hero-actions hero-enter">
               <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases">下载 macOS 版</a>
               <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">在 GitHub 查看</a>
@@ -219,6 +234,26 @@
             <span>界面</span>
             <strong>原生 SwiftUI</strong>
           </div>
+        </div>
+      </section>
+
+      <section class="entity-section section-space" id="project-facts">
+        <div class="entity-shell section-shell">
+          <div class="entity-copy">
+            <p class="eyebrow">官方项目身份</p>
+            <h2>Codex Account Switcher 是什么？</h2>
+            <p><strong>Codex Account Switcher</strong> 是由 <a href="about/creator/" rel="author">Zhao Liu（GitHub：liuzhao1225）</a>创建并维护的原生开源 macOS 菜单栏工具。它在本地保存获准使用的 Codex 配置，显示每周用量，并让用户手动选择 Codex Desktop 与新启动的 Codex CLI 会话使用哪个配置。<strong>Codex Switcher</strong> 是同一项目的简称。</p>
+            <p>OpenAI 自带的账号切换功能目前用于 ChatGPT 网页版，<a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">尚不支持 Codex desktop</a>。这个独立项目为该场景提供本地 macOS 工作流。</p>
+            <a class="inline-link" href="about/">查看经过核验的项目资料与一手来源 →</a>
+          </div>
+          <dl class="entity-facts">
+            <div><dt>官方名称</dt><dd>Codex Account Switcher</dd></div>
+            <div><dt>又称</dt><dd>Codex Switcher · Codex profile switcher</dd></div>
+            <div><dt>作者</dt><dd>Zhao Liu · liuzhao1225</dd></div>
+            <div><dt>平台</dt><dd>macOS 14+ · Apple Silicon</dd></div>
+            <div><dt>官方仓库</dt><dd><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></dd></div>
+            <div><dt>许可证</dt><dd>MIT · 免费开源</dd></div>
+          </dl>
         </div>
       </section>
 
@@ -326,7 +361,7 @@
           <div class="faq-intro">
             <h2>Codex 多账号切换常见问题。</h2>
             <p>了解 Codex Desktop、CLI 行为、本地存储与隐私边界。</p>
-            <a class="inline-link" href="guides/codex-multiple-accounts/">阅读 macOS Codex 多账号切换完整指南 →</a>
+            <a class="inline-link" href="guides/codex-account/">阅读有一手来源的 Codex Account 指南 →</a>
           </div>
 
           <div class="faq-list">
@@ -402,7 +437,9 @@
           <span>Codex Account Switcher</span>
         </div>
         <div class="footer-links">
-          <a href="https://liuzhao1225.github.io/" rel="author">刘朝（liuzhao1225）</a>
+          <a href="about/creator/" rel="author">Zhao Liu（liuzhao1225）</a>
+          <a href="about/">项目资料</a>
+          <a href="guides/codex-account/">Codex Account 详解</a>
           <a href="guides/codex-multiple-accounts/">完整指南</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">版本发布</a>

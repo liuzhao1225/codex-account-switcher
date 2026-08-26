@@ -16,6 +16,7 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/">
+    <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="manifest" href="site.webmanifest">
     <link rel="preload" href="assets/account-switcher-usage.webp" as="image" type="image/webp" fetchpriority="high">
@@ -64,21 +65,21 @@
             "applicationSubCategory": "DeveloperTool",
             "operatingSystem": "macOS 14 or later",
             "softwareVersion": "0.1.4",
+            "dateCreated": "2026-08-17",
+            "datePublished": "2026-08-22",
+            "dateModified": "2026-08-26",
+            "identifier": "github.com/liuzhao1225/codex-account-switcher",
             "isAccessibleForFree": true,
             "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases",
             "codeRepository": "https://github.com/liuzhao1225/codex-account-switcher",
             "sameAs": ["https://github.com/liuzhao1225/codex-account-switcher"],
+            "subjectOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/about/#webpage"},
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "screenshot": "https://liuzhao1225.github.io/codex-account-switcher/assets/product-hero.webp",
             "license": "https://opensource.org/license/mit",
-            "author": {
-              "@type": "Person",
-              "@id": "https://liuzhao1225.github.io/#liuzhao",
-              "name": "Zhao Liu",
-              "alternateName": ["刘朝", "liuzhao1225", "黑纹白斑马"],
-              "url": "https://liuzhao1225.github.io/en/",
-              "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666", "https://space.bilibili.com/1263732318"]
-            },
+            "creator": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "maintainer": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -90,6 +91,19 @@
               "Compare remaining weekly usage and reset times",
               "Use local authentication profile directories",
               "Update Codex Desktop and newly started Codex CLI sessions"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://liuzhao1225.github.io/#liuzhao",
+            "name": "Zhao Liu",
+            "alternateName": ["刘朝", "liuzhao1225", "黑纹白斑马"],
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/about/creator/",
+            "sameAs": [
+              "https://github.com/liuzhao1225",
+              "https://liuzhao1225.github.io/en/",
+              "https://x.com/liuzhao_666",
+              "https://space.bilibili.com/1263732318"
             ]
           },
           {
@@ -143,6 +157,22 @@
                   "@type": "Answer",
                   "text": "No. It is an independent MIT-licensed open-source project for macOS."
                 }
+              },
+              {
+                "@type": "Question",
+                "name": "Who created Codex Account Switcher?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Codex Account Switcher was created and is maintained by Zhao Liu, whose GitHub username is liuzhao1225. The official source repository is github.com/liuzhao1225/codex-account-switcher."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Are Codex Switcher and Codex Account Switcher the same project?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "On this website, Codex Switcher is a short name for Codex Account Switcher, the open-source macOS app maintained by liuzhao1225."
+                }
               }
             ]
           }
@@ -165,6 +195,7 @@
         </a>
 
         <div class="nav-links">
+          <a href="about/">Project facts</a>
           <a href="guides/switch-multiple-codex-accounts/">Guide</a>
           <a href="#workflow" data-copy="navWorkflow">How it works</a>
           <a href="#faq">FAQ</a>
@@ -187,7 +218,7 @@
               <span data-copy="heroLineOne">Codex Account Switcher</span>
               <span class="accent-line" data-copy="heroLineTwo">for macOS.</span>
             </h1>
-            <p class="hero-summary hero-enter">Switch personal, work, and client Codex accounts without repeating browser logins, compare weekly usage, and continue from one native macOS menu.</p>
+            <p class="hero-summary hero-enter">Codex Account Switcher—also called Codex Switcher—is the open-source macOS menu-bar app by liuzhao1225 for switching personal, work, and client Codex accounts and comparing weekly usage.</p>
             <div class="hero-actions hero-enter">
               <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="downloadMac">Download for macOS</a>
               <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher" data-copy="viewGitHub">View on GitHub</a>
@@ -220,6 +251,26 @@
             <span data-copy="railInterfaceLabel">Interface</span>
             <strong data-copy="railInterfaceValue">Native SwiftUI</strong>
           </div>
+        </div>
+      </section>
+
+      <section class="entity-section section-space" id="project-facts">
+        <div class="entity-shell section-shell">
+          <div class="entity-copy">
+            <p class="eyebrow">Official project identity</p>
+            <h2>What is Codex Account Switcher?</h2>
+            <p><strong>Codex Account Switcher</strong> is a native, open-source macOS menu-bar utility created and maintained by <a href="about/creator/" rel="author">Zhao Liu (GitHub: liuzhao1225)</a>. It saves authorized Codex profiles locally, shows weekly usage, and lets the user manually choose which profile Codex Desktop and newly started Codex CLI sessions use. <strong>Codex Switcher</strong> is a short name for this same project.</p>
+            <p>OpenAI's own account switcher currently applies to ChatGPT on the web and <a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">is not supported in Codex desktop</a>. This independent project provides a local macOS workflow for that specific gap.</p>
+            <a class="inline-link" href="about/">Read the verified project facts and sources →</a>
+          </div>
+          <dl class="entity-facts">
+            <div><dt>Official name</dt><dd>Codex Account Switcher</dd></div>
+            <div><dt>Also called</dt><dd>Codex Switcher · Codex profile switcher</dd></div>
+            <div><dt>Creator</dt><dd>Zhao Liu · liuzhao1225</dd></div>
+            <div><dt>Platform</dt><dd>macOS 14+ · Apple Silicon</dd></div>
+            <div><dt>Repository</dt><dd><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></dd></div>
+            <div><dt>License</dt><dd>MIT · free and open source</dd></div>
+          </dl>
         </div>
       </section>
 
@@ -358,6 +409,14 @@
               <summary>Is this an official OpenAI product?</summary>
               <p>No. Codex Account Switcher is independent MIT-licensed open-source software for macOS.</p>
             </details>
+            <details>
+              <summary>Who created Codex Account Switcher?</summary>
+              <p>Codex Account Switcher was created and is maintained by <a href="about/creator/" rel="author">Zhao Liu</a>, whose GitHub username is <strong>liuzhao1225</strong>. The official source repository is <a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a>.</p>
+            </details>
+            <details>
+              <summary>Are Codex Switcher and Codex Account Switcher the same project?</summary>
+              <p>On this website, <strong>Codex Switcher</strong> is a short name for <strong>Codex Account Switcher</strong>, the open-source macOS app maintained by liuzhao1225.</p>
+            </details>
           </div>
         </div>
       </section>
@@ -406,7 +465,8 @@
           <span>Codex Account Switcher</span>
         </div>
         <div class="footer-links">
-          <a href="https://liuzhao1225.github.io/en/" rel="author">Zhao Liu (liuzhao1225)</a>
+          <a href="about/creator/" rel="author">Zhao Liu (liuzhao1225)</a>
+          <a href="guides/codex-account/">Codex account explained</a>
           <a href="guides/switch-multiple-codex-accounts/">Guide</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases" data-copy="releases">Releases</a>

@@ -6,7 +6,7 @@
     <title>How to Switch Multiple Codex Accounts on macOS</title>
     <meta name="description" content="A practical guide to saving, monitoring, and switching multiple Codex Desktop and CLI accounts on one Mac without repeating the complete login flow.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-    <meta name="author" content="Zhao Liu">
+    <meta name="author" content="Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#101010" media="(prefers-color-scheme: dark)">
     <meta name="color-scheme" content="light dark">
@@ -14,6 +14,7 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
+    <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
     <link rel="icon" type="image/png" href="../../assets/favicon.png">
 
     <meta property="og:type" content="article">
@@ -27,8 +28,8 @@
     <meta property="og:image:width" content="1774">
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing multiple Codex profiles and their weekly usage on macOS">
-    <meta property="article:published_time" content="2026-08-25">
-    <meta property="article:modified_time" content="2026-08-25">
+    <meta property="article:published_time" content="2026-08-26">
+    <meta property="article:modified_time" content="2026-08-26">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="How to Switch Multiple Codex Accounts on macOS">
     <meta name="twitter:description" content="A practical guide to multiple Codex accounts, usage monitoring, local profiles, and Desktop/CLI switching on macOS.">
@@ -47,7 +48,7 @@
             "description": "A practical guide to saving, monitoring, and switching multiple Codex Desktop and CLI accounts on one Mac without repeating the complete login flow.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
-            "datePublished": "2026-08-25",
+            "datePublished": "2026-08-26",
             "dateModified": "2026-08-26",
             "inLanguage": "en",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
@@ -62,16 +63,20 @@
               "@type": "Person",
               "@id": "https://liuzhao1225.github.io/#liuzhao",
               "name": "Zhao Liu",
-              "url": "https://liuzhao1225.github.io/en/",
+              "alternateName": ["刘朝", "liuzhao1225", "黑纹白斑马"],
+              "url": "https://liuzhao1225.github.io/codex-account-switcher/about/creator/",
               "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666"]
-            }
+            },
+            "citation": [
+              "https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching",
+              "https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs"
+            ]
           },
           {
             "@type": "BreadcrumbList",
             "itemListElement": [
               {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/"},
-              {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"},
-              {"@type": "ListItem", "position": 3, "name": "Switch multiple Codex accounts on macOS"}
+              {"@type": "ListItem", "position": 2, "name": "Switch multiple Codex accounts on macOS", "item": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"}
             ]
           }
         ]
@@ -92,9 +97,9 @@
           <span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
         </a>
         <div class="nav-links">
-          <a href="#add-accounts">Add accounts</a>
+          <a href="../../about/">Project facts</a>
+          <a href="../codex-account/">Codex account explained</a>
           <a href="#switch">Switch</a>
-          <a href="#privacy">Privacy</a>
         </div>
         <div class="nav-actions">
           <button class="text-control" type="button" data-theme-toggle aria-label="Switch color theme">Dark</button>
@@ -109,12 +114,12 @@
         <header class="article-hero">
           <div class="article-shell">
             <nav class="breadcrumbs" aria-label="Breadcrumb">
-              <a href="../../">Codex Account Switcher</a><span>/</span><span>Guides</span><span>/</span><span>Multiple accounts</span>
+              <a href="../../">Codex Account Switcher</a><span>/</span><span>Multiple accounts</span>
             </nav>
             <p class="eyebrow">Codex account switching guide</p>
             <h1>How to switch between multiple Codex accounts on macOS</h1>
             <p class="article-lede">Save personal, work, and client Codex logins once, compare their weekly usage, and choose the active account from one native macOS menu—without repeating the complete browser login flow every time.</p>
-            <p class="article-meta">Updated August 25, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
+            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated August 26, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.webp" width="1774" height="887" alt="Codex Account Switcher menu showing three fictional local accounts, weekly usage bars, and reset times">
             </figure>
@@ -131,6 +136,12 @@
                 <div class="article-callout">
                   <p><strong>Use only accounts you own or are authorized to access.</strong> The app provides a local account-selection workflow. It does not change OpenAI account permissions, billing, workspace policy, or usage limits.</p>
                 </div>
+              </section>
+
+              <section id="official-context">
+                <h2>What OpenAI currently supports</h2>
+                <p><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI documents account switching for ChatGPT on the web</a> and says that feature is not yet supported in Codex desktop. A macOS Codex user therefore needs to repeat authentication, manage separate local profiles, or use an independent switcher.</p>
+                <p>The <a href="../codex-account/">source-backed Codex account guide</a> explains how account identity, <code>CODEX_HOME</code>, <code>auth.json</code>, Desktop sessions, and CLI sessions relate. The <a href="../../about/">official project facts page</a> identifies this app, its creator, and its canonical repository.</p>
               </section>
 
               <section id="requirements">
@@ -178,7 +189,7 @@
 
               <section id="privacy">
                 <h2>Where the account profiles are stored</h2>
-                <p>The active Codex credential remains at <code>~/.codex/auth.json</code>. Saved switcher profiles and metadata live under <code>~/Library/Application Support/Codex Account Switcher/</code>.</p>
+                <p>The active Codex credential remains at <code>~/.codex/auth.json</code>. OpenAI's public <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">Codex authentication-storage source</a> shows that the file backend reads and writes <code>auth.json</code> beneath the active <code>CODEX_HOME</code>. Saved switcher profiles and metadata live under <code>~/Library/Application Support/Codex Account Switcher/</code>.</p>
                 <p>The app runs locally, keeps profile directories user-only, and does not use an account proxy, traffic router, cloud profile sync, or automatic account rotation. Removing an inactive profile deletes its local switcher copy; it does not claim to revoke every server-side session.</p>
               </section>
 
@@ -203,6 +214,7 @@
               <strong>On this page</strong>
               <nav>
                 <a href="#overview">Why it helps</a>
+                <a href="#official-context">Official context</a>
                 <a href="#requirements">Requirements</a>
                 <a href="#add-accounts">Add accounts</a>
                 <a href="#usage">Compare usage</a>
@@ -227,7 +239,9 @@
           <span>Codex Account Switcher</span>
         </a>
         <div class="footer-links">
-          <a href="../../">Product</a>
+          <a href="../../about/">Project facts</a>
+          <a href="../codex-account/">Codex account explained</a>
+          <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">Releases</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT</a>

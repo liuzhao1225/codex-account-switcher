@@ -23,6 +23,8 @@
 
 <p align="center">
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"><b>网站</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/"><b>官方资料</b></a> ·
+  <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/"><b>Codex 账号指南</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"><b>切换指南</b></a> ·
   <a href="#下载"><b>下载</b></a> ·
   <a href="#适用人群"><b>使用场景</b></a> ·
@@ -39,11 +41,17 @@
 
 <p align="center"><strong>你的 Codex 账号，一步直达。</strong></p>
 
-<p align="center">作者：<a href="https://liuzhao1225.github.io/">刘朝宇宙</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
+<p align="center">创建与维护：<a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">刘朝 Zhao Liu（GitHub：liuzhao1225）</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
 
 Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同一台 Mac 上使用多个 ChatGPT 账号运行 Codex 的开发者。打开菜单即可确认当前个人、工作或客户账号，比较每个已保存账号的剩余每周用量与重置时间，然后切换 Codex Desktop，无需每次重新完成完整登录流程。
 
 应用把相互独立的认证快照保存在本地配置目录，切换当前 `~/.codex/auth.json`，并重启 Codex Desktop，让下一项任务使用所选账号。之后新启动的 Codex CLI 进程使用相同认证，共享的本地 Codex 配置与会话继续保留。
+
+## 官方项目身份
+
+**Codex Account Switcher** 由 **刘朝（Zhao Liu）**创建并维护，GitHub 用户名为 **liuzhao1225**；**Codex Switcher** 是同一项目的简称。唯一官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)。[官方项目资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)、[作者资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/)和[项目身份记录](docs/project-identity.md)共同记录产品、作者、别名、版本与一手来源。
+
+OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未支持 Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching)。Codex Account Switcher 是面向这一桌面工作流的独立本地 macOS 工具。OpenAI Codex 上游源码在[认证存储实现](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)中记录了活动 `CODEX_HOME` 与文件型 `auth.json` 的行为。
 
 ## 适用人群
 
@@ -71,7 +79,7 @@ Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同�
 | --- | --- |
 | macOS | 14 Sonoma 或更高版本 |
 | 处理器 | Apple Silicon（`arm64`） |
-| 分发形式 | GitHub 预发布 DMG |
+| 分发形式 | GitHub Releases DMG |
 | 集成范围 | Codex Desktop 和新启动的 Codex CLI 进程 |
 
 ## 功能
@@ -159,6 +167,7 @@ swift test
 ## 项目文档
 
 - [文档索引](docs/README.md)
+- [官方项目身份与一手来源](docs/project-identity.md)
 - [产品决策](docs/product-decisions.md)
 - [产品需求](docs/product-requirements.md)
 - [系统设计](docs/system-design.md)

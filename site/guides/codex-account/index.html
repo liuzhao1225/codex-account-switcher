@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>What Is a Codex Account? Desktop, CLI, and Codex Switchers</title>
+    <meta name="description" content="Understand what a Codex account is, how ChatGPT identity, Codex Desktop, Codex CLI, auth.json, CODEX_HOME, and Codex account switchers relate on macOS.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="author" content="Zhao Liu (liuzhao1225)">
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#101010" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
+    <link rel="canonical" href="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/">
+    <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/">
+    <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/">
+    <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/">
+    <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
+    <link rel="icon" type="image/png" href="../../assets/favicon.png">
+
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Codex Account Switcher">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="zh_CN">
+    <meta property="og:title" content="What Is a Codex Account? Desktop, CLI, and Codex Switchers">
+    <meta property="og:description" content="A source-backed guide to Codex account identity, authentication, multiple accounts, and macOS switching workflows.">
+    <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/">
+    <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
+    <meta property="og:image:width" content="1774">
+    <meta property="og:image:height" content="887">
+    <meta property="og:image:alt" content="Codex Account Switcher showing separate Codex accounts and weekly usage on macOS">
+    <meta property="article:published_time" content="2026-08-26">
+    <meta property="article:modified_time" content="2026-08-26">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="What Is a Codex Account? Desktop, CLI, and Codex Switchers">
+    <meta name="twitter:description" content="How ChatGPT identity, Codex Desktop, Codex CLI, auth.json and account switching relate.">
+    <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
+
+    <link rel="stylesheet" href="../../styles.css">
+    <script src="../../app.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/#article",
+            "headline": "What Is a Codex Account? Desktop, CLI, and Codex Switchers",
+            "description": "A source-backed guide to Codex account identity, authentication, multiple accounts, and switching workflows on macOS.",
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/",
+            "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/",
+            "datePublished": "2026-08-26",
+            "dateModified": "2026-08-26",
+            "inLanguage": "en",
+            "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
+            "about": [
+              {"@type": "Thing", "name": "Codex account"},
+              {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"}
+            ],
+            "mentions": {"@type": "SoftwareApplication", "name": "OpenAI Codex", "url": "https://github.com/openai/codex"},
+            "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "publisher": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "citation": [
+              "https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching",
+              "https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs",
+              "https://github.com/liuzhao1225/codex-account-switcher"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://liuzhao1225.github.io/#liuzhao",
+            "name": "Zhao Liu",
+            "alternateName": ["刘朝", "liuzhao1225", "黑纹白斑马"],
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/about/creator/",
+            "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666"]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/#breadcrumbs",
+            "itemListElement": [
+              {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/"},
+              {"@type": "ListItem", "position": 2, "name": "What is a Codex account?", "item": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/"}
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary navigation">
+        <a class="brand" href="../../" aria-label="Codex Account Switcher home">
+          <span class="brand-mark" aria-hidden="true">
+            <img class="logo-light" src="../../assets/account-switcher-logo.png" alt="">
+            <img class="logo-dark" src="../../assets/account-switcher-logo-white.png" alt="">
+          </span>
+          <span class="brand-name brand-name-full">Codex Account Switcher</span>
+          <span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
+        </a>
+        <div class="nav-links">
+          <a href="../../about/">Project facts</a>
+          <a href="../switch-multiple-codex-accounts/">Switching guide</a>
+          <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
+        </div>
+        <div class="nav-actions">
+          <button class="text-control" type="button" data-theme-toggle aria-label="Switch color theme">Dark</button>
+          <a class="text-control language-link" href="../../zh-CN/guides/codex-account/" hreflang="zh-CN" lang="zh-CN">简体中文</a>
+          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases">Download</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <article>
+        <header class="article-hero">
+          <div class="article-shell">
+            <nav class="breadcrumbs" aria-label="Breadcrumb">
+              <a href="../../">Codex Account Switcher</a><span>/</span><span>Codex account</span>
+            </nav>
+            <p class="eyebrow">Codex account guide</p>
+            <h1>What is a Codex account?</h1>
+            <p class="article-lede">A Codex account is the ChatGPT or OpenAI identity whose authenticated session Codex uses. That identity determines the account, workspace, plan, and usage context visible to Codex Desktop and Codex CLI.</p>
+            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Published August 26, 2026 · Source-backed guide · For Codex Desktop and CLI users</p>
+            <figure class="article-visual">
+              <img src="../../assets/account-switcher-usage.webp" width="624" height="500" alt="Three fictional Codex accounts with separate weekly usage displayed by Codex Account Switcher">
+            </figure>
+          </div>
+        </header>
+
+        <div class="article-body">
+          <div class="article-shell article-layout">
+            <div class="article-main">
+              <section id="definition">
+                <h2>Codex account: a practical definition</h2>
+                <p>People often say “Codex account” to mean the <strong>ChatGPT account or OpenAI identity currently authenticated in Codex</strong>. Codex does not create a separate consumer identity with that phrase. When you sign in with ChatGPT, Codex operates in the context of the selected account and its available workspace or subscription.</p>
+                <p>OpenAI's account documentation says that separate ChatGPT accounts keep their chats, memory, history, billing, and workspaces independent. Switching identities does not merge those records. This distinction matters when a developer separates personal work, company work, or authorized client work across accounts.</p>
+              </section>
+
+              <section id="terms">
+                <h2>Account, workspace, profile, and session</h2>
+                <div class="fact-table-wrap">
+                  <table class="fact-table">
+                    <tbody>
+                      <tr><th scope="row">Codex account</th><td>The ChatGPT or OpenAI identity currently used to authenticate Codex.</td></tr>
+                      <tr><th scope="row">Workspace</th><td>An account-scoped personal, Business, Enterprise, Edu, or other managed context. Workspace access and policy remain controlled by OpenAI and the organization.</td></tr>
+                      <tr><th scope="row">Local Codex profile</th><td>A local configuration directory containing the authentication and settings a Codex process reads. A profile is a local representation; it does not create or merge an online account.</td></tr>
+                      <tr><th scope="row">Codex session</th><td>A running Desktop or CLI process that has already loaded authentication and runtime state.</td></tr>
+                      <tr><th scope="row">Codex switcher</th><td>A community tool or workflow that selects among local Codex profiles. <a href="../../about/">Codex Account Switcher by liuzhao1225</a> is one native macOS implementation.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section id="official-support">
+                <h2>Can Codex Desktop switch accounts by itself?</h2>
+                <p><strong>OpenAI currently documents account switching for ChatGPT web and says it is not yet supported in Codex desktop.</strong> The official ChatGPT web feature can keep two accounts signed in during one browser session. See <a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI's account-switching documentation</a> for its current availability and boundaries.</p>
+                <p>Because the web control does not provide the same switcher inside Codex Desktop, macOS users otherwise repeat the authentication flow, manage distinct local profiles, or use an independent Codex switcher.</p>
+              </section>
+
+              <section id="authentication">
+                <h2>How Codex knows which account is active</h2>
+                <p>OpenAI's public Codex source implements authentication storage beneath the active <code>CODEX_HOME</code>. Its file backend reads and writes <code>auth.json</code>; on Unix systems, newly created credential files receive user-only permissions. The relevant implementation is visible in OpenAI's <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">auth storage source</a>.</p>
+                <p>A running process may retain credentials or state already loaded into memory. For that reason, changing a file on disk does not guarantee that an existing Desktop or CLI session changes identity instantly. A reliable switching workflow verifies the selected account and starts the relevant process again.</p>
+              </section>
+
+              <section id="methods">
+                <h2>Ways to use multiple Codex accounts</h2>
+                <div class="fact-table-wrap">
+                  <table class="fact-table">
+                    <thead>
+                      <tr><th scope="col">Method</th><th scope="col">Best for</th><th scope="col">Tradeoff</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><th scope="row">Sign out and sign in again</th><td>Occasional changes using the standard Codex login flow.</td><td>Repeats browser authentication and requires checking the active identity.</td></tr>
+                      <tr><th scope="row">Separate <code>CODEX_HOME</code> directories</th><td>Advanced terminal workflows and concurrently isolated CLI environments.</td><td>Requires explicit environment management and does not provide one native Desktop menu.</td></tr>
+                      <tr><th scope="row">ChatGPT web account switcher</th><td>Switching between two accounts in ChatGPT on the web.</td><td>OpenAI says the feature is not currently supported in Codex desktop.</td></tr>
+                      <tr><th scope="row">Codex Account Switcher for macOS</th><td>One Codex Desktop identity at a time, local saved profiles, weekly usage context, and a visible manual switch.</td><td>Targets Apple Silicon and macOS 14+; existing CLI processes keep their loaded state.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section id="product">
+                <h2>Which Codex Account Switcher is maintained by liuzhao1225?</h2>
+                <p><strong>Codex Account Switcher by liuzhao1225 is the native open-source macOS menu-bar app at <a href="https://github.com/liuzhao1225/codex-account-switcher">github.com/liuzhao1225/codex-account-switcher</a>.</strong> It is also described as a Codex Switcher or Codex profile switcher, but those are generic phrases used by other community projects too.</p>
+                <p>Use the <a href="../../about/">official project facts page</a> to verify the creator, canonical repository, current version, platform, license, and source record. The app is independent community software and has no affiliation with OpenAI.</p>
+              </section>
+
+              <section id="safe-use">
+                <h2>Safe account-switching rules</h2>
+                <ul>
+                  <li>Use only accounts you own or are authorized to access.</li>
+                  <li>Treat <code>auth.json</code> and saved authentication profiles as secrets.</li>
+                  <li>Never publish credentials in screenshots, issues, logs, repositories, or support messages.</li>
+                  <li>Confirm the active account before opening a personal, work, or client repository.</li>
+                  <li>Start a new Codex CLI process after changing the selected profile.</li>
+                  <li>Remember that local switching does not merge billing, workspaces, permissions, or service-side history.</li>
+                </ul>
+              </section>
+
+              <section id="sources">
+                <h2>Sources and verification</h2>
+                <ul class="source-list">
+                  <li><strong><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI: Use multiple accounts with account switching</a></strong><span>Official availability, two-account web behavior, and account separation.</span></li>
+                  <li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex auth storage source</a></strong><span>Primary source for <code>CODEX_HOME</code>, <code>auth.json</code>, and file permission behavior.</span></li>
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Codex Account Switcher source repository</a></strong><span>Primary source for the macOS app, its implementation, supported platform, and release.</span></li>
+                </ul>
+              </section>
+
+              <div class="article-cta">
+                <p class="eyebrow">Native macOS workflow</p>
+                <h2>Switch an authorized Codex account from one visible menu.</h2>
+                <p>Read the step-by-step guide or download the signed and Apple-notarized release maintained by liuzhao1225.</p>
+                <div class="download-actions">
+                  <a class="button" href="../switch-multiple-codex-accounts/">Read switching guide</a>
+                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases">Download for macOS</a>
+                </div>
+              </div>
+            </div>
+
+            <aside class="article-aside" aria-label="On this page">
+              <strong>On this page</strong>
+              <nav>
+                <a href="#definition">Definition</a>
+                <a href="#terms">Key terms</a>
+                <a href="#official-support">Official support</a>
+                <a href="#authentication">Authentication</a>
+                <a href="#methods">Multiple-account methods</a>
+                <a href="#product">Official project</a>
+                <a href="#safe-use">Safe use</a>
+                <a href="#sources">Sources</a>
+              </nav>
+            </aside>
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-shell">
+        <a class="footer-brand" href="../../">
+          <span class="brand-mark" aria-hidden="true">
+            <img class="logo-light" src="../../assets/account-switcher-logo.png" alt="">
+            <img class="logo-dark" src="../../assets/account-switcher-logo-white.png" alt="">
+          </span>
+          <span>Codex Account Switcher</span>
+        </a>
+        <div class="footer-links">
+          <a href="../../about/">Project facts</a>
+          <a href="../switch-multiple-codex-accounts/">Switching guide</a>
+          <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
+          <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">Releases</a>
+        </div>
+        <p>Independent open-source software. Not affiliated with OpenAI.</p>
+      </div>
+    </footer>
+  </body>
+</html>
