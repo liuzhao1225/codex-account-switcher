@@ -8,8 +8,8 @@
 <h1 align="center">Codex Account Switcher</h1>
 
 <p align="center">
-  <strong>切换账号，保持专注。</strong><br>
-  一款开源、原生的 macOS 菜单栏 Codex 多账号切换工具，支持 Codex Desktop 和 Codex CLI。
+  <strong>从 Mac 菜单栏切换 Codex 账号。</strong><br>
+  账号添加一次，之后随时选择。无需终端命令，无需修改配置文件。
 </p>
 
 <p align="center">
@@ -40,13 +40,13 @@
 
 ![原生 macOS Codex Account Switcher 在菜单栏中展示三个虚构 Codex 账号、每周用量和账号切换功能](assets/codex-account-switcher-hero.zh-CN.png)
 
-<p align="center"><strong>你的 Codex 账号，一步直达。</strong></p>
+<p align="center"><strong>下载。添加账号。从菜单栏选择。</strong></p>
 
 <p align="center">创建与维护：<a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">刘朝 Zhao Liu（GitHub：liuzhao1225）</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
 
-Codex Account Switcher 是一款开源 Codex 多账号切换器，面向在同一台 Mac 上使用多个 ChatGPT 账号运行 Codex 的开发者。打开菜单即可确认当前个人、工作或客户账号，比较每个已保存账号的剩余每周用量与重置时间，然后切换 Codex Desktop，无需每次重新完成完整登录流程。
+Codex Account Switcher 是一款免费、原生的 Mac 应用，适合使用多个获准 Codex 账号的普通用户。个人、工作或客户账号通过浏览器添加一次，之后从菜单栏选择即可。日常使用无需代码知识、终端命令、复制令牌或修改配置文件。
 
-应用把相互独立的认证快照保存在本地配置目录，切换当前 `~/.codex/auth.json`，并重启 Codex Desktop，让下一项任务使用所选账号。之后新启动的 Codex CLI 进程使用相同认证，共享的本地 Codex 配置与会话继续保留。
+选择账号并确认后，应用会关闭 Codex Desktop、完成账号交接、校验所选身份，再重新打开 Desktop。已保存的账号数据留在这台 Mac，应用不依赖自己的代理、流量转发、云端账号服务或自动账号轮换。
 
 ## 官方项目身份
 
@@ -56,20 +56,20 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 ## 适用人群
 
-- **个人账号与工作账号并用的开发者：** 在一个 macOS 菜单中保留相互独立的 ChatGPT 账单、工作区与 Codex 身份。
-- **顾问、外包与多客户开发者：** 在打开下一个客户仓库前，明确选择对应的 Codex 登录账号。
-- **高频 Codex 用户：** 在开始长任务前比较每周用量和重置时间，选择合适的账号。
+- **同时使用个人和工作账号的人：** 两种身份都保存在一台 Mac，打开 Codex Desktop 前看清当前账号。
+- **自由职业者与顾问：** 清晰标记获准使用的客户账号，开始工作前选择正确身份。
+- **偏好清晰可见操作的 Mac 用户：** 使用菜单栏选择与确认，避开脚本和后台静默轮换。
 
-如果你正在搜索 **Codex 账号切换器**、**Codex 多账号切换**、**Codex profile switcher**，或者希望在 **macOS 上无需反复退出登录即可切换多个 Codex 账号**，这个项目提供了面向 Codex Desktop 和新启动 Codex CLI 会话的本地工作流。
+如果你正在搜索 **Codex 账号切换器**、**Codex 多账号切换**、**Codex profile switcher**，或者希望在 **Mac 上无需终端设置即可切换多个 Codex 账号**，这个项目提供了专注 Codex Desktop 的本地工作流。
 
 ## 下载
 
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
-1. 打开 [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases)。
-2. 下载最新的 `macos-arm64.dmg` 文件及其 SHA-256 校验文件。
-3. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
-4. 启动应用，在 macOS 菜单栏中找到账号切换器。
+1. [下载 Codex Account Switcher v0.1.4 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg)。
+2. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
+3. 启动应用，在 macOS 菜单栏中找到账号切换器。
+4. 通过浏览器添加每个账号一次，之后选择需要的账号。
 
 > [!NOTE]
 > 当前 DMG 和应用均已使用 Developer ID Application 证书签名、完成 Apple 公证并附加离线票据。将应用复制到“应用程序”后，即可按 macOS 正常启动流程打开。
@@ -81,37 +81,39 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | macOS | 14 Sonoma 或更高版本 |
 | 处理器 | Apple Silicon（`arm64`） |
 | 分发形式 | GitHub Releases DMG |
-| 集成范围 | Codex Desktop 和新启动的 Codex CLI 进程 |
+| 下载体积 | 约 2 MB |
+| 主要用途 | 切换 Codex Desktop 账号 |
 
 ## 功能
 
 | 功能 | 作用 |
 | --- | --- |
-| **快速查看每周用量** | 查看每个已保存账号的剩余每周用量和重置时间。 |
-| **快速切换账号** | 选择账号并确认，让应用完成 Codex Desktop 的切换流程。 |
-| **本地账号库** | 添加、保留和移除相互独立的本地账号快照。 |
-| **Codex Desktop + CLI** | 切换 Codex Desktop 以及新启动 CLI 进程使用的身份验证信息。 |
-| **登录时启动** | 登录 macOS 后自动准备好菜单栏切换器。 |
-| **原生与本地化** | 使用紧凑的 SwiftUI 界面，支持英文、简体中文或跟随系统。 |
+| **无需代码的设置流程** | 通过普通浏览器登录添加账号，无需终端命令或配置文件。 |
+| **菜单栏选择账号** | 把个人、工作和客户账号清晰标记在一个 Mac 菜单中。 |
+| **完整 Desktop 交接** | 选择并确认后，由应用关闭、切换、校验并重新打开 Codex Desktop。 |
+| **本地账号存储** | 账号数据留在这台 Mac，不依赖应用自建的代理或云端账号服务。 |
+| **快速查看每周用量** | 需要时查看剩余每周用量和重置时间，辅助自己选择账号。 |
+| **体积小的原生 Mac 应用** | 安装已完成 Apple 公证的 DMG，使用英文或简体中文 SwiftUI 界面。 |
 
 ## 工作原理
 
-1. **保存账号：** 导入当前 Codex 登录状态，或在“管理账号”中添加另一个账号。
-2. **切换前查看：** 直接从菜单栏比较每周用量和重置时间。
-3. **确认账号变更：** 应用关闭 Codex Desktop、替换当前身份验证信息，然后重新打开 Desktop。
+1. **下载 Mac 应用：** 打开已完成 Apple 公证的 DMG，把应用拖入“应用程序”。
+2. **每个账号添加一次：** 完成熟悉的浏览器登录，并给每个账号设置清晰名称。
+3. **选择后继续使用：** 从菜单栏选择账号并确认，由应用重新打开 Codex Desktop。
 
 已经运行的终端进程会保留原有运行状态。启动新的 Codex CLI 进程即可使用刚刚选择的账号。
 
 ## 征集反馈
 
-账号切换存在一个重要的边界问题：已经运行的 CLI 进程可能继续使用其启动时加载的认证状态，即使当前选择的账号已经改变。欢迎参与公开讨论：[切换账号后，已经运行的 Codex CLI 会话应如何处理？](https://github.com/liuzhao1225/codex-account-switcher/discussions/1)
+产品正在围绕普通 Mac 用户持续调整。欢迎参与公开讨论：[“Codex 账号切换器的哪个环节仍然显得太技术化？”](https://github.com/liuzhao1225/codex-account-switcher/discussions/2)，告诉我们问题出在下载应用、添加账号、识别当前账号，还是理解切换确认。
 
-欢迎分享其他账号切换方案的实际体验和工具对比。当前重点征集的问题包括：应用是否应提示正在运行的 CLI 进程、Desktop 与 CLI 是否需要分别选择账号，以及每周用量是否适合直接显示在切换菜单中。
+也欢迎分享其他账号切换器的真实使用体验。请描述实际工作流和产生阻力的步骤，不要公开凭证、账号文件、电子邮箱或私人截图。
 
 ## 隐私与范围
 
-- 账号快照保存在相互独立的本地 `CODEX_HOME` 配置目录中。
-- 产品不使用账号代理或路由服务。
+- 已保存的账号数据位于 Mac 上仅当前用户可访问的本地目录。
+- 产品不使用自己的账号代理、流量转发或云端账号服务。
+- 每个账号都由用户选择并确认；应用不会自动轮换账号。
 - 本项目是独立开源软件，与 OpenAI 没有关联，也未获得 OpenAI 背书。
 - 当前账号通过弹窗中的行高亮显示。
 - 获取最新数据时，界面会继续显示已保存的每周用量。
@@ -175,6 +177,7 @@ swift test
 
 - [文档索引](docs/README.md)
 - [官方项目身份与一手来源](docs/project-identity.md)
+- [产品定位与宣传口径](docs/positioning-and-messaging.md)
 - [产品决策](docs/product-decisions.md)
 - [产品需求](docs/product-requirements.md)
 - [系统设计](docs/system-design.md)
@@ -183,21 +186,25 @@ swift test
 
 ## 常见问题
 
-### 如何在不反复退出登录的情况下切换多个 Codex 账号？
+### 需要使用终端或懂代码吗？
 
-每个账号保存一次后，即可从 macOS 菜单栏选择当前配置，无需重复完整的浏览器登录流程。应用面向你本人拥有或获准使用的个人、工作与客户账号。
+不需要。安装应用，通过普通浏览器登录添加每个账号，之后从菜单栏选择即可。整个流程没有终端命令，也不用编辑配置文件。
 
-### 是否同时支持 Codex Desktop 和 Codex CLI？
+### 如何切换账号？
 
-确认切换后，应用会关闭并重新打开 Codex Desktop。已经运行的 CLI 进程保留原状态，新启动的 Codex CLI 进程使用刚刚选择的认证。
+每个获准使用的账号添加一次，从菜单栏选择并确认。应用会关闭 Codex Desktop、完成交接、校验所选账号，再重新打开 Desktop。
 
-### Codex 账号配置保存在哪里？
+### 应用会自动切换账号吗？
 
-认证快照保存在 `~/Library/Application Support/Codex Account Switcher/` 下的用户专属本地目录。Codex 当前使用的认证文件仍位于 `~/.codex/auth.json`。
+每个账号都由你选择并确认，随后应用会自动完成 Codex Desktop 交接。应用不会在后台轮换账号，也不会根据用量阈值切换。
 
-### 应用会代理 Codex 流量或自动轮换账号吗？
+### 账号数据会离开我的 Mac 吗？
 
-不会。账号切换需要手动选择并确认。应用不运行代理、不路由模型流量，也不自动轮换账号。
+已保存的账号数据位于 `~/Library/Application Support/Codex Account Switcher/` 下仅当前用户可访问的本地文件夹。应用没有账号代理、流量转发或云端配置服务。
+
+### 需要什么 Mac？
+
+当前版本支持运行 macOS 14 Sonoma 或更高版本的 Apple Silicon Mac。下载文件是已签名并完成 Apple 公证的 DMG。
 
 ### Codex Account Switcher 是 OpenAI 官方产品吗？
 

@@ -8,8 +8,8 @@
 <h1 align="center">Codex Account Switcher</h1>
 
 <p align="center">
-  <strong>Switch accounts. Keep your flow.</strong><br>
-  An open-source native macOS menu-bar app for switching between multiple Codex accounts in Codex Desktop and Codex CLI.
+  <strong>Switch Codex accounts from your Mac menu bar.</strong><br>
+  Add accounts once, then choose when you need them. No Terminal commands or config-file editing.
 </p>
 
 <p align="center">
@@ -40,13 +40,13 @@
 
 ![Native macOS Codex Account Switcher showing three fictional Codex profiles, weekly usage, and account switching from the menu bar](assets/codex-account-switcher-hero.png)
 
-<p align="center"><strong>Your Codex accounts, one menu away.</strong></p>
+<p align="center"><strong>Download. Add accounts. Choose from the menu bar.</strong></p>
 
 <p align="center">Created and maintained by <a href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">Zhao Liu (GitHub: liuzhao1225)</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
 
-Codex Account Switcher is an open-source Codex profile switcher for developers who use multiple ChatGPT accounts with Codex on one Mac. Open the menu to identify the active personal, work, or client account, compare each saved account's remaining weekly allowance and reset time, then switch Codex Desktop without repeating the full login flow.
+Codex Account Switcher is a free, native Mac app for people who use more than one authorized Codex account. Add personal, work, or client accounts through the browser once, then choose the account you need from the menu bar. The everyday workflow requires no coding knowledge, Terminal commands, copied tokens, or config-file editing.
 
-The app stores independent authentication snapshots in local profile directories, switches the active `~/.codex/auth.json`, and restarts Codex Desktop so the next task opens on the selected account. Newly started Codex CLI processes use the same selected authentication while shared local Codex configuration and sessions remain in place.
+After you select and confirm an account, the app closes Codex Desktop, completes the account handoff, verifies the selected identity, and reopens Desktop. Saved account data stays on your Mac. The app runs without its own proxy, traffic router, cloud account service, or automatic account rotation.
 
 ## Official project identity
 
@@ -56,20 +56,20 @@ OpenAI's official account switcher currently applies to ChatGPT on the web and [
 
 ## Who it is for
 
-- **Personal and work accounts:** keep separate ChatGPT billing, workspaces, and Codex identities available from one macOS menu.
-- **Consultants and multi-client developers:** label and switch between client-specific Codex logins before opening the next repository.
-- **Heavy Codex users:** compare weekly usage and reset times before choosing the account for a long-running task.
+- **People with personal and work accounts:** keep both identities ready on one Mac and see which account is active before opening Codex Desktop.
+- **Freelancers and consultants:** label authorized client accounts clearly and choose the correct one before starting work.
+- **Mac users who prefer visible controls:** use a normal app workflow with a menu-bar choice and confirmation instead of scripts or hidden automatic rotation.
 
-If you searched for a **Codex account switcher**, **Codex profile switcher**, or a way to switch **multiple Codex accounts on macOS without logging out each time**, this project provides a focused local workflow for Codex Desktop and newly launched Codex CLI sessions.
+If you searched for a **Codex account switcher**, **Codex profile switcher**, or a way to **switch multiple Codex accounts on Mac without Terminal setup**, this project provides a focused local workflow for Codex Desktop.
 
 ## Download
 
 The current public build targets **Apple Silicon** and requires **macOS 14 or later**.
 
-1. Open [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases).
-2. Download the latest `macos-arm64.dmg` asset and its SHA-256 file.
-3. Open the DMG and move **Codex Account Switcher.app** to Applications.
-4. Launch the app and look for the switcher in the macOS menu bar.
+1. [Download Codex Account Switcher v0.1.4 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg).
+2. Open the DMG and move **Codex Account Switcher.app** to Applications.
+3. Launch the app and look for the switcher in the macOS menu bar.
+4. Add each account once through the browser, then choose the one you need.
 
 > [!NOTE]
 > The current DMG and app are signed with a Developer ID Application certificate, notarized by Apple, and stapled for offline ticket validation. After copying the app to Applications, it should open through the normal macOS launch flow.
@@ -81,37 +81,39 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | macOS | 14 Sonoma or later |
 | Processor | Apple Silicon (`arm64`) |
 | Distribution | GitHub Releases DMG |
-| Integrations | Codex Desktop and newly started Codex CLI processes |
+| Download size | About 2 MB |
+| Primary workflow | Codex Desktop account switching |
 
 ## Features
 
 | Feature | What it gives you |
 | --- | --- |
-| **Weekly usage at a glance** | See the remaining weekly allowance and reset time for every saved account. |
-| **Fast account switching** | Select an account, confirm the change, and let the app complete the Desktop handoff. |
-| **Local account library** | Add, retain, and remove independent local account snapshots. |
-| **Codex Desktop + CLI** | Change Codex Desktop and the authentication used by newly started CLI processes. |
-| **Launch at login** | Keep the switcher ready from the moment you sign in to macOS. |
-| **Native and localized** | Use a compact SwiftUI interface in English, Simplified Chinese, or the system language. |
+| **No-code setup** | Add accounts through the normal browser sign-in flow, with no Terminal commands or config files. |
+| **Menu-bar account choice** | Keep personal, work, and client accounts clearly labeled in one Mac menu. |
+| **Completed Desktop handoff** | Select and confirm an account, then let the app close, switch, verify, and reopen Codex Desktop. |
+| **Local account storage** | Keep saved account data on your Mac without an app-owned proxy or cloud account service. |
+| **Weekly usage at a glance** | Check the remaining weekly allowance and reset time when it helps your choice. |
+| **Small native Mac app** | Install an Apple-notarized DMG and use a compact SwiftUI interface in English or Simplified Chinese. |
 
 ## How it works
 
-1. **Save your accounts:** import the current Codex login or add another account from Manage Accounts.
-2. **Check before switching:** compare weekly usage and reset times directly from the menu bar.
-3. **Confirm the account change:** the app closes Codex Desktop, replaces the active credentials, and opens Desktop again.
+1. **Download the Mac app:** open the Apple-notarized DMG and drag the app to Applications.
+2. **Add each account once:** complete the familiar browser sign-in and give each account a clear name.
+3. **Choose and continue:** select an account from the menu bar, confirm, and let the app reopen Codex Desktop.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
 
 ## Feedback wanted
 
-Account switching has an important edge case: a running CLI process can keep the authentication state it loaded even after the selected profile changes. Join the public discussion about [how already-running Codex CLI sessions should behave after an account switch](https://github.com/liuzhao1225/codex-account-switcher/discussions/1).
+The product is being shaped for ordinary Mac users. Join the public discussion, [“What still feels too technical in a Codex account switcher for Mac?”](https://github.com/liuzhao1225/codex-account-switcher/discussions/2), and tell us whether the friction is downloading the app, adding an account, seeing the active account, or understanding the switch confirmation.
 
-Feedback from other account-switching workflows is welcome, including comparisons with other tools. Useful questions include whether the app should warn about running CLI processes, whether Desktop and CLI should support separate selected profiles, and whether weekly usage belongs directly in the switch menu.
+Comparisons with other account switchers are welcome. Please describe the workflow you actually use and the step that creates friction; never share credentials, account files, email addresses, or private screenshots.
 
 ## Privacy and scope
 
-- Account snapshots live in independent local `CODEX_HOME` profile directories.
-- The product runs without an account proxy or routing service.
+- Saved account data stays in user-only local directories on the Mac.
+- The product runs without its own account proxy, traffic router, or cloud account service.
+- Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
 - Persisted weekly usage remains visible while fresh data loads.
@@ -175,6 +177,7 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 
 - [Documentation index](docs/README.md)
 - [Official project identity and primary sources](docs/project-identity.md)
+- [Product positioning and messaging](docs/positioning-and-messaging.md)
 - [Product decisions](docs/product-decisions.md)
 - [Product requirements](docs/product-requirements.md)
 - [System design](docs/system-design.md)
@@ -183,25 +186,25 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 
 ## Frequently asked questions
 
-### How do I switch between multiple Codex accounts without logging out each time?
+### Do I need Terminal or coding knowledge?
 
-Save each account once, then select the active profile from the macOS menu bar without repeating the full browser login flow. The app is designed for accounts you own or are authorized to use, such as personal, work, and client accounts.
+No. Install the app, add each account through a normal browser sign-in, then choose from the menu bar. There are no Terminal commands or config files to edit.
 
-### Does it work with Codex Desktop and Codex CLI?
+### How do I switch accounts?
 
-The app closes and reopens Codex Desktop after a confirmed switch. Existing CLI processes keep their loaded state; newly started Codex CLI processes use the selected authentication.
+Add each authorized account once. Select the account from the menu bar and confirm. The app closes Codex Desktop, completes the handoff, verifies the selected account, and reopens Desktop.
 
-### Can I monitor Codex usage across multiple accounts?
+### Does it switch accounts automatically?
 
-Yes. The macOS menu compares the remaining weekly allowance and reset time for every saved profile, so you can choose an account before starting a long Codex task.
+You choose and confirm every account. The app then completes the Codex Desktop handoff automatically. It does not rotate accounts in the background or switch based on usage thresholds.
 
-### Where are Codex profiles stored?
+### Does my account data leave my Mac?
 
-Saved authentication snapshots use user-only local directories under `~/Library/Application Support/Codex Account Switcher/`. The active Codex credential remains at `~/.codex/auth.json`.
+Saved account data stays in user-only local folders under `~/Library/Application Support/Codex Account Switcher/`. The app has no account proxy, traffic router, or cloud profile service.
 
-### Does it proxy Codex traffic or rotate accounts automatically?
+### What Mac do I need?
 
-No. Switching is manual and confirmed. The app does not run a proxy, route model traffic, or automatically rotate accounts.
+The current release supports Apple Silicon Macs running macOS 14 Sonoma or later. The download is a signed and Apple-notarized DMG.
 
 ### Is Codex Account Switcher an official OpenAI product?
 

@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>macOS Codex 多账号切换完整指南</title>
-    <meta name="description" content="在一台 Mac 上保存、查看用量并切换多个 Codex Desktop 与 CLI 账号的完整指南，无需每次重复完整登录流程。">
+    <title>Mac 切换 Codex 多账号 | 无需终端设置</title>
+    <meta name="description" content="个人、工作和客户 Codex 账号添加一次，之后从 Mac 菜单栏切换，无需终端命令或修改配置文件。">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="刘朝 Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -21,8 +21,8 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
-    <meta property="og:title" content="macOS Codex 多账号切换完整指南">
-    <meta property="og:description" content="一次保存多个获准使用的 Codex 账号，比较每周用量，并从 macOS 菜单栏切换 Codex Desktop 与新的 CLI 会话。">
+    <meta property="og:title" content="Mac 切换 Codex 多账号——无需终端设置">
+    <meta property="og:description" content="下载普通 Mac 应用，通过浏览器添加账号，再从菜单栏选择。">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
@@ -31,8 +31,8 @@
     <meta property="article:published_time" content="2026-08-26">
     <meta property="article:modified_time" content="2026-08-26">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="macOS Codex 多账号切换完整指南">
-    <meta name="twitter:description" content="了解 Codex 多账号、本地认证配置、用量监控以及 Codex Desktop 和 CLI 切换行为。">
+    <meta name="twitter:title" content="Mac 切换 Codex 多账号——无需终端设置">
+    <meta name="twitter:description" content="用普通语言说明如何下载应用、添加账号一次，再从 Mac 菜单栏切换。">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../../../styles.css">
@@ -44,8 +44,8 @@
           {
             "@type": "TechArticle",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#article",
-            "headline": "macOS Codex 多账号切换完整指南",
-            "description": "在一台 Mac 上保存、查看用量并切换多个 Codex Desktop 与 CLI 账号的完整指南，无需每次重复完整登录流程。",
+            "headline": "Mac 切换 Codex 多账号，无需终端设置",
+            "description": "面向普通 Mac 用户的指南：个人、工作和客户 Codex 账号添加一次，之后从菜单栏切换，无需终端命令或修改配置文件。",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "datePublished": "2026-08-26",
@@ -76,7 +76,7 @@
             "@type": "BreadcrumbList",
             "itemListElement": [
               {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"},
-              {"@type": "ListItem", "position": 2, "name": "macOS Codex 多账号切换", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"}
+              {"@type": "ListItem", "position": 2, "name": "Mac 切换 Codex 多账号，无需终端设置", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"}
             ]
           }
         ]
@@ -104,7 +104,7 @@
         <div class="nav-actions">
           <button class="text-control" type="button" data-theme-toggle aria-label="切换颜色模式">深色</button>
           <a class="text-control language-link" href="../../../guides/switch-multiple-codex-accounts/" hreflang="en" lang="en">English</a>
-          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases">下载</a>
+          <a class="button button-small" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">下载</a>
         </div>
       </nav>
     </header>
@@ -116,9 +116,9 @@
             <nav class="breadcrumbs" aria-label="面包屑导航">
               <a href="../../../zh-CN/">Codex Account Switcher</a><span>/</span><span>多账号切换</span>
             </nav>
-            <p class="eyebrow">Codex 账号切换指南</p>
-            <h1>macOS Codex 多账号切换完整指南</h1>
-            <p class="article-lede">一次保存个人、工作与客户 Codex 登录信息，比较每个账号的每周用量，再从原生 macOS 菜单中选择当前账号，无需每次重复完整的浏览器登录流程。</p>
+            <p class="eyebrow">普通 Mac 用户指南</p>
+            <h1>在 Mac 上切换 Codex 多账号，无需终端设置</h1>
+            <p class="article-lede">下载应用，通过浏览器添加个人、工作或客户账号一次，之后从 Mac 菜单栏选择即可。无需代码知识，也不用修改配置文件。</p>
             <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 8 月 26 日 · 阅读约 7 分钟 · 适用于 Apple Silicon 与 macOS 14+</p>
             <figure class="article-visual">
               <img src="../../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="Codex Account Switcher 菜单显示三个虚构本地账号、每周用量进度与重置时间">
@@ -131,8 +131,8 @@
             <div class="article-main">
               <section id="overview">
                 <h2>为什么 Codex 多账号使用容易变得繁琐</h2>
-                <p>开发者常常把个人项目、公司工作区和获准使用的客户项目放在不同 ChatGPT 账号中。Codex Desktop 与 Codex CLI 会读取一个当前认证文件，手动更换身份往往需要退出登录、打开浏览器、重新完成认证，再确认当前到底使用了哪个账号。</p>
-                <p>Codex Account Switcher 为每个已保存身份保留相互独立的本地认证快照。在切换前，菜单直接显示当前账号、每周剩余用量与重置时间。</p>
+                <p>很多人把个人事务、公司工作区和获准使用的客户项目放在不同 ChatGPT 账号中。Codex Desktop 没有内置账号切换入口，更换身份时可能需要退出登录、打开浏览器、重新认证，再确认当前账号。</p>
+                <p>Codex Account Switcher 让每个已保存账号在 Mac 上保持可用。菜单会标出当前账号，也可以在选择前查看每周用量。</p>
                 <div class="article-callout">
                   <p><strong>请只使用你本人拥有或获准访问的账号。</strong>应用提供本地账号选择流程，不会改变 OpenAI 账号权限、账单、工作区策略或用量限制。</p>
                 </div>
@@ -148,7 +148,7 @@
                 <h2>开始前需要准备什么</h2>
                 <ul>
                   <li>搭载 Apple Silicon、运行 macOS 14 Sonoma 或更高版本的 Mac。</li>
-                  <li>Codex Desktop、Codex CLI，或同时安装两者。</li>
+                  <li>Codex Desktop；同时使用 Codex CLI 的用户也可以继续使用相关支持。</li>
                   <li>至少两个可以使用 Codex 的 ChatGPT 账号。</li>
                   <li>从 GitHub Releases 下载的最新签名并经过 Apple 公证的 Codex Account Switcher DMG。</li>
                 </ul>
@@ -204,7 +204,7 @@
                 <h2>让每个获准使用的 Codex 账号始终一步直达。</h2>
                 <p>下载已签名的 Apple Silicon DMG，或在 GitHub 查看 Swift 源码与产品设计文档。</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases">下载 macOS 版</a>
+                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">免费下载 Mac 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">查看源码</a>
                 </div>
               </div>

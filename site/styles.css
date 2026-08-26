@@ -1261,6 +1261,16 @@ html[lang="zh-CN"] .hero-title {
   font-size: clamp(44px, 4.1vw, 58px);
 }
 
+html[lang="zh-CN"] .hero-title .zh-first-line {
+  display: block;
+  white-space: nowrap;
+}
+
+html[lang="zh-CN"] .hero-title .zh-account-word {
+  display: inline;
+  white-space: inherit;
+}
+
 @media (max-width: 1099px) {
   .nav-shell,
   .hero-shell,
@@ -1420,6 +1430,14 @@ html[lang="zh-CN"] .hero-title {
 
   html[lang="zh-CN"] .hero-title {
     font-size: clamp(46px, 13vw, 58px);
+  }
+
+  html[lang="zh-CN"] .hero-title .zh-first-line {
+    white-space: normal;
+  }
+
+  html[lang="zh-CN"] .hero-title .zh-account-word {
+    display: block;
   }
 
   .hero-title span {

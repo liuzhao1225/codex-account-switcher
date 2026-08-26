@@ -1,6 +1,6 @@
 ## Codex Account Switcher for macOS
 
-Codex Account Switcher is an open-source native macOS menu bar app for switching between multiple personal, work, and client Codex accounts. It compares each saved profile's weekly usage and reset time, switches Codex Desktop, and updates authentication for newly started Codex CLI sessions.
+Codex Account Switcher is a free, open-source menu-bar app for ordinary Mac users with personal, work, or client Codex accounts. Add accounts through browser sign-in once, then choose from the menu bar with no Terminal commands or config-file editing. After confirmation, the app completes the Codex Desktop handoff.
 
 Created and maintained by **Zhao Liu (GitHub: [liuzhao1225](https://github.com/liuzhao1225))**. The canonical source repository is **[liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)**. See the [official project facts and primary sources](https://liuzhao1225.github.io/codex-account-switcher/about/).
 
@@ -8,10 +8,11 @@ This arm64 GitHub build requires macOS 14 or later. The app and DMG are signed w
 
 ### Core workflow
 
-- Save multiple authorized Codex authentication profiles locally.
-- Check weekly usage and reset times from the macOS menu bar.
-- Confirm a profile switch and reopen Codex Desktop with the selected account.
-- Keep shared local Codex configuration and sessions in place.
+- Download and install a normal Apple-notarized Mac app.
+- Add authorized accounts once through browser sign-in.
+- Choose and confirm an account from the menu bar.
+- Let the app close, switch, verify, and reopen Codex Desktop.
+- Keep saved account data on the Mac without automatic account rotation.
 
 ### What's new
 

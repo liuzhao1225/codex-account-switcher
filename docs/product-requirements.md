@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Allow a macOS user with multiple ChatGPT accounts to see each account's weekly Codex Usage and change which account Codex Desktop and newly started Codex CLI processes use.
+Allow an ordinary Mac user with multiple authorized ChatGPT accounts to add them through browser sign-in and choose which account Codex Desktop uses from the menu bar, without Terminal commands or config-file editing.
 
 The user should understand the product after opening the menu once. The main path should require no configuration.
 

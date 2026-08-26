@@ -8,6 +8,7 @@ This directory defines the MVP for Codex Account Switcher.
 
 | Document | Purpose |
 | --- | --- |
+| [Product positioning and messaging](positioning-and-messaging.md) | Shared audience, promise, proof, SEO terms, and claim boundaries |
 | [Product decisions](product-decisions.md) | Binding product and architecture decisions |
 | [Product requirements](product-requirements.md) | User-visible behavior and acceptance criteria |
 | [System design](system-design.md) | Components, storage, flows, interfaces, and failure behavior |
@@ -16,7 +17,7 @@ This directory defines the MVP for Codex Account Switcher.
 
 ## Product definition
 
-Codex Account Switcher is a local macOS menu-bar utility. It manages a small set of authentication snapshots and copies the selected snapshot into Codex's active authentication location.
+Codex Account Switcher is a simple local menu-bar app for ordinary Mac users. The public workflow is: add accounts through browser sign-in once, choose from the menu bar, and let the app complete the confirmed Codex Desktop handoff. It requires no Terminal commands or config-file editing. Internally, the app manages a small set of authentication snapshots and activates the selected snapshot for Codex.
 
 The intended user flow is:
 

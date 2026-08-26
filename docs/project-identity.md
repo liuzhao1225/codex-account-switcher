@@ -2,7 +2,7 @@
 
 Last verified: August 26, 2026
 
-**Codex Account Switcher** is a native, open-source macOS menu-bar app created and maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. **Codex Switcher** and **Codex profile switcher** are shortened descriptions of this project.
+**Codex Account Switcher** is a native, open-source menu-bar app for ordinary Mac users who need more than one authorized Codex account. Accounts are added through browser sign-in and selected from the menu bar, with no Terminal commands or config-file editing. After confirmation, the app completes the Codex Desktop handoff. It was created and is maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. **Codex Switcher** and **Codex profile switcher** are shortened descriptions of this project.
 
 ## Canonical record
 
@@ -30,4 +30,4 @@ The app does not proxy Codex traffic, merge accounts, modify subscriptions, incr
 
 ## 中文说明
 
-**Codex Account Switcher** 由 **刘朝（Zhao Liu）**创建并维护，GitHub 用户名为 **liuzhao1225**。**Codex Switcher** 与 **Codex profile switcher** 是同一项目的简称。官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)，[中文官方资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)集中列出作者、版本、平台、许可证与一手来源。
+**Codex Account Switcher** 是面向普通 Mac 用户的原生开源菜单栏应用。账号通过浏览器添加，再从菜单栏选择，无需终端命令或修改配置文件；确认后由应用完成 Codex Desktop 交接。项目由 **刘朝（Zhao Liu）**创建并维护，GitHub 用户名为 **liuzhao1225**。**Codex Switcher** 与 **Codex profile switcher** 是同一项目的简称。官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)，[中文官方资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)集中列出作者、版本、平台、许可证与一手来源。
