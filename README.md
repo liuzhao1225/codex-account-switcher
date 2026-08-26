@@ -23,19 +23,12 @@
 
 <p align="center">
   <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>Website</b></a> ·
-  <a href="https://liuzhao1225.github.io/codex-account-switcher/about/"><b>Official facts</b></a> ·
-  <a href="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/"><b>Codex account guide</b></a> ·
-  <a href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"><b>Switching guide</b></a> ·
   <a href="#download"><b>Download</b></a> ·
-  <a href="#who-it-is-for"><b>Use cases</b></a> ·
-  <a href="#features"><b>Features</b></a> ·
-  <a href="#how-it-works"><b>How it works</b></a> ·
-  <a href="#privacy-and-scope"><b>Privacy</b></a> ·
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>Discussions</b></a> ·
-  <a href="#development"><b>Development</b></a> ·
-  <a href="docs/README.md"><b>Documentation</b></a> ·
-  <a href="README.md">English</a> ·
-  <a href="README.zh-CN.md">简体中文</a>
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>Discussions</b></a>
+</p>
+
+<p align="center">
+  English · <a href="README.zh-CN.md">中文</a>
 </p>
 
 ![Native macOS Codex Account Switcher showing three fictional Codex profiles, weekly usage, and account switching from the menu bar](assets/codex-account-switcher-hero.png)
