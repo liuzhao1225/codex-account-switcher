@@ -31,7 +31,7 @@
   English · <a href="README.zh-CN.md">中文</a>
 </p>
 
-![Native macOS Codex Account Switcher showing three fictional Codex profiles, weekly usage, and account switching from the menu bar](assets/codex-account-switcher-hero.png)
+![Native macOS Codex Account Switcher showing three fictional Codex profiles, usage, and account switching from the menu bar](assets/codex-account-switcher-hero.png)
 
 <p align="center"><strong>Download. Add accounts. Choose from the menu bar.</strong></p>
 
@@ -85,7 +85,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | **Menu-bar account choice** | Keep personal, work, and client accounts clearly labeled in one Mac menu. |
 | **Completed Desktop handoff** | Select and confirm an account, then let the app close, switch, verify, and reopen Codex Desktop. |
 | **Local account storage** | Keep saved account data on your Mac without an app-owned proxy or cloud account service. |
-| **Weekly usage at a glance** | Check the remaining weekly allowance and reset time when it helps your choice. |
+| **Usage at a glance** | Check weekly allowance by default, with an optional 5-hour row and reset time when it helps your choice. |
 | **Small native Mac app** | Install an Apple-notarized DMG and use a compact SwiftUI interface in English or Simplified Chinese. |
 
 ## How it works
@@ -113,7 +113,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
-- Persisted weekly usage remains visible while fresh data loads.
+- Persisted 5-hour and weekly usage remains visible while fresh data loads; the 5-hour row appears only when enabled and available.
 - Every switch stops immediately on the first reported error.
 - If target verification or the registry commit fails after credential activation, the app restores the just-saved original profile credential while preserving the original error. A restoration error is reported alongside it.
 - General rollback state machines, retries, credential backup files, recovery journals, startup recovery, and policy-based routing stay outside the product scope.

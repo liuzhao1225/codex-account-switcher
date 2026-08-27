@@ -74,6 +74,24 @@ struct SettingsView: View {
                     .padding(.leading, 14)
 
                 HStack {
+                    Text(model.text("show_five_hour_usage"))
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { model.settings.showsFiveHourUsage },
+                        set: { enabled in Task { await model.setShowsFiveHourUsage(enabled) } }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .fixedSize()
+                    .accessibilityLabel(Text(model.text("show_five_hour_usage")))
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+
+                Divider()
+                    .padding(.leading, 14)
+
+                HStack {
                     Text(model.text("language"))
                     Spacer()
                     Picker(model.text("language"), selection: Binding(

@@ -23,7 +23,7 @@ The intended user flow is:
 
 ```text
 Open menu
-→ inspect weekly Usage
+→ inspect weekly Usage and optional 5-hour Usage
 → select account
 → confirm normal switch consequences
 → switch

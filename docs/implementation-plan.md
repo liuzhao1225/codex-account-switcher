@@ -15,7 +15,7 @@ Deliver:
 - account-list popover;
 - compact 326-point content width;
 - highlighted current row;
-- one `Usage` bar per row;
+- one weekly `Usage` bar per row by default, with an optional 5-hour row;
 - equal-width Manage Accounts, Settings, and Quit footer actions;
 - in-popover Manage Accounts and Settings pages;
 - in-popover switch confirmation page with safe cancel behavior.
@@ -25,7 +25,7 @@ Use fixture data matching the HTML prototype.
 Exit criteria:
 
 - UI matches the accepted layout;
-- no 5-hour content exists;
+- the default setting preserves the compact weekly-only layout;
 - progress bars are bound to percentage values;
 - current state uses row highlight, not a checkmark.
 
@@ -91,12 +91,13 @@ Exit criteria:
 - activation failure before replacement does not restore, and reopen failure after commit keeps the target active;
 - no retry, startup recovery, or general rollback state machine executes.
 
-## 6. Milestone 5 — weekly Usage
+## 6. Milestone 5 — Usage windows
 
 Implement:
 
 - profile-specific `CODEX_HOME` app-server calls;
 - rate-limit RPC;
+- exact 300-minute 5-hour-window extraction;
 - six-to-eight-day weekly-window extraction;
 - `remainingPercent` calculation;
 - reset-time formatting;
@@ -108,9 +109,10 @@ Implement:
 
 Exit criteria:
 
-- short-duration windows are ignored even when present;
+- only an exact 300-minute short window is normalized as 5-hour Usage;
+- 4-hour and 6-hour windows are ignored;
 - absence of a six-to-eight-day window does not fall back to another window;
-- no 5-hour UI or model field exists;
+- the optional 5-hour fields preserve weekly-only cache compatibility;
 - cached Usage remains visible while refresh runs;
 - each account row refreshes independently.
 
@@ -164,8 +166,8 @@ Before merging MVP code, verify:
 - no general rollback state machine exists;
 - no transaction journal exists;
 - no catch-and-continue behavior exists;
-- short-duration rate-limit windows are not presented;
-- Settings contains launch-at-login, menu-bar percentage, and language controls;
+- only exact 300-minute short-duration windows are presented as 5-hour Usage;
+- Settings contains launch-at-login, menu-bar percentage, 5-hour Usage, and language controls;
 - Manage Accounts and Settings stay inside the popover;
 - every new popover opening starts on the account list;
 - account management has no rename path;

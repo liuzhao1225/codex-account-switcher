@@ -35,12 +35,22 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
 struct AppSettings: Codable, Equatable, Sendable {
     var language: AppLanguage
     var showsMenuBarPercentage: Bool
+    var showsFiveHourUsage: Bool
 
-    static let `default` = AppSettings(language: .system, showsMenuBarPercentage: true)
+    static let `default` = AppSettings(
+        language: .system,
+        showsMenuBarPercentage: true,
+        showsFiveHourUsage: false
+    )
 
-    init(language: AppLanguage, showsMenuBarPercentage: Bool = true) {
+    init(
+        language: AppLanguage,
+        showsMenuBarPercentage: Bool = true,
+        showsFiveHourUsage: Bool = false
+    ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
+        self.showsFiveHourUsage = showsFiveHourUsage
     }
 
     init(from decoder: any Decoder) throws {
@@ -50,12 +60,30 @@ struct AppSettings: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .showsMenuBarPercentage
         ) ?? true
+        showsFiveHourUsage = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .showsFiveHourUsage
+        ) ?? false
     }
 }
 
 struct WeeklyUsage: Codable, Equatable, Sendable {
     let remainingPercent: Int
     let resetsAt: Date
+    let fiveHourRemainingPercent: Int?
+    let fiveHourResetsAt: Date?
+
+    init(
+        remainingPercent: Int,
+        resetsAt: Date,
+        fiveHourRemainingPercent: Int? = nil,
+        fiveHourResetsAt: Date? = nil
+    ) {
+        self.remainingPercent = remainingPercent
+        self.resetsAt = resetsAt
+        self.fiveHourRemainingPercent = fiveHourRemainingPercent
+        self.fiveHourResetsAt = fiveHourResetsAt
+    }
 }
 
 struct UsageCacheEntry: Codable, Equatable, Sendable {

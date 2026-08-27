@@ -13,7 +13,7 @@ copy the selected profile's auth.json into ~/.codex/auth.json
 Everything else exists to make that operation understandable and usable:
 
 - identify saved accounts;
-- display weekly Usage;
+- display weekly Usage and optional 5-hour Usage;
 - close and reopen Codex Desktop;
 - save the currently active credential before replacing it;
 - verify that Codex can read the selected identity;
@@ -30,8 +30,8 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 - no modification to Codex Desktop;
 - shared Codex configuration and history under `~/.codex`;
 - independent saved authentication profiles;
-- weekly Usage for each profile;
-- immediate display of persisted weekly Usage while refresh runs;
+- weekly Usage and optional exact 5-hour Usage for each profile;
+- immediate display of persisted Usage while refresh runs;
 - explicit, stage-specific errors;
 - code small enough to review as an MVP.
 
@@ -45,7 +45,6 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 - secure enclave or Keychain integration;
 - account routing per request;
 - concurrent account use inside one Codex process;
-- 5-hour Usage display;
 - compatibility abstraction for every future Codex authentication backend.
 
 ## 3. Platform and technology
@@ -124,8 +123,8 @@ Avoid adding protocol layers until a second implementation actually exists. Smal
 
 ~/Library/Application Support/Codex Account Switcher/
 ├── accounts.json                     # profile metadata and active account ID
-├── settings.json                     # language and menu-bar percentage
-├── usage-cache.json                  # last successful weekly Usage per profile
+├── settings.json                     # language and Usage display settings
+├── usage-cache.json                  # last successful normalized Usage per profile
 └── accounts/
     ├── <profile-id>/
     │   └── auth.json                 # saved credential snapshot
@@ -170,13 +169,16 @@ The implementation sets these permissions when creating files. It does not build
 ```json
 {
   "language": "system",
-  "showsMenuBarPercentage": true
+  "showsMenuBarPercentage": true,
+  "showsFiveHourUsage": false
 }
 ```
 
+When `showsFiveHourUsage` is absent from an older file, decoding defaults it to `false`. This preserves the existing compact account-row layout after an upgrade. Setting changes are saved immediately.
+
 Launch-at-login state is owned by macOS Service Management and is read from `SMAppService.mainApp.status`. It is never copied into `settings.json`.
 
-`usage-cache.json` stores `profileID`, normalized weekly Usage, and `fetchedAt` for each last successful response. No switch phase, rollback reference, or recovery journal is stored.
+`usage-cache.json` stores `profileID`, normalized weekly Usage, optional 5-hour Usage, and `fetchedAt` for each last successful response. The optional fields allow older weekly-only cache entries to decode. No switch phase, rollback reference, or recovery journal is stored.
 
 ### 6.4 Writes
 
@@ -213,6 +215,8 @@ struct AccountProfile: Codable, Identifiable, Equatable {
 struct WeeklyUsage: Codable, Equatable {
     let remainingPercent: Int
     let resetsAt: Date
+    let fiveHourRemainingPercent: Int?
+    let fiveHourResetsAt: Date?
 }
 ```
 
@@ -316,17 +320,18 @@ Identity matching rule for the MVP:
 
 There is no fallback to local display name or file hash.
 
-### 9.3 Weekly Usage read
+### 9.3 Usage read
 
 Call `account/rateLimits/read`, collect `primary` and `secondary` windows from both top-level and named rate-limit buckets, then normalize by duration:
 
 ```text
+fiveHour = first window where windowDurationMins == 300
 weekly = longest window where 8640 <= windowDurationMins <= 11520
 ```
 
 The client intentionally ignores:
 
-- any short-duration window;
+- any short-duration window other than exactly 300 minutes;
 - reset-credit details;
 - windows outside six through eight days.
 
@@ -335,11 +340,13 @@ Normalized output:
 ```swift
 WeeklyUsage(
     remainingPercent: clamp(round(100 - weekly.usedPercent), 0, 100),
-    resetsAt: weekly.resetsAt
+    resetsAt: weekly.resetsAt,
+    fiveHourRemainingPercent: fiveHour.map { clamp(round(100 - $0.usedPercent), 0, 100) },
+    fiveHourResetsAt: fiveHour?.resetsAt
 )
 ```
 
-If no six-to-eight-day window exists, return `weeklyUsageUnavailable`.
+If no six-to-eight-day window exists, return `weeklyUsageUnavailable`. Missing 5-hour data leaves the optional fields empty. A 4-hour or 6-hour window never populates them. The client makes one `account/rateLimits/read` request and parses both windows from the same response whether the display setting is on or off.
 
 ### 9.4 Timeouts
 
@@ -367,7 +374,7 @@ The switcher starts app-server with `CODEX_HOME` set to that directory. This let
 
 At application launch, when the pending five-minute timer fires, and whenever the popover opens:
 
-1. load account metadata and persisted weekly Usage;
+1. load account metadata and persisted weekly and optional 5-hour Usage;
 2. render cached values immediately without replacing them with a loading state;
 3. refresh all accounts concurrently;
 4. replace the pending timer with one scheduled five minutes after the latest trigger;
@@ -706,6 +713,7 @@ The implementation assumes:
 
 - Codex stores active file credentials under `CODEX_HOME/auth.json` when file credential storage is used;
 - the installed Codex app-server exposes account identity and rate-limit RPCs;
+- 5-hour Codex windows report exactly 300 minutes when available;
 - weekly Codex windows report a duration between six and eight days;
 - Codex Desktop reads the active `~/.codex` authentication state when launched.
 
@@ -724,7 +732,6 @@ Do not add the following unless a new product decision explicitly requires it:
 - SQLite;
 - daemon;
 - helper process that stays resident;
-- 5-hour Usage row;
 - Usage details panel;
 - switch-behavior settings;
 - CLI process control;
