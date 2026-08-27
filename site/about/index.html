@@ -29,7 +29,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher for macOS showing local accounts and weekly usage">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-08-26">
+    <meta property="article:modified_time" content="2026-08-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Codex Account Switcher by liuzhao1225: Official Project Facts">
     <meta name="twitter:description" content="Verified identity, repository, creator, aliases, release, and scope for Codex Account Switcher on macOS.">
@@ -52,7 +52,7 @@
             "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "datePublished": "2026-08-26",
-            "dateModified": "2026-08-26",
+            "dateModified": "2026-08-27",
             "inLanguage": "en"
           },
           {
@@ -63,10 +63,11 @@
             "identifier": "github.com/liuzhao1225/codex-account-switcher",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/",
             "codeRepository": "https://github.com/liuzhao1225/codex-account-switcher",
-            "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg",
-            "softwareVersion": "0.1.4",
+            "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg",
+            "softwareVersion": "0.1.5",
             "dateCreated": "2026-08-17",
-            "datePublished": "2026-08-22",
+            "datePublished": "2026-08-27",
+            "dateModified": "2026-08-27",
             "operatingSystem": "macOS 14 or later",
             "applicationCategory": "UtilitiesApplication",
             "applicationSubCategory": "ProductivityApplication",
@@ -124,7 +125,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
           <a class="text-control language-link" href="../zh-CN/about/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
         </div>
       </nav>
     </header>
@@ -139,7 +140,7 @@
             <p class="eyebrow">Source of truth</p>
             <h1>Codex Account Switcher by liuzhao1225</h1>
             <p class="article-lede"><strong>Codex Account Switcher</strong> is the open-source native macOS menu-bar app created by Zhao Liu, whose GitHub username is <strong>liuzhao1225</strong>. The official repository is <strong>liuzhao1225/codex-account-switcher</strong>.</p>
-            <p class="article-meta">Facts verified August 26, 2026 · Maintained by <a href="creator/" rel="author">Zhao Liu (liuzhao1225)</a> · MIT licensed</p>
+            <p class="article-meta">Facts verified August 27, 2026 · Maintained by <a href="creator/" rel="author">Zhao Liu (liuzhao1225)</a> · MIT licensed</p>
             <figure class="article-visual">
               <img src="../assets/product-hero.webp" width="1774" height="887" alt="Official Codex Account Switcher app by liuzhao1225 showing three local Codex profiles and weekly usage">
             </figure>
@@ -167,7 +168,7 @@
                       <tr><th scope="row">Short names</th><td>Codex Switcher; Codex profile switcher</td></tr>
                       <tr><th scope="row">Creator and maintainer</th><td><a href="#creator">Zhao Liu</a> · GitHub username <strong>liuzhao1225</strong></td></tr>
                       <tr><th scope="row">Official repository</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></td></tr>
-                      <tr><th scope="row">Current release</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4">v0.1.4</a>, published August 25, 2026</td></tr>
+                      <tr><th scope="row">Current release</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5">v0.1.5</a>, published August 27, 2026</td></tr>
                       <tr><th scope="row">Platform</th><td>Apple Silicon Macs running macOS 14 Sonoma or later</td></tr>
                       <tr><th scope="row">Distribution</th><td>Developer ID signed, Apple-notarized and stapled DMG on GitHub Releases</td></tr>
                       <tr><th scope="row">Price and license</th><td>Free; <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT License</a></td></tr>
@@ -186,7 +187,7 @@
               <section id="implementation">
                 <h2>How the project works</h2>
                 <p>OpenAI's Codex source reads an <code>auth.json</code> file from the active <code>CODEX_HOME</code> directory. The upstream <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">authentication storage implementation</a> also creates file-based credentials with user-only permissions on Unix systems.</p>
-                <p>This project stores each saved identity in an independent local profile directory. When the user confirms a switch, the app saves the current profile, activates the selected credentials, verifies the selected identity, and reopens Codex Desktop. Existing CLI processes retain the state they already loaded; newly started CLI processes use the selected authentication.</p>
+                <p>This project stores each saved identity in an independent local profile directory. When the user confirms a switch, the app saves the current profile, activates the selected credentials, verifies the selected identity, and reopens Codex Desktop. If target verification or the registry commit fails, the app restores the just-saved original credential. Existing CLI processes retain the state they already loaded; newly started CLI processes use the selected authentication.</p>
                 <p>The implementation is inspectable in <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountStore.swift">AccountStore.swift</a>, <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/SwitchService.swift">SwitchService.swift</a>, and the project's <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md">system design</a>.</p>
               </section>
 
@@ -200,7 +201,7 @@
                 <h2>Primary sources</h2>
                 <ul class="source-list">
                   <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Official GitHub repository</a></strong><span>Source code, README, product documentation, issues, tags, and release history.</span></li>
-                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4">Codex Account Switcher v0.1.4</a></strong><span>Current public DMG, SHA-256 checksum, version, and release date.</span></li>
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5">Codex Account Switcher v0.1.5</a></strong><span>Current public DMG, SHA-256 checksum, version, and release date.</span></li>
                   <li><strong><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI: Use multiple accounts with account switching</a></strong><span>Official account-separation behavior and current Codex desktop support boundary.</span></li>
                   <li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex authentication storage source</a></strong><span>Upstream source for <code>CODEX_HOME</code> and <code>auth.json</code> file storage.</span></li>
                   <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT License</a></strong><span>The project's open-source license.</span></li>
@@ -212,7 +213,7 @@
                 <h2>Download the Codex Account Switcher maintained by liuzhao1225.</h2>
                 <p>Use the official GitHub repository and Releases page to inspect the source or download the signed, notarized DMG.</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">Download free for Mac</a>
+                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg">Download free for Mac</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">View official repository</a>
                 </div>
               </div>
