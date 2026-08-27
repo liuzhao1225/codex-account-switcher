@@ -9,6 +9,10 @@ The MVP test suite should prove two things:
 
 It should not test rollback or recovery behavior because those features do not exist.
 
+### Local toolchains
+
+Xcode and GitHub-hosted macOS runners use SwiftPM's normal `Testing` module discovery. Some standalone Command Line Tools distributions place `Testing.framework` and `lib_TestingInterop.dylib` outside SwiftPM's default search paths. For that CLT layout, `Package.swift` derives the selected toolchain root from `xcrun --find swift` and adds only the required framework and runtime search paths when both files exist. The repository contains no fixed developer-directory path.
+
 ## 2. Unit tests
 
 ### 2.1 Weekly Usage

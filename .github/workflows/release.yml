@@ -116,6 +116,7 @@ jobs:
 
           mkdir -p "$dmg_root"
           ditto "$app_path" "$dmg_root/Codex Account Switcher.app"
+          cp LICENSE "$dmg_root/LICENSE.txt"
           ln -s /Applications "$dmg_root/Applications"
           hdiutil create \
             -volname "Codex Account Switcher" \
@@ -152,6 +153,10 @@ jobs:
           test "$mounted_icon" = "AppIcon"
           test -s "$mounted_app/Contents/Resources/AppIcon.icns"
           file "$mounted_app/Contents/Resources/AppIcon.icns" | grep -q 'Mac OS X icon'
+          test -s "$mounted_app/Contents/Resources/LICENSE.txt"
+          grep -Fq 'Copyright (c) 2026 liuzhao1225' "$mounted_app/Contents/Resources/LICENSE.txt"
+          test -s "$mount_point/LICENSE.txt"
+          grep -Fq 'Copyright (c) 2026 liuzhao1225' "$mount_point/LICENSE.txt"
           codesign --verify --deep --strict --verbose=4 "$mounted_app"
           xcrun stapler validate -v "$mounted_app"
           spctl --assess --type execute --verbose=4 "$mounted_app"
