@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-26
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Show selected Swift toolchain
+        run: |
+          xcode-select -p
+          xcrun --find swift
+          swift --version
+
+      - name: Check changed lines for whitespace errors
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: git diff --check "$BASE_SHA...$HEAD_SHA"
+
+      - name: Run Swift tests
+        run: swift test
+
+      - name: Run core checks
+        run: ./scripts/run-core-checks.sh

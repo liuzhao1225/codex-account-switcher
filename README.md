@@ -105,6 +105,10 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 ## Privacy and scope
 
 - Saved account data stays in user-only local directories on the Mac.
+- Each saved profile contains a complete, reusable `auth.json` credential snapshot. The app stores profile directories with mode `0700`, credential files with mode `0600`, and replaces credential files atomically through a same-directory temporary file and rename.
+- Local file permissions define the current security boundary. User backups, filesystem snapshots, cloud backup tools, endpoint software, and other processes with access to the user's files may copy the saved credential snapshots.
+- Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.
+- The current release uses file-backed credential storage and does not store profile credentials in macOS Keychain.
 - The product runs without its own account proxy, traffic router, or cloud account service.
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
