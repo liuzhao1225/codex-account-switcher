@@ -29,7 +29,7 @@ The user should understand the product after opening the menu once. The main pat
 - round-robin routing;
 - account recommendation;
 - automatic switching when Usage is low;
-- rollback and recovery state machines;
+- general rollback and recovery state machines;
 - server-side session revocation;
 - Windows and Linux releases;
 - syncing profiles between Macs.
@@ -194,11 +194,12 @@ On failure:
 
 - stop immediately;
 - do not continue to later stages;
-- do not automatically restore the previous account;
 - show the failed stage and the underlying error;
 - keep the error visible until the user dismisses it.
 
-The message must not claim that the previous account was restored.
+If target activation completed and target verification or registry persistence fails, restore the active `auth.json` from the validated original profile saved earlier in the attempt. Keep the original failure visible. If restoration fails, show both the original and restoration errors. Do not restore after an activation failure that did not replace the credential, and keep the target account active when Desktop reopening fails after a successful registry commit.
+
+This bounded repair does not add a general rollback state machine, credential backup file, retry, journal, or startup recovery.
 
 ## 8. Manage Accounts
 
@@ -226,7 +227,7 @@ create profile directory
 → return to Manage Accounts
 ```
 
-No current-account backup or rollback flow is created.
+Adding an account creates no current-account credential backup or rollback flow.
 
 If login fails, show the Codex login error. The incomplete profile directory may remain on disk; the MVP does not hide the failure with automatic cleanup.
 
@@ -303,7 +304,7 @@ The MVP is accepted when:
 11. Quit and Command-Q terminate the application and remain available during mutations;
 12. account switching follows the documented six-stage sequence;
 13. a failure at any switch stage stops and is shown directly;
-14. no rollback, backup, journal, retry, or startup-recovery code path runs;
+14. verification and registry-commit failures restore the validated original credential, with no general rollback state machine, backup file, journal, retry, or startup-recovery path;
 15. existing CLI processes are not terminated;
 16. newly started CLI processes observe the selected active `auth.json`;
 17. cached Usage stays visible during refresh and is replaced after success;

@@ -76,7 +76,7 @@ The confirmation renders inside the popover. Cancel returns to the account list,
 The switch implementation is intentionally sequential:
 
 ```text
-Preflight
+Preflight target and original active profile
 → close Codex Desktop
 → save current credentials
 → activate target credentials
@@ -85,17 +85,18 @@ Preflight
 → reopen Codex Desktop
 ```
 
+Before any credential write, preflight reads the registry and validates `originalActiveID`. After target activation succeeds, a verification or registry-commit failure restores `~/.codex/auth.json` from the original profile snapshot saved earlier in the same attempt. An activation failure does not run restoration because replacement did not complete. A Desktop-reopen failure occurs after the registry commit and keeps the selected account active.
+
 The MVP does not implement:
 
-- rollback credentials;
-- backup copies;
+- a general rollback state machine;
+- credential backup files;
 - a transaction journal;
 - automatic retries;
 - startup recovery;
-- compensating actions;
 - silent fallback to the previous account.
 
-When a step fails, execution stops and the exact error is shown. The system does not hide the failure by restoring another state.
+When a step fails, execution stops and the exact original error is shown. If the bounded credential restoration also fails, the same error report contains both failures.
 
 ## 6. Credential storage
 
@@ -172,4 +173,4 @@ The implementation should:
 - avoid broad `catch` blocks that convert every failure into a generic message;
 - avoid retry loops unless a later product requirement explicitly adds them.
 
-A partially completed switch is an observable implementation failure, not a hidden condition to repair automatically.
+A partially completed switch remains observable. The implementation performs only the documented pre-commit credential restoration and adds no generic repair, retry, or startup-recovery behavior.

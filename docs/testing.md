@@ -5,9 +5,9 @@
 The MVP test suite should prove two things:
 
 1. the direct happy path works;
-2. failures stop exactly where they occur and remain visible.
+2. failures stop exactly where they occur and remain visible while the bounded pre-commit credential restoration preserves account consistency.
 
-It should not test rollback or recovery behavior because those features do not exist.
+It should test the documented verification/commit restoration and confirm that no general rollback state machine, retry, credential backup file, journal, or startup recovery exists.
 
 ### Local toolchains
 
@@ -72,18 +72,20 @@ Inject an error at each call and assert:
 
 - the error reports the correct `SwitchStage`;
 - no later call occurs;
-- no rollback call occurs;
 - no retry occurs;
 - `isMutating` returns to false after presentation.
 
 Specific partial-state assertions:
 
-- activation error leaves state metadata unchanged;
-- verification error leaves the activated target file in place;
-- state-write error may leave target auth active and old metadata present;
+- the registry is read and `originalActiveID` is validated before saving or replacing credentials;
+- activation error before replacement leaves state metadata unchanged and runs no restoration;
+- verification error restores the original active credential and leaves the original metadata active;
+- state-write error restores the original active credential and leaves the original metadata active;
+- a retry after restoration cannot overwrite the original profile with target credentials;
+- a restoration failure reports both the original and restoration errors;
 - Desktop-open error leaves target auth and target metadata active.
 
-These assertions intentionally document visible partial completion rather than hiding it.
+Use both the fake store and the real `AccountStore` so call ordering, atomic credential installation, registry-write failure, and on-disk bytes are covered.
 
 ## 4. App-server fixture tests
 
@@ -146,8 +148,9 @@ With two real test accounts:
 11. disconnect network and confirm cached Usage remains visible with a warning;
 12. remove the cache, disconnect network, and confirm Usage unavailable appears;
 13. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
-14. force identity mismatch and confirm no rollback message appears;
-15. make `accounts.json` unwritable and confirm the state-write failure is shown directly.
+14. force identity mismatch and confirm the original `auth.json` is restored while the mismatch remains visible;
+15. make `accounts.json` unwritable and confirm the original `auth.json` is restored while the state-write failure remains visible;
+16. make restoration fail and confirm both errors are shown.
 
 ## 7. Repository checks
 
@@ -156,7 +159,9 @@ Before release:
 ```text
 only main branch remains
 no 5-hour UI strings
-no rollback implementation
+only the bounded verification/commit credential restoration exists
+no general rollback state machine
+no credential backup file
 no transaction journal
 no Keychain implementation
 launch-at-login state comes from macOS Service Management

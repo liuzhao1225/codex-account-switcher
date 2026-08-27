@@ -44,14 +44,18 @@ private struct FakeDesktop: DesktopControlling {
 
 private actor FakeStore: AccountStoring {
     let recorder: Recorder
+    let original: AccountProfile
     let target: AccountProfile
 
-    init(recorder: Recorder, target: AccountProfile) {
+    init(recorder: Recorder, original: AccountProfile, target: AccountProfile) {
         self.recorder = recorder
+        self.original = original
         self.target = target
     }
 
-    func loadRegistry() -> AccountRegistry { .empty }
+    func loadRegistry() -> AccountRegistry {
+        AccountRegistry(activeAccountID: original.id, accounts: [original, target])
+    }
     func profile(id: UUID) -> AccountProfile { target }
     func profileHome(id: UUID) -> URL { URL(fileURLWithPath: "/tmp/target") }
     func activeCodexHome() -> URL { URL(fileURLWithPath: "/tmp/active") }
@@ -62,6 +66,7 @@ private actor FakeStore: AccountStoring {
     func removeAccount(id: UUID) {}
     func saveCurrentCredential() async { await recorder.append(.saveCurrentCredential) }
     func activateTargetCredential(id: UUID) async { await recorder.append(.activateTargetCredential) }
+    func restoreActiveCredential(id: UUID) {}
     func commitActiveAccountID(_ id: UUID) async { await recorder.append(.commitActiveAccountID) }
 }
 
@@ -215,7 +220,7 @@ struct CoreChecks {
         let recorder = Recorder()
         let switcher = SwitchService(
             desktop: FakeDesktop(recorder: recorder),
-            store: FakeStore(recorder: recorder, target: second),
+            store: FakeStore(recorder: recorder, original: first, target: second),
             codex: FakeCodex(recorder: recorder, target: second)
         )
         try await switcher.switchAccount(to: second.id)

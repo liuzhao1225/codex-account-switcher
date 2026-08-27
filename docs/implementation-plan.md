@@ -4,7 +4,7 @@
 
 Build the smallest native macOS app that can complete one real A → B account switch. Add Usage and account-management polish only after that path works.
 
-The implementation should remain on one code path. Do not build recovery architecture in parallel with the MVP.
+The implementation should remain on one code path. The switch flow includes one bounded pre-commit credential restoration and no general recovery architecture.
 
 ## 2. Milestone 1 — native shell and static UI
 
@@ -45,7 +45,8 @@ Exit criteria:
 
 - two fixture auth files can be saved and activated;
 - activation uses temp file plus rename;
-- no backup, rollback, journal, or Keychain code exists.
+- restoration can reinstall a saved profile credential through the same atomic write path;
+- no credential backup file, general rollback state machine, journal, or Keychain code exists.
 
 ## 4. Milestone 3 — Codex identity integration
 
@@ -62,7 +63,7 @@ Exit criteria:
 
 - a saved profile can be identified by account ID or email;
 - an identity mismatch produces a direct error;
-- the implementation does not restore the old credential after mismatch.
+- an identity mismatch after activation restores the validated original profile credential and preserves the mismatch error.
 
 ## 5. Milestone 4 — direct switch flow
 
@@ -86,7 +87,9 @@ Exit criteria:
 - running CLI processes are not touched;
 - failure injection at every stage stops immediately;
 - no later stage executes after a failure;
-- no automatic recovery action executes.
+- verification and registry-commit failures restore the original credential;
+- activation failure before replacement does not restore, and reopen failure after commit keeps the target active;
+- no retry, startup recovery, or general rollback state machine executes.
 
 ## 6. Milestone 5 — weekly Usage
 
@@ -157,7 +160,8 @@ AccountProfile
 Before merging MVP code, verify:
 
 - switching function is readable top-to-bottom;
-- no automatic rollback branch exists;
+- the bounded verification/commit restoration is the only compensating branch;
+- no general rollback state machine exists;
 - no transaction journal exists;
 - no catch-and-continue behavior exists;
 - short-duration rate-limit windows are not presented;

@@ -41,4 +41,4 @@ Preflight
 → reopen Codex Desktop
 ```
 
-The sequence is deliberately linear. Every step either succeeds or returns an error. The implementation does not add a second recovery state machine around the switch.
+The sequence is deliberately linear. Every step either succeeds or returns an error. Verification and registry-commit failures after activation restore the validated original profile credential; the implementation does not add a general recovery state machine around the switch.

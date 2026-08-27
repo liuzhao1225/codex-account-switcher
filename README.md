@@ -115,7 +115,8 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - The current account appears through a row highlight inside the popover.
 - Persisted weekly usage remains visible while fresh data loads.
 - Every switch stops immediately on the first reported error.
-- Automatic rollback, retries, credential backups, recovery journals, and policy-based routing stay outside the product scope.
+- If target verification or the registry commit fails after credential activation, the app restores the just-saved original profile credential while preserving the original error. A restoration error is reported alongside it.
+- General rollback state machines, retries, credential backup files, recovery journals, startup recovery, and policy-based routing stay outside the product scope.
 
 ## Release status
 

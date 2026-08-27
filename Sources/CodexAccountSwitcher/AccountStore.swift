@@ -13,6 +13,7 @@ protocol AccountStoring: Sendable {
     func removeAccount(id: UUID) async throws
     func saveCurrentCredential() async throws
     func activateTargetCredential(id: UUID) async throws
+    func restoreActiveCredential(id: UUID) async throws
     func commitActiveAccountID(_ id: UUID) async throws
 }
 
@@ -191,6 +192,14 @@ actor AccountStore: AccountStoring {
     }
 
     func activateTargetCredential(id: UUID) throws {
+        try installCredential(id: id)
+    }
+
+    func restoreActiveCredential(id: UUID) throws {
+        try installCredential(id: id)
+    }
+
+    private func installCredential(id: UUID) throws {
         _ = try profile(id: id)
         let source = profileHome(id: id).appending(path: "auth.json")
         guard fileManager.fileExists(atPath: source.path) else {
