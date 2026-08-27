@@ -169,7 +169,7 @@ struct AccountStoreTests {
         #expect(try permissions(fixture.support.appending(path: "usage-cache.json")) == 0o600)
     }
 
-    @Test func persistsSettingsAndLoadsLegacySettingsWithPercentageEnabled() async throws {
+    @Test func persistsSettingsAndLoadsLegacyDefaults() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         try FileManager.default.createDirectory(
@@ -182,10 +182,13 @@ struct AccountStoreTests {
         let legacySettings = try await fixture.store.loadSettings()
         #expect(legacySettings.language == .english)
         #expect(legacySettings.showsMenuBarPercentage)
+        #expect(!legacySettings.showsFiveHourUsage)
+        #expect(!AppSettings.default.showsFiveHourUsage)
 
         let updatedSettings = AppSettings(
             language: .simplifiedChinese,
-            showsMenuBarPercentage: false
+            showsMenuBarPercentage: false,
+            showsFiveHourUsage: true
         )
         try await fixture.store.saveSettings(updatedSettings)
         let reloadedStore = AccountStore(
@@ -194,6 +197,28 @@ struct AccountStoreTests {
         )
         #expect(try await reloadedStore.loadSettings() == updatedSettings)
         #expect(try permissions(settingsURL) == 0o600)
+    }
+
+    @Test func decodesLegacyWeeklyOnlyUsageCache() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        try FileManager.default.createDirectory(
+            at: fixture.support,
+            withIntermediateDirectories: true
+        )
+        let accountID = UUID()
+        let cacheURL = fixture.support.appending(path: "usage-cache.json")
+        let legacyCache = """
+        {"entries":[{"profileID":"\(accountID.uuidString)","usage":{"remainingPercent":73,"resetsAt":"2025-06-15T15:06:40Z"},"fetchedAt":"2025-06-04T01:20:00Z"}]}
+        """
+        try Data(legacyCache.utf8).write(to: cacheURL)
+
+        let cache = try await fixture.store.loadUsageCache()
+        #expect(cache.entries.count == 1)
+        #expect(cache.entries[0].profileID == accountID)
+        #expect(cache.entries[0].usage.remainingPercent == 73)
+        #expect(cache.entries[0].usage.fiveHourRemainingPercent == nil)
+        #expect(cache.entries[0].usage.fiveHourResetsAt == nil)
     }
 
     @Test func migratesLegacyApplicationSupportDirectory() async throws {

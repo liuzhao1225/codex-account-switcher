@@ -17,6 +17,8 @@ enum L10n {
     private static let tables: [AppLanguage: [String: String]] = [
         .english: [
             "usage": "Usage",
+            "five_hour": "5h",
+            "weekly": "7d",
             "usage_unavailable": "Usage unavailable",
             "left": "% left",
             "resets": "Resets",
@@ -39,6 +41,7 @@ enum L10n {
             "launch_at_login_unavailable": "macOS could not find this Login Item.",
             "open_system_settings": "Open System Settings",
             "show_menu_bar_percentage": "Show Percentage in Menu Bar",
+            "show_five_hour_usage": "Show 5-hour Usage",
             "language": "Language",
             "system_default": "System Default",
             "english": "English",
@@ -54,6 +57,8 @@ enum L10n {
         ],
         .simplifiedChinese: [
             "usage": "用量",
+            "five_hour": "5 小时",
+            "weekly": "7 天",
             "usage_unavailable": "用量暂不可用",
             "left": "% 剩余",
             "resets": "重置于",
@@ -76,6 +81,7 @@ enum L10n {
             "launch_at_login_unavailable": "macOS 找不到此登录项。",
             "open_system_settings": "打开系统设置",
             "show_menu_bar_percentage": "在菜单栏显示百分比",
+            "show_five_hour_usage": "显示 5 小时用量",
             "language": "语言",
             "system_default": "跟随系统",
             "english": "English",

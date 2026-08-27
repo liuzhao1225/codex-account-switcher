@@ -309,6 +309,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setShowsFiveHourUsage(_ enabled: Bool) async {
+        settings.showsFiveHourUsage = enabled
+        do {
+            try await store.saveSettings(settings)
+        } catch {
+            showError(error)
+        }
+    }
+
     func refreshLaunchAtLoginStatus() {
         launchAtLoginState = LaunchAtLoginState(status: SMAppService.mainApp.status)
     }

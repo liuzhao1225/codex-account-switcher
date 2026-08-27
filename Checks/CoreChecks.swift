@@ -123,6 +123,24 @@ struct CoreChecks {
             RateLimitWindow(usedPercent: 58, windowDurationMins: 10_080, resetsAt: 1_750_000_000),
         ])
         try require(weekly.remainingPercent == 42, "weekly remaining percent")
+        try require(weekly.fiveHourRemainingPercent == 10, "five-hour remaining percent")
+        let nonExactFiveHour = try WeeklyUsageNormalizer.normalize([
+            RateLimitWindow(usedPercent: 10, windowDurationMins: 240, resetsAt: 1),
+            RateLimitWindow(usedPercent: 20, windowDurationMins: 360, resetsAt: 1),
+            RateLimitWindow(usedPercent: 58, windowDurationMins: 10_080, resetsAt: 1_750_000_000),
+        ])
+        try require(
+            nonExactFiveHour.fiveHourRemainingPercent == nil,
+            "four-hour and six-hour windows are not five-hour usage"
+        )
+        try require(
+            L10n.string("show_five_hour_usage", language: .english) == "Show 5-hour Usage",
+            "English five-hour setting label"
+        )
+        try require(
+            L10n.string("show_five_hour_usage", language: .simplifiedChinese) == "显示 5 小时用量",
+            "Simplified Chinese five-hour setting label"
+        )
 
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory.appending(path: "switcher-check-\(UUID().uuidString)")
@@ -180,6 +198,17 @@ struct CoreChecks {
         let usageCachePermissions = try permissions(support.appending(path: "usage-cache.json"))
         try require(usageCachePermissions == 0o600, "weekly usage cache permissions")
 
+        let legacyCacheData = Data("""
+        {"entries":[{"profileID":"\(first.id.uuidString)","usage":{"remainingPercent":73,"resetsAt":"2025-06-15T15:06:40Z"},"fetchedAt":"2025-06-04T01:20:00Z"}]}
+        """.utf8)
+        try legacyCacheData.write(to: support.appending(path: "usage-cache.json"))
+        let legacyCacheStore = AccountStore(baseURL: support, activeHomeURL: activeHome)
+        let legacyCache = try await legacyCacheStore.loadUsageCache()
+        try require(
+            legacyCache.entries.first?.usage.fiveHourRemainingPercent == nil,
+            "weekly-only usage cache compatibility"
+        )
+
         let settingsURL = support.appending(path: "settings.json")
         try Data(#"{"language":"english"}"#.utf8).write(to: settingsURL)
         let legacySettings = try await store.loadSettings()
@@ -188,9 +217,14 @@ struct CoreChecks {
             legacySettings.showsMenuBarPercentage,
             "legacy settings enable menu bar percentage"
         )
+        try require(
+            !legacySettings.showsFiveHourUsage,
+            "legacy settings hide five-hour usage"
+        )
         let hiddenPercentageSettings = AppSettings(
             language: .simplifiedChinese,
-            showsMenuBarPercentage: false
+            showsMenuBarPercentage: false,
+            showsFiveHourUsage: true
         )
         try await store.saveSettings(hiddenPercentageSettings)
         let reloadedSettingsStore = AccountStore(baseURL: support, activeHomeURL: activeHome)
@@ -241,7 +275,7 @@ struct CoreChecks {
                 printf '%s\\n' 'diagnostic output' >&2
                 i=$((i + 1))
               done
-              printf '%s\\n' '{"id":1,"result":{"rateLimits":{"primary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1750000000}}}}'
+              printf '%s\\n' '{"id":1,"result":{"rateLimits":{"primary":{"usedPercent":80,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1750000000}}}}'
               ;;
             *account*read*)
               test "$state" -eq 2 || exit 13
@@ -256,6 +290,7 @@ struct CoreChecks {
         )
         let rpcWeekly = try await client.readWeeklyUsage(profileHome: root)
         try require(rpcWeekly.remainingPercent == 42, "JSONL rate-limit handshake")
+        try require(rpcWeekly.fiveHourRemainingPercent == 20, "JSONL five-hour rate limit")
         let identity = try await client.readIdentity(profileHome: root)
         try require(identity.accountID == "acct-123", "JSONL account handshake")
 
@@ -269,6 +304,11 @@ struct CoreChecks {
             appModel.usageStates[first.id] == .loaded(cachedWeekly),
             "cached usage is visible at startup"
         )
+        await appModel.setShowsFiveHourUsage(false)
+        try require(
+            !appModel.settings.showsFiveHourUsage,
+            "five-hour setting updates immediately"
+        )
         appModel.refreshWeeklyUsage()
         try require(
             appModel.usageStates[first.id] == .loaded(cachedWeekly),
@@ -279,10 +319,22 @@ struct CoreChecks {
             appModel.usageStates[first.id]?.displayedUsage?.remainingPercent == 42,
             "refresh replaces displayed cached usage"
         )
+        try require(
+            appModel.usageStates[first.id]?.displayedUsage?.fiveHourRemainingPercent == 20,
+            "hidden five-hour usage is still normalized"
+        )
+        try require(
+            appModel.activeRemainingPercent == 42,
+            "menu-bar percentage remains weekly"
+        )
         let refreshedCache = try await store.loadUsageCache()
         try require(
             refreshedCache.entries.first(where: { $0.profileID == first.id })?.usage.remainingPercent == 42,
             "refresh replaces persisted cached usage"
+        )
+        try require(
+            refreshedCache.entries.first(where: { $0.profileID == first.id })?.usage.fiveHourRemainingPercent == 20,
+            "hidden five-hour usage is still cached"
         )
 
         let requestCountURL = root.appending(path: "rate-limit-request-count")

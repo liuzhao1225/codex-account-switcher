@@ -84,7 +84,8 @@ struct MenuBarPopover: View {
                                 account: account,
                                 usageState: model.usageStates[account.id] ?? .idle,
                                 isActive: account.id == model.activeAccountID,
-                                language: model.settings.language
+                                language: model.settings.language,
+                                showsFiveHourUsage: model.settings.showsFiveHourUsage
                             )
                         }
                         .buttonStyle(.plain)

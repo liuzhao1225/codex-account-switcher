@@ -3,7 +3,7 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct CodexClientTests {
-    @Test func performsHandshakeBeforeReadingWeeklyUsage() async throws {
+    @Test func performsHandshakeBeforeReadingFiveHourAndWeeklyUsage() async throws {
         let fixture = try ScriptFixture(body: """
         state=0
         while IFS= read -r line; do
@@ -32,6 +32,8 @@ struct CodexClientTests {
         let usage = try await client.readWeeklyUsage(profileHome: fixture.root)
         #expect(usage.remainingPercent == 42)
         #expect(usage.resetsAt == Date(timeIntervalSince1970: 1_750_000_000))
+        #expect(usage.fiveHourRemainingPercent == 20)
+        #expect(usage.fiveHourResetsAt == Date(timeIntervalSince1970: 100))
     }
 
     @Test func decodesAccountIdentity() async throws {

@@ -7,6 +7,7 @@ struct RateLimitWindow: Codable, Equatable, Sendable {
 }
 
 enum WeeklyUsageNormalizer {
+    static let fiveHourMinutes = 5 * 60
     static let minimumWeeklyMinutes = 6 * 24 * 60
     static let maximumWeeklyMinutes = 8 * 24 * 60
 
@@ -18,10 +19,17 @@ enum WeeklyUsageNormalizer {
             throw CodexClientError.weeklyUsageUnavailable
         }
 
-        let remaining = Int((100 - weekly.usedPercent).rounded())
+        let fiveHour = windows.first { $0.windowDurationMins == fiveHourMinutes }
+
         return WeeklyUsage(
-            remainingPercent: min(100, max(0, remaining)),
-            resetsAt: Date(timeIntervalSince1970: weekly.resetsAt)
+            remainingPercent: remainingPercent(for: weekly),
+            resetsAt: Date(timeIntervalSince1970: weekly.resetsAt),
+            fiveHourRemainingPercent: fiveHour.map { remainingPercent(for: $0) },
+            fiveHourResetsAt: fiveHour.map { Date(timeIntervalSince1970: $0.resetsAt) }
         )
+    }
+
+    private static func remainingPercent(for window: RateLimitWindow) -> Int {
+        min(100, max(0, Int((100 - window.usedPercent).rounded())))
     }
 }

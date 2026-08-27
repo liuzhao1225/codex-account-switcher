@@ -15,7 +15,7 @@ Xcode and GitHub-hosted macOS runners use SwiftPM's normal `Testing` module disc
 
 ## 2. Unit tests
 
-### 2.1 Weekly Usage
+### 2.1 Usage windows
 
 Test:
 
@@ -25,9 +25,11 @@ Test:
 - `used=100` → `0% left`;
 - values below 0 and above 100 are clamped;
 - a six-to-eight-day window is selected from either `primary` or `secondary` buckets;
-- short-duration windows are ignored;
+- exactly 300 minutes is accepted as the optional 5-hour window;
+- 4-hour and 6-hour windows are not labeled as 5-hour Usage;
 - absence of a six-to-eight-day window returns `Usage unavailable`;
-- no product type or UI string contains `5-hour`.
+- absence of a 5-hour window preserves valid weekly Usage;
+- weekly-only cache entries from older versions still decode.
 
 ### 2.2 Profile repository
 
@@ -39,7 +41,8 @@ Test:
 - activate profile credential;
 - delete inactive profile;
 - reject deleting active profile;
-- persist weekly Usage with mode `0600`;
+- persist normalized Usage with mode `0600`;
+- load old settings without `showsFiveHourUsage` as false and persist later changes;
 - remove cached Usage with its inactive profile;
 - surface read, write, atomic replacement, and delete errors.
 
@@ -93,14 +96,14 @@ Create a fake JSON-RPC child process that returns:
 
 - identity success;
 - identity mismatch;
-- weekly rate-limit success;
+- 5-hour and weekly rate-limit success from one response;
 - response with both `primary` and `secondary`;
 - response with `primary` only;
 - malformed JSON;
 - process exit;
 - request timeout.
 
-Assert that the client does not retry and does not convert a short-duration window into weekly Usage.
+Assert that the client does not retry, makes one rate-limit request per read, and does not convert one duration into another Usage window.
 
 ## 5. UI tests
 
@@ -108,20 +111,24 @@ Verify:
 
 - current row is highlighted;
 - no checkmark or `Current` label exists;
-- reset text is on the name line;
+- reset text remains on the name line in the default compact layout;
+- enabled 5-hour display shows separate 5h and 7d rows with percentages and reset times;
+- enabled 5-hour display omits the 5h row when data is absent;
+- English and Simplified Chinese Usage labels remain fully visible;
 - progress-bar accessibility value equals `NN% left`;
 - footer contains equal-width Manage Accounts, Settings, and Quit actions;
 - Manage Accounts and Settings navigate inside the popover;
 - reopening after closing a secondary page starts on the account list;
-- Settings contains Launch at Login, Show Percentage in Menu Bar, and Language;
+- Settings contains Launch at Login, Show Percentage in Menu Bar, Show 5-hour Usage, and Language in that order;
 - Login Item status maps `notRegistered`, `enabled`, `requiresApproval`, and `notFound` to disabled, enabled, approval-required, and unavailable UI states;
-- both Settings toggles expose localized accessibility labels;
+- all three Settings toggles expose localized accessibility labels;
 - switch confirmation describes Desktop and CLI consequences;
 - canceling switch or removal keeps the popover open and performs no mutation;
 - account rows display cached Usage while refresh runs;
 - a short-interval timer test proves that a manual refresh postpones the previous deadline and cancellation stops later rounds;
 - active profile remove button is disabled;
-- no 5-hour control or text exists.
+- disabling Show 5-hour Usage restores the existing weekly row layout;
+- the menu-bar percentage remains weekly when 5-hour display is enabled.
 
 ## 6. Manual test matrix
 
@@ -137,20 +144,22 @@ With two real test accounts:
 
 1. add Account A;
 2. add Account B;
-3. open menu and confirm weekly Usage for both;
-4. start a Codex CLI under A;
-5. switch A → B;
-6. with an active local chat, confirm the switcher closes Desktop without visual automation or manual interaction;
-7. confirm Desktop reopens as B without manual confirmation or restart;
-8. confirm the existing CLI was not terminated;
-9. start a new CLI and confirm it uses B;
-10. switch B → A;
-11. disconnect network and confirm cached Usage remains visible with a warning;
-12. remove the cache, disconnect network, and confirm Usage unavailable appears;
-13. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
-14. force identity mismatch and confirm the original `auth.json` is restored while the mismatch remains visible;
-15. make `accounts.json` unwritable and confirm the original `auth.json` is restored while the state-write failure remains visible;
-16. make restoration fail and confirm both errors are shown.
+3. open menu and confirm the existing weekly layout for both;
+4. enable Show 5-hour Usage and confirm available 5h and 7d rows, then verify an account without 5-hour data omits only the 5h row;
+5. confirm the menu-bar percentage still matches weekly Usage;
+6. start a Codex CLI under A;
+7. switch A → B;
+8. with an active local chat, confirm the switcher closes Desktop without visual automation or manual interaction;
+9. confirm Desktop reopens as B without manual confirmation or restart;
+10. confirm the existing CLI was not terminated;
+11. start a new CLI and confirm it uses B;
+12. switch B → A;
+13. disconnect network and confirm cached Usage remains visible with a warning;
+14. remove the cache, disconnect network, and confirm Usage unavailable appears;
+15. close the popover, wait five minutes, and confirm `usage-cache.json` receives a newer successful value;
+16. force identity mismatch and confirm the original `auth.json` is restored while the mismatch remains visible;
+17. make `accounts.json` unwritable and confirm the original `auth.json` is restored while the state-write failure remains visible;
+18. make restoration fail and confirm both errors are shown.
 
 ## 7. Repository checks
 
@@ -158,7 +167,8 @@ Before release:
 
 ```text
 only main branch remains
-no 5-hour UI strings
+5-hour Usage defaults off and affects account rows only
+4-hour and 6-hour windows are never labeled as 5-hour Usage
 only the bounded verification/commit credential restoration exists
 no general rollback state machine
 no credential backup file

@@ -12,8 +12,8 @@ The user should understand the product after opening the menu once. The main pat
 
 - macOS menu-bar application;
 - saved local account profiles;
-- one weekly Usage value per account;
-- weekly reset time;
+- one weekly Usage value and an optional exact 5-hour Usage value per account;
+- reset times for available Usage windows;
 - account switching;
 - add account;
 - remove inactive account;
@@ -21,8 +21,6 @@ The user should understand the product after opening the menu once. The main pat
 
 ### Out of scope
 
-- 5-hour Usage display;
-- multiple quota rows;
 - quota-window selector;
 - automatic rotation;
 - failover;
@@ -38,7 +36,7 @@ The user should understand the product after opening the menu once. The main pat
 
 ### US-1: Inspect accounts
 
-As a user, I can open the menu-bar popover and immediately see saved accounts, weekly Usage, and reset time.
+As a user, I can open the menu-bar popover and immediately see saved accounts, weekly Usage, and reset time. I can optionally enable a 5-hour row.
 
 ### US-2: Switch accounts
 
@@ -66,7 +64,7 @@ The popover content width is 326 points.
 
 ### 5.1 Layout
 
-Each row contains:
+With `Show 5-hour Usage` disabled, each row keeps the compact layout:
 
 ```text
 [avatar]  Display Name                     Resets Aug 25, 9:20 AM
@@ -83,13 +81,24 @@ Constraints:
 - no checkmark is shown;
 - no `Current` text is shown.
 
-### 5.2 Weekly-only normalization
+With `Show 5-hour Usage` enabled and exact 5-hour data available, the row expands:
 
-Input from Codex may include more than one rate-limit window. The product model keeps only the weekly window.
+```text
+[avatar]  Display Name
+          5h   [==========------]  65%  Resets 2:20 PM
+          7d   [========--------]  42%  Resets Aug 25, 9:20 AM
+```
+
+The 5-hour line is omitted when its data is absent. The UI does not show an unavailable placeholder for that line. English and Simplified Chinese window labels remain fully visible.
+
+### 5.2 Usage-window normalization
+
+Input from Codex may include more than one rate-limit window. One `account/rateLimits/read` response supplies both normalized windows.
 
 Collect `primary` and `secondary` windows from the top-level rate limits and named rate-limit buckets, then choose the longest window whose duration is six through eight days:
 
 ```text
+fiveHour = first(windows where windowDurationMins == 300)
 weekly = max(windows where 8640 <= windowDurationMins <= 11520)
 ```
 
@@ -99,12 +108,12 @@ If no six-to-eight-day window exists:
 Usage unavailable
 ```
 
-The UI must not infer a weekly value from a short window, regardless of whether Codex labels it `primary` or `secondary`.
+The UI must not infer a weekly value from a short window, regardless of whether Codex labels it `primary` or `secondary`. Four-hour and six-hour windows must not be labeled as five-hour Usage. Missing 5-hour data preserves valid weekly Usage.
 
 ### 5.3 Percentage
 
 ```text
-usedPercent = weekly.usedPercent
+usedPercent = window.usedPercent
 remainingPercent = clamp(100 - usedPercent, 0, 100)
 ```
 
@@ -248,23 +257,24 @@ Remove first opens a confirmation page inside the popover. Cancel and the header
 
 ## 9. Settings
 
-The in-popover Settings page contains three fields:
+The in-popover Settings page contains four fields:
 
 ```text
 Launch at Login                [toggle]
 Show Percentage in Menu Bar   [toggle]
+Show 5-hour Usage             [toggle]
 Language  [System Default ▾]
 ```
 
 Launch at Login reads and writes the main app's macOS Login Item registration. It shows a direct approval message and System Settings link for `requiresApproval`, and an unavailable message for `notFound`. The macOS status is the only source of truth and is not persisted in `settings.json`.
 
-Show Percentage in Menu Bar and Language persist in `settings.json`. Language options are:
+Show Percentage in Menu Bar, Show 5-hour Usage, and Language persist in `settings.json`. The 5-hour setting defaults to false when the field is absent from an older file. Language options are:
 
 - System Default;
 - English;
 - 简体中文.
 
-Changing either persisted setting updates the visible switcher UI immediately.
+Changing any persisted setting updates the visible switcher UI immediately. Show 5-hour Usage affects account rows only; the menu-bar percentage continues to show weekly Usage.
 
 ## 10. Accessibility
 
@@ -278,7 +288,7 @@ Changing either persisted setting updates the visible switcher UI immediately.
 ## 11. Performance
 
 - popover should appear immediately from local metadata;
-- persisted weekly Usage is rendered before refresh subprocesses complete;
+- persisted weekly and optional 5-hour Usage is rendered before refresh subprocesses complete;
 - Usage refresh begins at application launch and whenever the popover opens;
 - every refresh trigger replaces the pending timer with a refresh scheduled five minutes after that trigger;
 - account refreshes run concurrently and overlapping triggers share the active refresh round;
@@ -292,13 +302,13 @@ Changing either persisted setting updates the visible switcher UI immediately.
 The MVP is accepted when:
 
 1. three saved accounts can be displayed in the popover;
-2. each row shows only weekly `Usage` and weekly reset time;
-3. no 5-hour string, row, toggle, or selector exists;
+2. each row keeps the current weekly layout while Show 5-hour Usage is disabled;
+3. enabling Show 5-hour Usage displays separate 5h and 7d lines when both values exist, and omits the 5h line when it is absent;
 4. the progress bar exactly matches `NN% left`;
 5. the current row is highlighted without a checkmark;
 6. the footer contains equal-width Manage Accounts, Settings, and Quit actions;
 7. the popover is 326 points wide and all secondary pages navigate inside it;
-8. Settings contains launch-at-login, menu-bar percentage, and language controls inside the popover;
+8. Settings contains launch-at-login, menu-bar percentage, 5-hour Usage, and language controls inside the popover;
 9. every popover opening starts on the account list;
 10. canceling switch or removal performs no mutation and keeps the popover open;
 11. Quit and Command-Q terminate the application and remain available during mutations;

@@ -26,7 +26,7 @@ A focused Codex account switcher for the Mac menu bar.
 - Completes the Codex Desktop handoff after the user selects and confirms an account.
 - Stores saved account data locally and runs without its own proxy or cloud account service.
 - Free, MIT licensed, open source, and about 2 MB for the current Apple Silicon release.
-- Shows weekly usage as optional decision context.
+- Shows weekly usage as decision context, with an optional 5-hour row.
 
 ## Claim boundaries
 

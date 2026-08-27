@@ -5,6 +5,7 @@ struct AccountRow: View {
     let usageState: UsageViewState
     let isActive: Bool
     let language: AppLanguage
+    let showsFiveHourUsage: Bool
     @State private var isHovering = false
 
     var body: some View {
@@ -21,12 +22,18 @@ struct AccountRow: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 4)
-                    if let usage = usageState.displayedUsage {
+                    if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))
                             .font(.system(size: 10.5))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
+                    } else if let message = usageState.refreshError {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                            .help(message)
+                            .accessibilityLabel(message)
                     }
                 }
 
@@ -59,28 +66,86 @@ struct AccountRow: View {
                 .foregroundStyle(.secondary)
                 .help(message)
         case let .loaded(usage), let .stale(usage, _):
-            HStack(spacing: 7) {
-                Text(L10n.string("usage", language: language))
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-
-                if let message = usageState.refreshError {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.orange)
-                        .help(message)
-                        .accessibilityLabel(message)
-                }
-
-                UsageBar(remainingPercent: usage.remainingPercent)
-                    .accessibilityLabel(L10n.string("usage", language: language))
-                    .accessibilityValue("\(usage.remainingPercent)\(L10n.string("left", language: language))")
-
-                Text("\(usage.remainingPercent)\(L10n.string("left", language: language))")
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: true, vertical: false)
+            if showsFiveHourUsage {
+                expandedUsageContent(usage)
+            } else {
+                compactWeeklyUsageContent(usage)
             }
+        }
+    }
+
+    private func compactWeeklyUsageContent(_ usage: WeeklyUsage) -> some View {
+        HStack(spacing: 7) {
+            Text(L10n.string("usage", language: language))
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+
+            if let message = usageState.refreshError {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.orange)
+                    .help(message)
+                    .accessibilityLabel(message)
+            }
+
+            UsageBar(remainingPercent: usage.remainingPercent)
+                .accessibilityLabel(L10n.string("usage", language: language))
+                .accessibilityValue("\(usage.remainingPercent)\(L10n.string("left", language: language))")
+
+            Text("\(usage.remainingPercent)\(L10n.string("left", language: language))")
+                .font(.system(size: 10.5).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private func expandedUsageContent(_ usage: WeeklyUsage) -> some View {
+        VStack(spacing: 5) {
+            if let remaining = usage.fiveHourRemainingPercent,
+               let resetsAt = usage.fiveHourResetsAt {
+                limitRow(
+                    title: L10n.string("five_hour", language: language),
+                    remainingPercent: remaining,
+                    resetsAt: resetsAt,
+                    includesDate: false
+                )
+            }
+            limitRow(
+                title: L10n.string("weekly", language: language),
+                remainingPercent: usage.remainingPercent,
+                resetsAt: usage.resetsAt,
+                includesDate: true
+            )
+        }
+    }
+
+    private func limitRow(
+        title: String,
+        remainingPercent: Int,
+        resetsAt: Date,
+        includesDate: Bool
+    ) -> some View {
+        HStack(spacing: 7) {
+            Text(title)
+                .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 38, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+
+            UsageBar(remainingPercent: remainingPercent)
+                .accessibilityLabel(title)
+                .accessibilityValue("\(remainingPercent)\(L10n.string("left", language: language))")
+
+            Text("\(remainingPercent)%")
+                .font(.system(size: 10.5).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 31, alignment: .trailing)
+
+            Text(resetText(for: resetsAt, includesDate: includesDate))
+                .font(.system(size: 9.5).monospacedDigit())
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -92,13 +157,13 @@ struct AccountRow: View {
     }
 
     private func resetText(for usage: WeeklyUsage) -> String {
-        let date = usage.resetsAt.formatted(
-            .dateTime
-                .month(.abbreviated)
-                .day()
-                .hour()
-                .minute()
-        )
+        resetText(for: usage.resetsAt, includesDate: true)
+    }
+
+    private func resetText(for resetsAt: Date, includesDate: Bool) -> String {
+        let date = includesDate
+            ? resetsAt.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+            : resetsAt.formatted(.dateTime.hour().minute())
         return "\(L10n.string("resets", language: language)) \(date)"
     }
 }
