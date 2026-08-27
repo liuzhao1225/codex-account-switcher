@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 @testable import CodexAccountSwitcher
@@ -67,6 +68,78 @@ struct AccountStoreTests {
         let unexpected = try FileManager.default.contentsOfDirectory(atPath: fixture.activeHome.path)
             .filter { $0.contains("backup") || $0.contains("rollback") || $0.contains("journal") }
         #expect(unexpected.isEmpty)
+    }
+
+    @Test func restoresSavedCredentialWithoutChangingActiveRegistryEntry() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+
+        try await fixture.store.activateTargetCredential(id: profiles.target.id)
+        try await fixture.store.restoreActiveCredential(id: profiles.original.id)
+
+        let activeAuth = fixture.activeHome.appending(path: "auth.json")
+        #expect(try Data(contentsOf: activeAuth) == profiles.originalBytes)
+        #expect(try permissions(activeAuth) == 0o600)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == profiles.original.id)
+    }
+
+    @Test func realStoreRestoresAfterVerificationFailureAndRetryPreservesOriginal() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let service = SwitchService(
+            desktop: StoreTestDesktop(),
+            store: fixture.store,
+            codex: StoreTestFailingCodex()
+        )
+
+        for _ in 0..<2 {
+            do {
+                try await service.switchAccount(to: profiles.target.id)
+                Issue.record("Expected identity verification to fail")
+            } catch let error as OperationError {
+                #expect(error.stage == .verifyTargetIdentity)
+            } catch {
+                Issue.record("Expected OperationError, got \(error)")
+            }
+        }
+
+        let activeAuth = fixture.activeHome.appending(path: "auth.json")
+        let originalProfileAuth = await fixture.store.profileHome(id: profiles.original.id)
+            .appending(path: "auth.json")
+        #expect(try Data(contentsOf: activeAuth) == profiles.originalBytes)
+        #expect(try Data(contentsOf: originalProfileAuth) == profiles.originalBytes)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == profiles.original.id)
+    }
+
+    @Test func realStoreRestoresAfterRegistryCommitFailure() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let accountsURL = fixture.support.appending(path: "accounts.json")
+        guard Darwin.chflags(accountsURL.path, UInt32(UF_IMMUTABLE)) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        defer { _ = Darwin.chflags(accountsURL.path, 0) }
+        let service = SwitchService(
+            desktop: StoreTestDesktop(),
+            store: fixture.store,
+            codex: StoreTestMatchingCodex(target: profiles.target)
+        )
+
+        do {
+            try await service.switchAccount(to: profiles.target.id)
+            Issue.record("Expected registry commit to fail")
+        } catch let error as OperationError {
+            #expect(error.stage == .commitActiveAccountID)
+        } catch {
+            Issue.record("Expected OperationError, got \(error)")
+        }
+
+        let activeAuth = fixture.activeHome.appending(path: "auth.json")
+        #expect(try Data(contentsOf: activeAuth) == profiles.originalBytes)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == profiles.original.id)
     }
 
     @Test func persistsWeeklyUsageCacheWithRestrictedPermissions() async throws {
@@ -150,6 +223,46 @@ struct AccountStoreTests {
     private func permissions(_ url: URL) throws -> Int {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         return (attributes[.posixPermissions] as? NSNumber)?.intValue ?? -1
+    }
+
+    private func prepareSwitchProfiles(
+        _ fixture: StoreFixture
+    ) async throws -> (original: AccountProfile, target: AccountProfile, originalBytes: Data) {
+        let original = AccountProfile(
+            id: UUID(), displayName: "Original", email: "original@example.com",
+            accountID: "original-id", createdAt: Date(), lastUsedAt: nil
+        )
+        try await fixture.store.importCurrentProfile(original)
+        let originalAuth = await fixture.store.profileHome(id: original.id).appending(path: "auth.json")
+        let originalBytes = try Data(contentsOf: originalAuth)
+
+        let target = AccountProfile(
+            id: UUID(), displayName: "Target", email: "target@example.com",
+            accountID: "target-id", createdAt: Date(), lastUsedAt: nil
+        )
+        let targetHome = try await fixture.store.createProfileDirectory(id: target.id)
+        try Data("target-auth".utf8).write(to: targetHome.appending(path: "auth.json"))
+        try await fixture.store.addProfile(target)
+        return (original, target, originalBytes)
+    }
+}
+
+private struct StoreTestDesktop: DesktopControlling {
+    func closeDesktop() async throws {}
+    func reopenDesktop() async throws {}
+}
+
+private struct StoreTestFailingCodex: CodexIdentityReading {
+    func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        throw CodexClientError.identityUnavailable
+    }
+}
+
+private struct StoreTestMatchingCodex: CodexIdentityReading {
+    let target: AccountProfile
+
+    func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        AccountIdentity(accountID: target.accountID, email: target.email)
     }
 }
 

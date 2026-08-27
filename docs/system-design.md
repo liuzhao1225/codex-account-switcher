@@ -19,7 +19,7 @@ Everything else exists to make that operation understandable and usable:
 - verify that Codex can read the selected identity;
 - maintain a small amount of local metadata.
 
-The MVP deliberately does not surround this operation with a recovery framework. It uses direct sequential code and lets failures surface.
+The MVP uses direct sequential code and lets failures surface. One bounded consistency action restores the validated original profile credential when target verification or the registry commit fails after activation. There is no general rollback framework.
 
 ## 2. Design goals
 
@@ -38,7 +38,7 @@ The MVP deliberately does not surround this operation with a recovery framework.
 ### 2.2 Non-goals
 
 - zero-downtime switching;
-- rollback after partial completion;
+- a general rollback state machine for arbitrary partial completion;
 - automatic repair;
 - background daemon;
 - cloud synchronization;
@@ -419,7 +419,8 @@ An existing CLI process may have already loaded credentials into memory. Therefo
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ClosingDesktop
+    [*] --> Preflight
+    Preflight --> ClosingDesktop
     ClosingDesktop --> SavingCurrent
     SavingCurrent --> ActivatingTarget
     ActivatingTarget --> VerifyingTarget
@@ -427,24 +428,31 @@ stateDiagram-v2
     CommittingProfile --> ReopeningDesktop
     ReopeningDesktop --> Completed
 
+    Preflight --> Failed
     ClosingDesktop --> Failed
     SavingCurrent --> Failed
     ActivatingTarget --> Failed
-    VerifyingTarget --> Failed
-    CommittingProfile --> Failed
+    VerifyingTarget --> RestoringOriginal
+    CommittingProfile --> RestoringOriginal
+    RestoringOriginal --> Failed
     ReopeningDesktop --> Failed
 
     Completed --> [*]
     Failed --> [*]
 ```
 
-There is no rollback state.
+`RestoringOriginal` is the single bounded consistency action after successful target activation and before a successful registry commit. There is no persisted or general rollback state machine.
 
 ### 12.2 Pseudocode
 
 ```swift
 func switchAccount(to targetID: UUID) async throws {
     let target = try store.profile(id: targetID)
+    let registry = try store.loadRegistry()
+    guard let originalActiveID = registry.activeAccountID,
+          registry.accounts.contains(where: { $0.id == originalActiveID }) else {
+        throw AccountStoreError.activeProfileMissing
+    }
 
     stage = .closeDesktop
     try await desktop.closeDesktop()
@@ -456,25 +464,33 @@ func switchAccount(to targetID: UUID) async throws {
     try await store.activateTargetCredential(id: target.id)
 
     stage = .verifyTargetIdentity
-    let identity = try await codex.readIdentity(profileHome: store.activeCodexHome())
-    guard identity.matches(target) else { throw CodexClientError.identityUnavailable }
+    do {
+        let identity = try await codex.readIdentity(profileHome: store.activeCodexHome())
+        guard identity.matches(target) else { throw CodexClientError.identityUnavailable }
+    } catch {
+        throw await restoreOriginalCredential(originalActiveID, preserving: error)
+    }
 
     stage = .commitActiveAccountID
-    try await store.commitActiveAccountID(target.id)
+    do {
+        try await store.commitActiveAccountID(target.id)
+    } catch {
+        throw await restoreOriginalCredential(originalActiveID, preserving: error)
+    }
 
     stage = .reopenDesktop
     try await desktop.reopenDesktop()
 }
 ```
 
-The outer UI catches the thrown error only to present it with the current `stage`.
+The restoration helper reuses the saved profile credential and the same atomic installation path. It returns the original stage error after a successful restoration, or one error containing both the original and restoration failures.
 
 ### 12.3 Preflight
 
 Preflight performs only the minimum required to start:
 
 - target profile exists;
-- target credential file exists;
+- `originalActiveID` exists and refers to a registry profile before any credential write;
 - no in-process switch is currently running.
 
 It does not inspect every filesystem property, create backups, test network reachability, or pre-verify credentials.
@@ -506,19 +522,19 @@ copy accounts/<targetID>/auth.json
 → rename the temporary file to ~/.codex/auth.json
 ```
 
-If activation fails, stop. There is no backup file and no restore step.
+If activation fails, stop. Atomic installation throws before a completed replacement, so no restoration runs. There is no credential backup file.
 
 ### 12.7 Verify target
 
 Start Codex app-server using the active `~/.codex` home and read identity.
 
-If identity does not match the target metadata, throw `identityMismatch`. The target file remains active because the MVP does not roll back.
+If identity does not match the target metadata, preserve the mismatch as the stage error and reinstall the just-saved original profile credential into `~/.codex/auth.json`.
 
 ### 12.8 Commit active profile
 
 After successful identity verification, write `activeAccountID` and `lastUsedAt` to `accounts.json`.
 
-If this write fails, report it. The active credential may already be the target while metadata still names the previous profile. The next explicit user action can retry the switch or select an account again. No automatic reconciliation runs.
+If this write fails, preserve the registry error and reinstall the just-saved original profile credential. The registry continues to name the original profile. No retry or startup reconciliation runs.
 
 ### 12.9 Reopen Desktop
 
@@ -546,19 +562,21 @@ Stage: Verifying selected account
 Error: Codex returned user@example.com, expected work@example.com.
 ```
 
-Do not replace this with:
+After a successful restoration, keep this original verification error visible. Do not replace it with a success-style message such as:
 
 ```text
-Something went wrong, but your previous account was restored.
+Something went wrong, but everything is fine now.
 ```
 
-because the MVP does not perform that restoration.
+If restoration also fails, append that failure to the original message and retain both underlying diagnostic descriptions.
 
 ### 13.2 No hidden recovery
 
 The following are intentionally absent:
 
-- automatic restore of the old auth file;
+- restoration outside the documented verification/commit failure window;
+- a general rollback state machine;
+- credential backup files;
 - retry with another profile;
 - retry with cached identity;
 - alternate rate-limit window;
