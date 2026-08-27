@@ -59,7 +59,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
-1. [下载 Codex Account Switcher v0.1.4 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg)。
+1. [下载 Codex Account Switcher v0.1.5 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg)。
 2. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 3. 启动应用，在 macOS 菜单栏中找到账号切换器。
 4. 通过浏览器添加每个账号一次，之后选择需要的账号。
@@ -85,7 +85,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | **菜单栏选择账号** | 把个人、工作和客户账号清晰标记在一个 Mac 菜单中。 |
 | **完整 Desktop 交接** | 选择并确认后，由应用关闭、切换、校验并重新打开 Codex Desktop。 |
 | **本地账号存储** | 账号数据留在这台 Mac，不依赖应用自建的代理或云端账号服务。 |
-| **快速查看用量** | 默认查看每周用量，也可开启 5 小时用量行，结合重置时间选择账号。 |
+| **快速查看用量** | 默认查看每周用量，也可在设置中开启服务端提供的精确 300 分钟（5 小时）窗口与重置时间；该用量行默认关闭。 |
 | **体积小的原生 Mac 应用** | 安装已完成 Apple 公证的 DMG，使用英文或简体中文 SwiftUI 界面。 |
 
 ## 工作原理
@@ -113,7 +113,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 - 每个账号都由用户选择并确认；应用不会自动轮换账号。
 - 本项目是独立开源软件，与 OpenAI 没有关联，也未获得 OpenAI 背书。
 - 当前账号通过弹窗中的行高亮显示。
-- 获取最新数据时，界面会继续显示已保存的 5 小时和每周用量；5 小时用量仅在开启且有数据时显示。
+- 获取最新数据时，界面会继续显示已保存的 5 小时和每周用量；5 小时用量仅在开启且服务端提供精确 300 分钟窗口时显示。
 - 每次切换遇到第一个错误时立即停止，并显示原始错误。
 - 如果目标凭证激活后的身份验证或 registry 提交失败，应用会用刚保存的原 profile 凭证恢复活动凭证，同时保留原始错误；恢复本身失败时会一并显示恢复错误。
 - 通用回滚状态机、重试、凭证备份文件、恢复日志、启动恢复和策略化账号路由仍不在产品范围内。
@@ -122,12 +122,12 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.4](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4) 提供 |
-| 自动检查 | 发布工作流运行 `swift test` 和核心检查 |
+| Apple Silicon 版本 | 已在 [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) 提供 |
+| 自动检查 | PR、`main` 和发布工作流运行 `swift test` 与核心检查 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.4 提供 |
+| DMG 发布 | 已在 v0.1.5 提供 |
 
 ## 开发
 

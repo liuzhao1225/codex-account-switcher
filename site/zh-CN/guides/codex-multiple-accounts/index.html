@@ -29,7 +29,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher 在 macOS 上显示多个 Codex 账号及其每周用量">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-08-26">
+    <meta property="article:modified_time" content="2026-08-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Mac 切换 Codex 多账号，无需终端设置">
     <meta name="twitter:description" content="用普通语言说明如何下载应用、添加账号一次，再从 Mac 菜单栏切换。">
@@ -49,7 +49,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-08-26",
+            "dateModified": "2026-08-27",
             "inLanguage": "zh-CN",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -105,7 +105,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="切换到深色模式"></button>
           <a class="text-control language-link" href="../../../guides/switch-multiple-codex-accounts/" hreflang="en" lang="en" aria-label="查看英文网站" title="English"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="在 GitHub 查看 Codex Account Switcher" title="GitHub"><img src="../../../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" aria-label="下载 Codex Account Switcher macOS 版" title="下载 macOS 版"></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg" aria-label="下载 Codex Account Switcher macOS 版" title="下载 macOS 版"></a>
         </div>
       </nav>
     </header>
@@ -120,7 +120,7 @@
             <p class="eyebrow">普通 Mac 用户指南</p>
             <h1>在 Mac 上切换 Codex 多账号，无需终端设置</h1>
             <p class="article-lede">下载应用，通过浏览器添加个人、工作或客户账号一次，之后从 Mac 菜单栏选择即可。无需代码知识，也不用修改配置文件。</p>
-            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 8 月 26 日 · 阅读约 7 分钟 · 适用于 Apple Silicon 与 macOS 14+</p>
+            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 8 月 27 日 · 阅读约 7 分钟 · 适用于 Apple Silicon 与 macOS 14+</p>
             <figure class="article-visual">
               <img src="../../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="Codex Account Switcher 菜单显示三个虚构本地账号、每周用量进度与重置时间">
             </figure>
@@ -166,8 +166,8 @@
               </section>
 
               <section id="usage">
-                <h2>第二步：比较 Codex 每周用量</h2>
-                <p>开始长时间 Codex 任务前打开菜单。每个账号行都会显示每周剩余百分比与对应重置时间。成功获取的用量会缓存在本地，刷新过程中继续显示，拿到新数据后再更新。</p>
+                <h2>第二步：比较 Codex 用量</h2>
+                <p>开始长时间 Codex 任务前打开菜单。每个账号行都会显示每周剩余百分比与对应重置时间；也可以在设置中开启服务端提供的精确 300 分钟（5 小时）窗口，该用量行默认关闭。成功获取的用量会缓存在本地，刷新过程中继续显示，拿到新数据后再更新。</p>
                 <p>这些信息帮助你在切换前做决定。应用不会推荐账号，也不会自动轮换配置；最终选择始终由你完成。</p>
               </section>
 
@@ -179,7 +179,7 @@
                   <li>确认切换。</li>
                   <li>应用依次保存当前配置、激活所选认证、验证所选身份，并重新打开 Codex Desktop。</li>
                 </ol>
-                <p>整个操作按明确顺序执行。任一阶段失败时，切换会立即停止并显示原始错误，方便准确定位问题发生的位置。</p>
+                <p>整个操作按明确顺序执行。目标验证或 registry 提交在激活后失败时，应用会恢复刚保存的原凭证并继续显示原始错误；其他失败会停在对应阶段。</p>
               </section>
 
               <section id="cli">
@@ -205,7 +205,7 @@
                 <h2>让每个获准使用的 Codex 账号始终一步直达。</h2>
                 <p>下载已签名的 Apple Silicon DMG，或在 GitHub 查看 Swift 源码与产品设计文档。</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">免费下载 Mac 版</a>
+                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg">免费下载 Mac 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">查看源码</a>
                 </div>
               </div>

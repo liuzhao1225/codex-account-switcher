@@ -59,7 +59,7 @@ If you searched for a **Codex account switcher**, **Codex profile switcher**, or
 
 The current public build targets **Apple Silicon** and requires **macOS 14 or later**.
 
-1. [Download Codex Account Switcher v0.1.4 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg).
+1. [Download Codex Account Switcher v0.1.5 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg).
 2. Open the DMG and move **Codex Account Switcher.app** to Applications.
 3. Launch the app and look for the switcher in the macOS menu bar.
 4. Add each account once through the browser, then choose the one you need.
@@ -85,7 +85,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | **Menu-bar account choice** | Keep personal, work, and client accounts clearly labeled in one Mac menu. |
 | **Completed Desktop handoff** | Select and confirm an account, then let the app close, switch, verify, and reopen Codex Desktop. |
 | **Local account storage** | Keep saved account data on your Mac without an app-owned proxy or cloud account service. |
-| **Usage at a glance** | Check weekly allowance by default, with an optional 5-hour row and reset time when it helps your choice. |
+| **Usage at a glance** | Check weekly allowance by default, or enable the exact 300-minute (5-hour) service window and reset time in Settings. The optional row is off by default. |
 | **Small native Mac app** | Install an Apple-notarized DMG and use a compact SwiftUI interface in English or Simplified Chinese. |
 
 ## How it works
@@ -113,7 +113,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
-- Persisted 5-hour and weekly usage remains visible while fresh data loads; the 5-hour row appears only when enabled and available.
+- Persisted 5-hour and weekly usage remains visible while fresh data loads; the 5-hour row appears only when enabled and the service provides an exact 300-minute window.
 - Every switch stops immediately on the first reported error.
 - If target verification or the registry commit fails after credential activation, the app restores the just-saved original profile credential while preserving the original error. A restoration error is reported alongside it.
 - General rollback state machines, retries, credential backup files, recovery journals, startup recovery, and policy-based routing stay outside the product scope.
@@ -122,12 +122,12 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.4](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.4) |
-| Automated checks | `swift test` and core checks run in the release workflow |
+| Apple Silicon build | Available in [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) |
+| Automated checks | PR, `main`, and release workflows run `swift test` and core checks |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
-| DMG release | Available in v0.1.4 |
+| DMG release | Available in v0.1.5 |
 
 ## Development
 

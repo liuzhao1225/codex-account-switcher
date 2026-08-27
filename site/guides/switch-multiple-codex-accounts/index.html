@@ -29,7 +29,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing multiple Codex profiles and their weekly usage on macOS">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-08-26">
+    <meta property="article:modified_time" content="2026-08-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Switch Codex Accounts on Mac Without Terminal Setup">
     <meta name="twitter:description" content="A plain-language guide to downloading the app, adding accounts once, and switching from the Mac menu bar.">
@@ -49,7 +49,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-08-26",
+            "dateModified": "2026-08-27",
             "inLanguage": "en",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -105,7 +105,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
           <a class="text-control language-link" href="../../zh-CN/guides/codex-multiple-accounts/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="../../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
         </div>
       </nav>
     </header>
@@ -120,7 +120,7 @@
             <p class="eyebrow">Plain-language Mac guide</p>
             <h1>Switch Codex accounts on Mac without Terminal setup</h1>
             <p class="article-lede">Download the app, add personal, work, or client accounts through browser sign-in once, then choose from the Mac menu bar. No coding knowledge or config-file editing is required.</p>
-            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated August 26, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
+            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated August 27, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.webp" width="1774" height="887" alt="Codex Account Switcher menu showing three fictional local accounts, weekly usage bars, and reset times">
             </figure>
@@ -166,8 +166,8 @@
               </section>
 
               <section id="usage">
-                <h2>2. Compare weekly Codex usage</h2>
-                <p>Open the menu before beginning a long Codex task. Each saved account row shows its remaining weekly percentage and the corresponding reset time. Successful usage values are cached locally, remain visible while a refresh runs, and update when fresh data arrives.</p>
+                <h2>2. Compare Codex usage</h2>
+                <p>Open the menu before beginning a long Codex task. Each saved account row shows its remaining weekly percentage and the corresponding reset time. In Settings, you can also enable the exact 300-minute (5-hour) window when the Codex service provides it; this optional row is off by default. Successful usage values are cached locally, remain visible while a refresh runs, and update when fresh data arrives.</p>
                 <p>This gives you context before switching. The app does not recommend an account or rotate profiles automatically; the final choice remains yours.</p>
               </section>
 
@@ -179,7 +179,7 @@
                   <li>Confirm the switch.</li>
                   <li>The app saves the current profile, activates the selected credentials, verifies the selected identity, and reopens Codex Desktop.</li>
                 </ol>
-                <p>The operation is deliberately sequential. If any stage fails, the switch stops and shows the original error so you can identify exactly where it occurred.</p>
+                <p>The operation is deliberately sequential. If target verification or the registry commit fails after activation, the app restores the just-saved original credential and keeps the original error visible. Other failures stop at the reported stage.</p>
               </section>
 
               <section id="cli">
@@ -205,7 +205,7 @@
                 <h2>Keep every authorized Codex account one menu away.</h2>
                 <p>Download the signed Apple Silicon DMG or inspect the Swift source and product decisions on GitHub.</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.4/Codex-Account-Switcher-v0.1.4-macos-arm64.dmg">Download free for Mac</a>
+                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg">Download free for Mac</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">View source</a>
                 </div>
               </div>
