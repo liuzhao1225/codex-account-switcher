@@ -2,8 +2,6 @@ name: Release macOS app
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
 
@@ -25,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve release version, tag, and action
+      - name: Validate release tag and resolve action
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -52,37 +50,28 @@ jobs:
           fi
 
           release_tag="v${release_version}"
-          head_sha=$(git rev-parse HEAD^{commit})
-          main_sha=$(git rev-parse origin/main^{commit})
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+            echo "Unsupported release ref '$GITHUB_REF'; only v* tag pushes may publish a release" >&2
+            exit 1
+          fi
 
-          case "$GITHUB_REF" in
-            refs/heads/main)
-              if [[ "$head_sha" != "$main_sha" ]]; then
-                echo "main workflow commit $head_sha is not current origin/main $main_sha" >&2
-                exit 1
-              fi
-              ;;
-            refs/tags/*)
-              event_tag=${GITHUB_REF#refs/tags/}
-              if [[ "$event_tag" != "$release_tag" ]]; then
-                echo "Tag event '$event_tag' does not match repository version '$release_tag'" >&2
-                exit 1
-              fi
-              if ! git show-ref --verify --quiet "refs/tags/${release_tag}"; then
-                echo "Tag event ref 'refs/tags/${release_tag}' was not fetched" >&2
-                exit 1
-              fi
-              tag_commit=$(git rev-parse "refs/tags/${release_tag}^{commit}")
-              if [[ "$head_sha" != "$main_sha" || "$tag_commit" != "$main_sha" ]]; then
-                echo "Tag '$release_tag' commit $tag_commit and workflow commit $head_sha must both equal origin/main $main_sha" >&2
-                exit 1
-              fi
-              ;;
-            *)
-              echo "Unsupported release ref '$GITHUB_REF'" >&2
-              exit 1
-              ;;
-          esac
+          event_tag=${GITHUB_REF#refs/tags/}
+          if [[ "$event_tag" != "$release_tag" ]]; then
+            echo "Tag event '$event_tag' does not match repository version '$release_tag'" >&2
+            exit 1
+          fi
+          if ! git show-ref --verify --quiet "refs/tags/${release_tag}"; then
+            echo "Tag event ref 'refs/tags/${release_tag}' was not fetched" >&2
+            exit 1
+          fi
+
+          head_sha=$(git rev-parse HEAD^{commit})
+          tag_commit=$(git rev-parse "refs/tags/${release_tag}^{commit}")
+          main_sha=$(git rev-parse origin/main^{commit})
+          if [[ "$head_sha" != "$main_sha" || "$tag_commit" != "$main_sha" ]]; then
+            echo "Tag '$release_tag' commit $tag_commit and workflow commit $head_sha must both equal origin/main $main_sha" >&2
+            exit 1
+          fi
 
           {
             echo "RELEASE_VERSION=$release_version"
@@ -98,31 +87,8 @@ jobs:
             exit 0
           fi
 
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            if git show-ref --verify --quiet "refs/tags/${release_tag}"; then
-              tag_commit=$(git rev-parse "refs/tags/${release_tag}^{commit}")
-              if [[ "$tag_commit" != "$main_sha" ]]; then
-                echo "Tag conflict: '$release_tag' points to $tag_commit, expected current origin/main $main_sha" >&2
-                exit 1
-              fi
-              echo "Reusing existing tag '$release_tag' at $tag_commit."
-            else
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git tag -a "$release_tag" "$main_sha" -m "Codex Account Switcher $release_tag"
-              git push origin "refs/tags/${release_tag}"
-              echo "Created annotated tag '$release_tag' at $main_sha."
-            fi
-          fi
-
-          resolved_tag_commit=$(git rev-parse "refs/tags/${release_tag}^{commit}")
-          if [[ "$resolved_tag_commit" != "$main_sha" ]]; then
-            echo "Resolved tag '$release_tag' points to $resolved_tag_commit, expected origin/main $main_sha" >&2
-            exit 1
-          fi
-
           echo "SHOULD_RELEASE=true" >> "$GITHUB_ENV"
-          echo "Publishing '$release_tag' from $main_sha in this workflow run." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Publishing existing tag '$release_tag' from current origin/main $main_sha in this workflow run." | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Validate release toolchain
         if: env.SHOULD_RELEASE == 'true'

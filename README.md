@@ -123,7 +123,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 | Area | Status |
 | --- | --- |
 | Apple Silicon build | Available in [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) |
-| Automation | PR CI runs tests; merging a prepared version to `main` creates its tag and publishes the signed release |
+| Automation | PR and `main` CI run tests; pushing a matching `v*` tag publishes the signed release |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
@@ -151,9 +151,9 @@ The bundle is written to `.build/release/Codex Account Switcher.app`.
 
 ### Automated releases
 
-Merging a release-preparation pull request to `main` starts the release workflow. The workflow reads the version from `CITATION.cff`, verifies the package default and Codex app-server client versions, creates the matching annotated `v*` tag when it is absent, then runs tests, signing, notarization, DMG packaging, checksum generation, and GitHub Release publication in the same run.
+The release workflow starts only when an existing `v*` tag is pushed. Ordinary pushes to `main` continue to run CI and never start a release or create a tag. A maintainer first updates `CITATION.cff`, the package default, and the Codex app-server client to the same semantic version, merges those changes, then creates and pushes the matching tag from the current `origin/main` commit.
 
-A failed run can be re-run against the same tag when it still points to the current `origin/main`. An existing GitHub Release makes later `main` runs succeed without publishing again. A tag that points to another commit fails with the conflicting SHAs visible in the log.
+The tag workflow verifies the tag name and all three version sources, and requires the tag commit and checked-out commit to equal current `origin/main`. If a GitHub Release already exists for that tag, the run succeeds without rebuilding or publishing. Otherwise the GitHub runner executes the tests, Developer ID signing, Apple notarization and stapling, DMG packaging, SHA-256 generation, and `gh release create --latest --verify-tag`. A mismatched tag or commit fails with the conflicting values visible in the log.
 
 ### Project map
 
