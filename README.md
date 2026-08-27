@@ -123,7 +123,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 | Area | Status |
 | --- | --- |
 | Apple Silicon build | Available in [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) |
-| Automated checks | PR, `main`, and release workflows run `swift test` and core checks |
+| Automation | PR CI runs tests; merging a prepared version to `main` creates its tag and publishes the signed release |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
@@ -148,6 +148,12 @@ Create a local app bundle:
 ```
 
 The bundle is written to `.build/release/Codex Account Switcher.app`.
+
+### Automated releases
+
+Merging a release-preparation pull request to `main` starts the release workflow. The workflow reads the version from `CITATION.cff`, verifies the package default and Codex app-server client versions, creates the matching annotated `v*` tag when it is absent, then runs tests, signing, notarization, DMG packaging, checksum generation, and GitHub Release publication in the same run.
+
+A failed run can be re-run against the same tag when it still points to the current `origin/main`. An existing GitHub Release makes later `main` runs succeed without publishing again. A tag that points to another commit fails with the conflicting SHAs visible in the log.
 
 ### Project map
 

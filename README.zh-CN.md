@@ -123,7 +123,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | 项目 | 状态 |
 | --- | --- |
 | Apple Silicon 版本 | 已在 [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) 提供 |
-| 自动检查 | PR、`main` 和发布工作流运行 `swift test` 与核心检查 |
+| 自动化 | PR CI 运行检查；准备好的版本合并到 `main` 后自动创建 tag 并发布签名版本 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
@@ -148,6 +148,12 @@ swift test
 ```
 
 应用包将生成到 `.build/release/Codex Account Switcher.app`。
+
+### 自动发布
+
+发布准备 PR 合并到 `main` 后，release workflow 会从 `CITATION.cff` 读取版本，并校验本地打包默认版本与 Codex app-server 客户端版本。对应 annotated `v*` tag 不存在时由 Action 创建，随后在同一次运行中完成测试、签名、公证、DMG 打包、checksum 生成与 GitHub Release 发布。
+
+失败的 workflow 可以在同一 tag 仍指向当前 `origin/main` 时原地重新运行。GitHub Release 已存在时，后续 `main` 运行会成功结束且不重复发布。tag 指向其他提交时，日志会显示冲突 SHA 并直接失败。
 
 ### 项目结构
 

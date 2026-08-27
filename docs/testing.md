@@ -177,3 +177,16 @@ no Keychain implementation
 launch-at-login state comes from macOS Service Management
 no account-rename UI or model operation
 ```
+
+## 8. Release automation checks
+
+The release workflow runs on pushes to `main` and `v*` tags under one repository-wide release concurrency group. Static validation should confirm:
+
+- `CITATION.cff`, the package default, and CodexClient declare the same semantic version;
+- the derived `RELEASE_TAG` supplies every artifact name and GitHub Release command;
+- a `main` run creates one annotated tag with the `github-actions[bot]` identity only when the tag is absent;
+- an existing tag is reusable only when its commit equals both the workflow commit and `origin/main`;
+- tag events require the event tag, repository version, checked-out commit, and `origin/main` commit to match;
+- an existing GitHub Release sets `SHOULD_RELEASE=false` and all tests, signing, notarization, packaging, and publication steps skip successfully;
+- a missing Release sets `SHOULD_RELEASE=true`, and the same `main` workflow continues through publication after pushing its tag;
+- conflicting tags and API failures stop with the original values visible.
