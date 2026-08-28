@@ -170,6 +170,8 @@ prototype/                          Early browser-based visual prototype
 
 Use [GitHub Discussions](https://github.com/liuzhao1225/codex-account-switcher/discussions) for workflow questions, product ideas, and comparisons. Use [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) for bug reports and focused feature proposals. Run the following checks before opening a pull request:
 
+The website records the project's [privacy model](https://liuzhao1225.github.io/codex-account-switcher/privacy/), [official contact channels](https://liuzhao1225.github.io/codex-account-switcher/contact/), and [responsible-use terms](https://liuzhao1225.github.io/codex-account-switcher/terms/). Do not post secrets or private account data in public support channels.
+
 ```bash
 swift test
 ./scripts/run-core-checks.sh
@@ -187,6 +189,7 @@ Keep real `auth.json` files, account names, email addresses, API credentials, an
 - [System design](docs/system-design.md)
 - [Implementation plan](docs/implementation-plan.md)
 - [Testing](docs/testing.md)
+- [LLM-readable project index](https://liuzhao1225.github.io/codex-account-switcher/llms.txt)
 
 ## Frequently asked questions
 

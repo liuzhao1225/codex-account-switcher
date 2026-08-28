@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Privacy | Codex Account Switcher for Mac</title>
+    <meta name="description" content="How Codex Account Switcher stores local account profiles, settings, and usage data, what network activity occurs, and how to remove local data safely.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="author" content="Zhao Liu (liuzhao1225)">
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#101010" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
+    <link rel="canonical" href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
+    <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
+    <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/">
+    <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
+    <link rel="describedby" href="https://liuzhao1225.github.io/codex-account-switcher/llms.txt" type="text/plain">
+    <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
+    <link rel="icon" type="image/png" href="../assets/favicon.png">
+
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Codex Account Switcher">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="zh_CN">
+    <meta property="og:title" content="Privacy | Codex Account Switcher">
+    <meta property="og:description" content="A plain-language record of local data, network activity, deletion behavior, and safe support reporting.">
+    <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
+    <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Privacy | Codex Account Switcher">
+    <meta name="twitter:description" content="What the Mac app stores locally and how to remove it.">
+    <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
+
+    <link rel="stylesheet" href="../styles.css?v=20260828-geo">
+    <script src="../app.js?v=20260828-geo" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/privacy/#webpage",
+            "name": "Privacy for Codex Account Switcher",
+            "description": "How Codex Account Switcher stores local profiles, settings, and usage data, what network activity occurs, and how users remove local data.",
+            "url": "https://liuzhao1225.github.io/codex-account-switcher/privacy/",
+            "datePublished": "2026-08-28",
+            "dateModified": "2026-08-28",
+            "inLanguage": "en",
+            "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
+            "about": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"},
+            "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
+            "citation": [
+              "https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md",
+              "https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountStore.swift"
+            ]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/"},
+              {"@type": "ListItem", "position": 2, "name": "Privacy", "item": "https://liuzhao1225.github.io/codex-account-switcher/privacy/"}
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary navigation">
+        <a class="brand" href="../" aria-label="Codex Account Switcher home">
+          <span class="brand-mark" aria-hidden="true"><img class="logo-light" src="../assets/account-switcher-logo.png" alt=""><img class="logo-dark" src="../assets/account-switcher-logo-white.png" alt=""></span>
+          <span class="brand-name brand-name-full">Codex Account Switcher</span><span class="brand-name brand-name-compact" aria-hidden="true">Account Switcher</span>
+        </a>
+        <div class="nav-links" id="site-nav-links"><a href="../">Product</a><a href="../guides/switch-multiple-codex-accounts/">Guide</a><a href="../about/">About</a></div>
+        <div class="nav-actions">
+          <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
+          <a class="text-control language-link" href="../zh-CN/privacy/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
+          <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="../assets/github.svg" alt=""></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <article>
+        <header class="article-hero">
+          <div class="article-shell">
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../">Codex Account Switcher</a><span>/</span><span>Privacy</span></nav>
+            <p class="eyebrow">Plain-language privacy record</p>
+            <h1>Privacy for Codex Account Switcher</h1>
+            <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your Mac.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
+            <p class="article-meta">Updated August 28, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.5</p>
+          </div>
+        </header>
+
+        <div class="article-body">
+          <div class="article-shell article-layout">
+            <div class="article-main">
+              <section id="summary">
+                <h2>What is the privacy model?</h2>
+                <p>The app uses local files with user-only permissions. It does not upload saved profiles to a developer-operated server. Browser login, identity checks, and usage refreshes use OpenAI's Codex login or app-server workflow and remain subject to OpenAI's services and policies.</p>
+              </section>
+
+              <section id="stored-data">
+                <h2>What data is stored on the Mac?</h2>
+                <div class="fact-table-wrap">
+                  <table class="fact-table">
+                    <thead><tr><th scope="col">Local file</th><th scope="col">What it contains</th><th scope="col">Why it exists</th></tr></thead>
+                    <tbody>
+                      <tr><th scope="row"><code>accounts.json</code></th><td>Profile ID, display name, optional email and account ID, timestamps, and active profile ID</td><td>Show and identify saved accounts</td></tr>
+                      <tr><th scope="row"><code>accounts/&lt;profile-id&gt;/auth.json</code></th><td>A reusable Codex credential snapshot for that authorized account</td><td>Activate the account selected by the user</td></tr>
+                      <tr><th scope="row"><code>settings.json</code></th><td>Language and display preferences</td><td>Keep the chosen app settings</td></tr>
+                      <tr><th scope="row"><code>usage-cache.json</code></th><td>Profile ID, last successful weekly usage, optional 5-hour usage, reset times, and fetch time</td><td>Keep useful usage context visible while refreshing</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p>These files live under <code>~/Library/Application Support/Codex Account Switcher/</code>. Saved profile directories use mode <code>0700</code>; credential and registry files use mode <code>0600</code>. The active Codex credential remains under the active <code>CODEX_HOME</code>, normally <code>~/.codex/auth.json</code>.</p>
+              </section>
+
+              <section id="network">
+                <h2>What network activity occurs?</h2>
+                <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification and usage refreshes launch Codex app-server for the relevant local profile, which may communicate with OpenAI. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
+                <p>This website is a static GitHub Pages site with no project-added analytics script, advertising tracker, account system, or contact form. GitHub may process normal hosting request data under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
+              </section>
+
+              <section id="deletion">
+                <h2>How can local data be removed?</h2>
+                <ul>
+                  <li>Remove an inactive account in Manage Accounts to delete its switcher profile, metadata entry, and cached usage entry.</li>
+                  <li>Quit and uninstall the app, then remove <code>~/Library/Application Support/Codex Account Switcher/</code> to delete all switcher-managed local data.</li>
+                  <li>Manage the active <code>~/.codex/auth.json</code> and server-side sessions through Codex and your OpenAI account. Removing switcher data alone does not revoke every OpenAI session.</li>
+                </ul>
+              </section>
+
+              <section id="support-safety">
+                <h2>What should never be posted in a support request?</h2>
+                <p>Keep real <code>auth.json</code> files, access tokens, account names, email addresses, API credentials, private screenshots, and private project details out of GitHub Issues, Discussions, commits, and test fixtures. A useful bug report can include the app version, macOS version, the visible error stage, and sanitized reproduction steps.</p>
+              </section>
+
+              <section id="sources">
+                <h2>How can these claims be verified?</h2>
+                <ul class="source-list">
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md">System design</a></strong><span>Local file layout, permissions, app-server use, switch sequence, and deletion behavior.</span></li>
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountStore.swift">AccountStore.swift</a></strong><span>Implementation of profile, registry, settings, usage cache, and credential storage.</span></li>
+                  <li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex authentication storage</a></strong><span>Upstream behavior for file-backed <code>auth.json</code> beneath <code>CODEX_HOME</code>.</span></li>
+                </ul>
+              </section>
+            </div>
+
+            <aside class="article-aside" aria-label="On this page"><strong>On this page</strong><nav><a href="#summary">Summary</a><a href="#stored-data">Local data</a><a href="#network">Network activity</a><a href="#deletion">Delete data</a><a href="#support-safety">Safe reporting</a><a href="#sources">Sources</a></nav></aside>
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-shell">
+        <a class="footer-brand" href="../"><span class="brand-mark" aria-hidden="true"><img class="logo-light" src="../assets/account-switcher-logo.png" alt=""><img class="logo-dark" src="../assets/account-switcher-logo-white.png" alt=""></span><span>Codex Account Switcher</span></a>
+        <div class="footer-links"><a href="../">Product</a><a href="../guides/switch-multiple-codex-accounts/">Guide</a><a href="../about/">About</a><a href="./" aria-current="page">Privacy</a><a href="../contact/">Contact</a><a href="../terms/">Terms</a><a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a><a href="https://github.com/liuzhao1225/codex-account-switcher/releases">Releases</a></div>
+        <p>Independent open-source software. Not affiliated with OpenAI.</p>
+      </div>
+    </footer>
+  </body>
+</html>

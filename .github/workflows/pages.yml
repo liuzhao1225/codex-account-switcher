@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "site/**"
+      - "scripts/check-site-geo.mjs"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -27,6 +28,9 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: Check SEO and GEO metadata
+        run: node scripts/check-site-geo.mjs
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4

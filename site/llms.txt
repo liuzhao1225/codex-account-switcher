@@ -1,0 +1,35 @@
+# Codex Account Switcher
+
+> Codex Account Switcher is a free, open-source macOS menu-bar app for ordinary Mac users who need to switch between personal, work, or authorized client Codex accounts. It is created and maintained by Zhao Liu (GitHub: liuzhao1225).
+
+The app is designed for Apple Silicon Macs running macOS 14 or later. Users add each authorized account through browser sign-in, then choose and confirm an account from the menu bar. The app handles the Codex Desktop handoff without requiring Terminal commands or config-file editing. It stores account profiles locally, does not proxy Codex traffic, and does not rotate accounts automatically. Codex Account Switcher is independent community software and is not affiliated with OpenAI.
+
+## Product and download
+
+- [Product homepage](https://liuzhao1225.github.io/codex-account-switcher/): Product overview, screenshots, requirements, frequently asked questions, and download link.
+- [Official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/): Canonical product name, creator, release, platform, license, technical scope, and primary sources.
+- [Latest GitHub release](https://github.com/liuzhao1225/codex-account-switcher/releases/latest): Signed and Apple-notarized macOS download.
+
+## Guides
+
+- [Switch multiple Codex accounts on Mac](https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/): Step-by-step guide for adding, comparing, and switching authorized accounts without Terminal setup.
+- [What is a Codex account?](https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/): Source-backed explanation of accounts, workspaces, profiles, sessions, Codex Desktop, and CLI behavior.
+
+## Trust and policies
+
+- [Creator profile](https://liuzhao1225.github.io/codex-account-switcher/about/creator/): Public identity and relationship between Zhao Liu, liuzhao1225, and Codex Account Switcher.
+- [Privacy](https://liuzhao1225.github.io/codex-account-switcher/privacy/): Local data, network activity, deletion behavior, and safe reporting guidance.
+- [Contact and support](https://liuzhao1225.github.io/codex-account-switcher/contact/): Official GitHub support and feedback channels.
+- [Terms and responsible use](https://liuzhao1225.github.io/codex-account-switcher/terms/): Authorized-account requirement, third-party terms, MIT License, and project independence.
+
+## Source and development
+
+- [Official source repository](https://github.com/liuzhao1225/codex-account-switcher): Swift source, documentation, release history, issues, and discussions.
+- [Citation metadata](https://github.com/liuzhao1225/codex-account-switcher/blob/main/CITATION.cff): Machine-readable software and creator citation record.
+- [System design](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md): Local storage, switching sequence, usage cache, permissions, and failure behavior.
+
+## Optional
+
+- [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 中文产品介绍。
+- [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): 中文分步使用说明。
+- [OpenAI account switching documentation](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching): Official context for ChatGPT account switching and the current Codex desktop limitation.

@@ -14,6 +14,7 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
+    <link rel="describedby" href="https://liuzhao1225.github.io/codex-account-switcher/llms.txt" type="text/plain">
     <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">
     <link rel="icon" type="image/png" href="../../../assets/favicon.png">
 
@@ -29,7 +30,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher 在 macOS 上显示多个 Codex 账号及其每周用量">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-08-27">
+    <meta property="article:modified_time" content="2026-08-28">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Mac 切换 Codex 多账号，无需终端设置">
     <meta name="twitter:description" content="用普通语言说明如何下载应用、添加账号一次，再从 Mac 菜单栏切换。">
@@ -49,7 +50,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-08-27",
+            "dateModified": "2026-08-28",
             "inLanguage": "zh-CN",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -67,9 +68,41 @@
               "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/",
               "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666"]
             },
+            "mainEntity": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#howto"},
             "citation": [
               "https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching",
               "https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs"
+            ]
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#howto",
+            "name": "如何在 Mac 上切换多个 Codex 账号",
+            "description": "通过浏览器登录添加获准使用的 Codex 账号，比较用量，再从 macOS 菜单栏选择并确认当前账号。",
+            "inLanguage": "zh-CN",
+            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher macOS 应用"},
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "一次添加每个获准使用的 Codex 账号",
+                "text": "先导入 Codex 当前账号，再通过浏览器登录流程添加其他个人、工作或获准使用的客户账号。",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#add-accounts"
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "比较 Codex 用量",
+                "text": "打开菜单栏应用，查看当前账号、每周剩余百分比、重置时间，以及服务提供时可选的精确 300 分钟窗口。",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#usage"
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "选择并确认当前账号",
+                "text": "选择已保存账号，阅读 Desktop 与 CLI 影响说明并确认。应用会完成切换、验证并重新打开 Codex Desktop。",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#switch"
+              }
             ]
           },
           {
@@ -120,7 +153,7 @@
             <p class="eyebrow">普通 Mac 用户指南</p>
             <h1>在 Mac 上切换 Codex 多账号，无需终端设置</h1>
             <p class="article-lede">下载应用，通过浏览器添加个人、工作或客户账号一次，之后从 Mac 菜单栏选择即可。无需代码知识，也不用修改配置文件。</p>
-            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 8 月 27 日 · 阅读约 7 分钟 · 适用于 Apple Silicon 与 macOS 14+</p>
+            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 8 月 28 日 · 阅读约 7 分钟 · 适用于 Apple Silicon 与 macOS 14+</p>
             <figure class="article-visual">
               <img src="../../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="Codex Account Switcher 菜单显示三个虚构本地账号、每周用量进度与重置时间">
             </figure>
@@ -198,6 +231,16 @@
                 <h2>选择适合你的多账号方式</h2>
                 <p>当一个 Codex Desktop 实例需要在某个时刻使用一个明确身份时，菜单栏切换器会很合适。如果需要让多个 Codex 进程同时使用不同账号，分别设置 <code>CODEX_HOME</code> 或使用隔离的应用环境可能更适合。</p>
                 <p>Codex Account Switcher 专注于前一种工作流：用量清晰可见、切换由用户手动确认、没有后台账号路由。</p>
+                <div class="fact-table-wrap">
+                  <table class="fact-table">
+                    <thead><tr><th scope="col">方式</th><th scope="col">首次设置</th><th scope="col">日常操作</th><th scope="col">适合场景</th></tr></thead>
+                    <tbody>
+                      <tr><th scope="row">手动退出并重新登录</th><td>使用标准 Codex 与浏览器认证</td><td>退出、重新认证，再核对当前身份</td><td>偶尔更换账号</td></tr>
+                      <tr><th scope="row">分别设置 <code>CODEX_HOME</code></th><td>使用终端命令和环境配置</td><td>用指定配置目录启动 Codex</td><td>需要隔离 CLI 环境的技术用户</td></tr>
+                      <tr><th scope="row">Codex Account Switcher</th><td>安装 DMG，通过浏览器一次添加每个账号</td><td>从菜单栏选择账号并确认</td><td>同一时刻使用一个 Codex Desktop 身份的普通 Mac 用户</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </section>
 
               <div class="article-cta">
@@ -246,6 +289,9 @@
           <a href="../codex-account/">Codex 账号原理</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">版本发布</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/">隐私</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/contact/">联系</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/terms/">使用条款</a>
         </div>
         <p>独立开源软件，与 OpenAI 没有关联。</p>
       </div>

@@ -14,6 +14,7 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
+    <link rel="describedby" href="https://liuzhao1225.github.io/codex-account-switcher/llms.txt" type="text/plain">
     <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
     <link rel="icon" type="image/png" href="../../assets/favicon.png">
 
@@ -29,7 +30,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing multiple Codex profiles and their weekly usage on macOS">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-08-27">
+    <meta property="article:modified_time" content="2026-08-28">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Switch Codex Accounts on Mac Without Terminal Setup">
     <meta name="twitter:description" content="A plain-language guide to downloading the app, adding accounts once, and switching from the Mac menu bar.">
@@ -49,7 +50,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-08-27",
+            "dateModified": "2026-08-28",
             "inLanguage": "en",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -67,9 +68,41 @@
               "url": "https://liuzhao1225.github.io/codex-account-switcher/about/creator/",
               "sameAs": ["https://github.com/liuzhao1225", "https://x.com/liuzhao_666"]
             },
+            "mainEntity": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#howto"},
             "citation": [
               "https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching",
               "https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs"
+            ]
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#howto",
+            "name": "How to switch multiple Codex accounts on Mac",
+            "description": "Add authorized Codex accounts through browser sign-in, compare their usage, then choose and confirm the active account from the macOS menu bar.",
+            "inLanguage": "en",
+            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher for macOS"},
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "Add each authorized Codex account once",
+                "text": "Import the account already active in Codex, then add each additional personal, work, or authorized client account through the browser sign-in flow.",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#add-accounts"
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "Compare Codex usage",
+                "text": "Open the menu-bar app to see the active account, weekly remaining percentage, reset time, and the optional exact 300-minute service window when available.",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#usage"
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "Choose and confirm the active account",
+                "text": "Select a saved account, review the Desktop and CLI effects, then confirm. The app switches, verifies, and reopens Codex Desktop.",
+                "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#switch"
+              }
             ]
           },
           {
@@ -120,7 +153,7 @@
             <p class="eyebrow">Plain-language Mac guide</p>
             <h1>Switch Codex accounts on Mac without Terminal setup</h1>
             <p class="article-lede">Download the app, add personal, work, or client accounts through browser sign-in once, then choose from the Mac menu bar. No coding knowledge or config-file editing is required.</p>
-            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated August 27, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
+            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated August 28, 2026 · 7 minute read · For macOS 14+ on Apple Silicon</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.webp" width="1774" height="887" alt="Codex Account Switcher menu showing three fictional local accounts, weekly usage bars, and reset times">
             </figure>
@@ -198,6 +231,16 @@
                 <h2>Choose the workflow that matches your use case</h2>
                 <p>A menu-bar switcher works well when one Codex Desktop instance should use one clearly selected identity at a time. Separate <code>CODEX_HOME</code> directories or isolated app environments may be more suitable when you need multiple Codex processes running concurrently under different accounts.</p>
                 <p>Codex Account Switcher focuses on the first workflow: a small, visible, manual handoff with weekly usage context and no background account routing.</p>
+                <div class="fact-table-wrap">
+                  <table class="fact-table">
+                    <thead><tr><th scope="col">Method</th><th scope="col">Initial setup</th><th scope="col">Everyday action</th><th scope="col">Best fit</th></tr></thead>
+                    <tbody>
+                      <tr><th scope="row">Manual sign-out and sign-in</th><td>Standard Codex and browser authentication</td><td>Sign out, authenticate, and verify the active identity again</td><td>Occasional account changes</td></tr>
+                      <tr><th scope="row">Separate <code>CODEX_HOME</code> profiles</th><td>Terminal commands and environment configuration</td><td>Launch Codex with the intended profile directory</td><td>Technical users who need isolated CLI contexts</td></tr>
+                      <tr><th scope="row">Codex Account Switcher</th><td>Install the DMG and add each account through browser sign-in once</td><td>Choose an account from the menu bar and confirm</td><td>Ordinary Mac users with one active Codex Desktop identity at a time</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </section>
 
               <div class="article-cta">
@@ -246,6 +289,9 @@
           <a href="../codex-account/">Codex account reference</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">Releases</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">Privacy</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/contact/">Contact</a>
+          <a href="https://liuzhao1225.github.io/codex-account-switcher/terms/">Terms</a>
         </div>
         <p>Independent open-source software. Not affiliated with OpenAI.</p>
       </div>

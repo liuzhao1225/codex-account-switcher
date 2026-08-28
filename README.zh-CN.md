@@ -170,6 +170,8 @@ prototype/                          早期浏览器视觉原型
 
 请使用 [GitHub Discussions](https://github.com/liuzhao1225/codex-account-switcher/discussions) 讨论工作流、产品想法和工具对比，使用 [GitHub Issues](https://github.com/liuzhao1225/codex-account-switcher/issues) 提交错误报告和范围明确的功能建议。发起 Pull Request 前请运行：
 
+网站公开记录项目的[隐私模式](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/)、[官方联系渠道](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/contact/)和[合理使用说明](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/terms/)。请勿在公开支持渠道提交秘密信息或私人账号数据。
+
 ```bash
 swift test
 ./scripts/run-core-checks.sh
@@ -187,6 +189,7 @@ swift test
 - [系统设计](docs/system-design.md)
 - [实施计划](docs/implementation-plan.md)
 - [测试说明](docs/testing.md)
+- [面向大语言模型的项目索引](https://liuzhao1225.github.io/codex-account-switcher/llms.txt)
 
 ## 常见问题
 
