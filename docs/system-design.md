@@ -294,7 +294,7 @@ The client communicates with newline-delimited JSON-RPC messages over stdin/stdo
 Basic handshake:
 
 ```json
-{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.5"}}}
+{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.6"}}}
 {"method":"initialized","params":{}}
 ```
 
@@ -665,6 +665,7 @@ The order is intentionally direct. If metadata save fails after directory deleti
 @Published private(set) var settings: AppSettings = .default
 @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 @Published private(set) var isMutating = false
+@Published private(set) var isAddingAccount = false
 @Published var visibleError: OperationError?
 ```
 
@@ -675,6 +676,8 @@ Only one mutation runs at a time. While `isMutating` is true:
 - Quit remains available.
 
 This is a simple in-process UI invariant, not a cross-process lock service.
+
+Browser sign-in uses `isAddingAccount` and a separately retained task. It does not hold the mutation lock while waiting for the browser callback. Manage Accounts replaces Add Account with a cancel action during this wait; canceling terminates the app-server session and restores the normal button without showing an error.
 
 `MenuBarPopover` owns an in-memory page enum for the account list, Manage Accounts, Settings, and switch confirmation. All secondary pages render inside the same 326-point popover. Cancel and Back change only page state. The root view resets the page to the account list on every popover appearance.
 

@@ -6,7 +6,7 @@ SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
 APP_ICON="$PROJECT_DIR/assets/AppIcon.icns"
-APP_VERSION=${RELEASE_VERSION:-0.1.5}
+APP_VERSION=${RELEASE_VERSION:-0.1.6}
 CODESIGN_IDENTITY=${CODESIGN_IDENTITY:--}
 
 cd "$PROJECT_DIR"
@@ -41,7 +41,7 @@ cp "$PROJECT_DIR/LICENSE" "$RESOURCES_DIR/LICENSE.txt"
 /usr/bin/plutil -insert CFBundleName -string "Codex Account Switcher" "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundlePackageType -string APPL "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert CFBundleShortVersionString -string "$APP_VERSION" "$CONTENTS_DIR/Info.plist"
-/usr/bin/plutil -insert CFBundleVersion -string 5 "$CONTENTS_DIR/Info.plist"
+/usr/bin/plutil -insert CFBundleVersion -string 6 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 14.0 "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert LSUIElement -bool true "$CONTENTS_DIR/Info.plist"
 /usr/bin/plutil -insert NSHighResolutionCapable -bool true "$CONTENTS_DIR/Info.plist"

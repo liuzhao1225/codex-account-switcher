@@ -238,6 +238,8 @@ create profile directory
 
 Adding an account creates no current-account credential backup or rollback flow.
 
+The browser sign-in wait is tracked separately from profile mutations so the account list, Settings, and existing account actions remain interactive. While sign-in is pending, Manage Accounts shows a direct cancel action. Canceling stops the app-server login session without presenting an operation error.
+
 If login fails, show the Codex login error. The incomplete profile directory may remain on disk; the MVP does not hide the failure with automatic cleanup.
 
 ### 8.3 Remove

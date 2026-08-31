@@ -59,7 +59,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
-1. [下载 Codex Account Switcher v0.1.5 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg)。
+1. [下载 Codex Account Switcher v0.1.6 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.6/Codex-Account-Switcher-v0.1.6-macos-arm64.dmg)。
 2. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 3. 启动应用，在 macOS 菜单栏中找到账号切换器。
 4. 通过浏览器添加每个账号一次，之后选择需要的账号。
@@ -122,12 +122,12 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.6](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.6) 提供 |
 | 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `v*` tag 后发布签名版本 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.5 提供 |
+| DMG 发布 | 已在 v0.1.6 提供 |
 
 ## 开发
 

@@ -124,6 +124,7 @@ Verify:
 - all three Settings toggles expose localized accessibility labels;
 - switch confirmation describes Desktop and CLI consequences;
 - canceling switch or removal keeps the popover open and performs no mutation;
+- closing the browser during Add Account leaves the rest of the popover interactive, and Cancel Adding Account stops the pending login;
 - account rows display cached Usage while refresh runs;
 - a short-interval timer test proves that a manual refresh postpones the previous deadline and cancellation stops later rounds;
 - active profile remove button is disabled;

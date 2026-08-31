@@ -40,6 +40,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var usageStates: [UUID: UsageViewState] = [:]
     @Published private(set) var settings: AppSettings = .default
     @Published private(set) var isMutating = false
+    @Published private(set) var isAddingAccount = false
     @Published var visibleError: OperationError?
     @Published private(set) var activeIdentityConfirmed = true
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
@@ -50,6 +51,7 @@ final class AppModel: ObservableObject {
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
     private var nextUsageRefreshTask: Task<Void, Never>?
+    private var addAccountTask: Task<Void, Never>?
     private var backgroundUsageRefreshInterval: Duration = .seconds(300)
     private var isBackgroundUsageRefreshEnabled = false
 
@@ -255,14 +257,28 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func addAccount() async {
-        guard !isMutating else { return }
-        isMutating = true
-        defer { isMutating = false }
+    func addAccount() {
+        guard !isMutating, !isAddingAccount else { return }
+        isAddingAccount = true
+        addAccountTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performAddAccount()
+            self.isAddingAccount = false
+            self.addAccountTask = nil
+        }
+    }
+
+    func cancelAddingAccount() {
+        addAccountTask?.cancel()
+    }
+
+    private func performAddAccount() async {
         do {
             let id = UUID()
             let home = try await store.createProfileDirectory(id: id)
+            try Task.checkCancellation()
             let identity = try await codex.login(profileHome: home)
+            try Task.checkCancellation()
             let profile = AccountProfile(
                 id: id,
                 displayName: identity.suggestedDisplayName,
@@ -273,6 +289,8 @@ final class AppModel: ObservableObject {
             )
             try await store.addProfile(profile)
             apply(try await store.loadRegistry())
+        } catch is CancellationError {
+            return
         } catch {
             showError(error)
         }

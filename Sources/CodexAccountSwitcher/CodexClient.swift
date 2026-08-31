@@ -214,7 +214,7 @@ private actor JSONRPCSession {
                 "clientInfo": [
                     "name": "codex_account_switcher",
                     "title": "Codex Account Switcher",
-                    "version": "0.1.5",
+                    "version": "0.1.6",
                 ],
             ],
         ])
@@ -397,47 +397,52 @@ struct CodexClient: CodexIdentityReading, WeeklyUsageReading, LoginServicing {
     func login(profileHome: URL) async throws -> AccountIdentity {
         let executable = try locator.locate()
         let session = try JSONRPCSession(executableURL: executable, profileHome: profileHome)
-        do {
-            try await session.initialize(timeout: requestTimeout)
-            let start = try await session.request(
-                method: "account/login/start",
-                id: 1,
-                params: [
-                    "type": "chatgpt",
-                    "useHostedLoginSuccessPage": true,
-                    "appBrand": "codex",
-                ],
-                timeout: requestTimeout
-            )
-            guard let authURLString = start["authUrl"]?.stringValue,
-                  let authURL = URL(string: authURLString)
-            else {
-                throw CodexClientError.malformedResponse
-            }
-            let opened = await MainActor.run { NSWorkspace.shared.open(authURL) }
-            guard opened else { throw CodexClientError.loginFailed("The sign-in page could not be opened.") }
-
-            let completion = try await session.notification(
-                method: "account/login/completed",
-                timeout: .seconds(600)
-            )
-            guard completion["success"]?.boolValue == true else {
-                throw CodexClientError.loginFailed(
-                    completion["error"]?.stringValue ?? "The sign-in did not complete."
+        return try await withTaskCancellationHandler {
+            do {
+                try await session.initialize(timeout: requestTimeout)
+                let start = try await session.request(
+                    method: "account/login/start",
+                    id: 1,
+                    params: [
+                        "type": "chatgpt",
+                        "useHostedLoginSuccessPage": true,
+                        "appBrand": "codex",
+                    ],
+                    timeout: requestTimeout
                 )
+                guard let authURLString = start["authUrl"]?.stringValue,
+                      let authURL = URL(string: authURLString)
+                else {
+                    throw CodexClientError.malformedResponse
+                }
+                let opened = await MainActor.run { NSWorkspace.shared.open(authURL) }
+                guard opened else { throw CodexClientError.loginFailed("The sign-in page could not be opened.") }
+
+                let completion = try await session.notification(
+                    method: "account/login/completed",
+                    timeout: .seconds(600)
+                )
+                guard completion["success"]?.boolValue == true else {
+                    throw CodexClientError.loginFailed(
+                        completion["error"]?.stringValue ?? "The sign-in did not complete."
+                    )
+                }
+                let identityValue = try await session.request(
+                    method: "account/read",
+                    id: 2,
+                    params: ["refreshToken": false],
+                    timeout: requestTimeout
+                )
+                let identity = try parseIdentity(identityValue)
+                await session.stop()
+                return identity
+            } catch {
+                await session.stop()
+                if Task.isCancelled { throw CancellationError() }
+                throw error
             }
-            let identityValue = try await session.request(
-                method: "account/read",
-                id: 2,
-                params: ["refreshToken": false],
-                timeout: requestTimeout
-            )
-            let identity = try parseIdentity(identityValue)
-            await session.stop()
-            return identity
-        } catch {
-            await session.stop()
-            throw error
+        } onCancel: {
+            Task { await session.stop() }
         }
     }
 

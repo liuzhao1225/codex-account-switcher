@@ -16,11 +16,8 @@ This arm64 GitHub build requires macOS 14 or later. The app and DMG are signed w
 
 ### What's new
 
-- Optionally show the exact 300-minute (5-hour) usage window reported by the Codex service. Enable it in Settings when useful; it is off by default.
-- Restore the just-saved original profile credential if target identity verification or the registry commit fails, while preserving the original error.
-- Run Swift tests, core checks, and changed-line whitespace checks in CI for pull requests and `main`.
-- Discover the selected Swift toolchain dynamically so local tests work with supported Xcode and standalone Command Line Tools layouts.
-- Include the MIT LICENSE in both the app bundle and DMG, and document the security boundaries of local credential storage and deletion.
+- Keep the account list, Settings, and existing account actions available while Add Account waits for browser sign-in.
+- Show a direct Cancel Adding Account action that stops the pending app-server login session when the browser page has been closed.
 
 ### Install
 

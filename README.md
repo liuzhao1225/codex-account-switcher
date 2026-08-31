@@ -59,7 +59,7 @@ If you searched for a **Codex account switcher**, **Codex profile switcher**, or
 
 The current public build targets **Apple Silicon** and requires **macOS 14 or later**.
 
-1. [Download Codex Account Switcher v0.1.5 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.5/Codex-Account-Switcher-v0.1.5-macos-arm64.dmg).
+1. [Download Codex Account Switcher v0.1.6 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.6/Codex-Account-Switcher-v0.1.6-macos-arm64.dmg).
 2. Open the DMG and move **Codex Account Switcher.app** to Applications.
 3. Launch the app and look for the switcher in the macOS menu bar.
 4. Add each account once through the browser, then choose the one you need.
@@ -122,12 +122,12 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.5](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.5) |
+| Apple Silicon build | Available in [v0.1.6](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.6) |
 | Automation | PR and `main` CI run tests; pushing a matching `v*` tag publishes the signed release |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
-| DMG release | Available in v0.1.5 |
+| DMG release | Available in v0.1.6 |
 
 ## Development
 

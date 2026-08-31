@@ -68,28 +68,44 @@ struct ManageAccountsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 3) {
-                Button {
-                    Task { await model.addAccount() }
-                } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: "plus")
-                            .frame(width: 14)
-                        Text(model.text("add_account"))
-                        Spacer()
-                        if model.isMutating {
+                if model.isAddingAccount {
+                    Button {
+                        model.cancelAddingAccount()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "xmark")
+                                .frame(width: 14)
+                            Text(model.text("cancel_add_account"))
+                            Spacer()
                             ProgressView()
                                 .controlSize(.small)
                         }
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .frame(height: 30)
+                        .contentShape(Rectangle())
                     }
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .frame(height: 30)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        model.addAccount()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "plus")
+                                .frame(width: 14)
+                            Text(model.text("add_account"))
+                            Spacer()
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .frame(height: 30)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.isMutating)
                 }
-                .buttonStyle(.plain)
-                .disabled(model.isMutating)
 
-                Text(model.text("sign_in_hint"))
+                Text(model.text(model.isAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
