@@ -185,7 +185,7 @@ The release workflow runs only on `v*` tag pushes under one repository-wide rele
 
 - ordinary `main` pushes do not start the release workflow and the workflow never creates or pushes a tag;
 - `CITATION.cff`, the package default, and CodexClient declare the same semantic version;
-- the derived `RELEASE_TAG` supplies every artifact name and GitHub Release command;
+- the derived `RELEASE_TAG` identifies the GitHub Release, while the DMG and checksum use fixed asset names compatible with `releases/latest/download/...`;
 - tag events require the event tag, repository version, checked-out commit, and `origin/main` commit to match;
 - an existing GitHub Release sets `SHOULD_RELEASE=false` and all tests, signing, notarization, packaging, and publication steps skip successfully;
 - a missing Release sets `SHOULD_RELEASE=true`, then the tag workflow runs tests, signing, notarization, packaging, checksum generation, and `gh release create --latest --verify-tag`;

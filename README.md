@@ -59,7 +59,7 @@ If you searched for a **Codex account switcher**, **Codex profile switcher**, or
 
 The current public build targets **Apple Silicon** and requires **macOS 14 or later**.
 
-1. [Download Codex Account Switcher v0.1.6 for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.6/Codex-Account-Switcher-v0.1.6-macos-arm64.dmg).
+1. [Download the latest Codex Account Switcher for Mac](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg).
 2. Open the DMG and move **Codex Account Switcher.app** to Applications.
 3. Launch the app and look for the switcher in the macOS menu bar.
 4. Add each account once through the browser, then choose the one you need.
@@ -153,7 +153,7 @@ The bundle is written to `.build/release/Codex Account Switcher.app`.
 
 The release workflow starts only when an existing `v*` tag is pushed. Ordinary pushes to `main` continue to run CI and never start a release or create a tag. A maintainer first updates `CITATION.cff`, the package default, and the Codex app-server client to the same semantic version, merges those changes, then creates and pushes the matching tag from the current `origin/main` commit.
 
-The tag workflow verifies the tag name and all three version sources, and requires the tag commit and checked-out commit to equal current `origin/main`. If a GitHub Release already exists for that tag, the run succeeds without rebuilding or publishing. Otherwise the GitHub runner executes the tests, Developer ID signing, Apple notarization and stapling, DMG packaging, SHA-256 generation, and `gh release create --latest --verify-tag`. A mismatched tag or commit fails with the conflicting values visible in the log.
+The tag workflow verifies the tag name and all three version sources, and requires the tag commit and checked-out commit to equal current `origin/main`. If a GitHub Release already exists for that tag, the run succeeds without rebuilding or publishing. Otherwise the GitHub runner executes the tests, Developer ID signing, Apple notarization and stapling, DMG packaging, SHA-256 generation, and `gh release create --latest --verify-tag`. Every release uploads the fixed asset names `Codex-Account-Switcher-macos-arm64.dmg` and `Codex-Account-Switcher-macos-arm64.dmg.sha256`, so public download links can permanently use `releases/latest/download/...`. A mismatched tag or commit fails with the conflicting values visible in the log.
 
 ### Project map
 

@@ -59,7 +59,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
 
-1. [下载 Codex Account Switcher v0.1.6 Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.1.6/Codex-Account-Switcher-v0.1.6-macos-arm64.dmg)。
+1. [下载最新版 Codex Account Switcher Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)。
 2. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
 3. 启动应用，在 macOS 菜单栏中找到账号切换器。
 4. 通过浏览器添加每个账号一次，之后选择需要的账号。
@@ -153,7 +153,7 @@ swift test
 
 只有推送一个已经存在的 `v*` tag 才会启动 release workflow。普通 `main` push 仍会运行 CI，不会启动发布，也不会自动创建 tag。维护者需先将 `CITATION.cff`、本地打包默认版本和 Codex app-server 客户端版本更新为同一个语义化版本，合并到 `main`，再从当前 `origin/main` commit 创建并推送对应 tag。
 
-tag workflow 会校验 tag 名与三处版本，并要求 tag commit 和检出的 commit 都等于当前 `origin/main`。同 tag 的 GitHub Release 已存在时，workflow 成功结束，不重复构建或发布；Release 缺失时，GitHub runner 才会执行测试、Developer ID 签名、Apple 公证与票据附加、DMG 打包、SHA-256 生成，以及 `gh release create --latest --verify-tag`。tag 或 commit 不一致时，日志会显示冲突值并直接失败。
+tag workflow 会校验 tag 名与三处版本，并要求 tag commit 和检出的 commit 都等于当前 `origin/main`。同 tag 的 GitHub Release 已存在时，workflow 成功结束，不重复构建或发布；Release 缺失时，GitHub runner 才会执行测试、Developer ID 签名、Apple 公证与票据附加、DMG 打包、SHA-256 生成，以及 `gh release create --latest --verify-tag`。每个 Release 都上传固定名称的 `Codex-Account-Switcher-macos-arm64.dmg` 和 `Codex-Account-Switcher-macos-arm64.dmg.sha256`，公开下载链接可永久使用 `releases/latest/download/...`。tag 或 commit 不一致时，日志会显示冲突值并直接失败。
 
 ### 项目结构
 

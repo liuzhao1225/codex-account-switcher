@@ -160,7 +160,7 @@ jobs:
           export CODESIGN_IDENTITY="$signing_identity"
           app_path=$(./scripts/package-local-app.sh | tail -n 1)
           app_archive="$RUNNER_TEMP/Codex-Account-Switcher.app.zip"
-          artifact=".build/artifacts/Codex-Account-Switcher-${RELEASE_TAG}-macos-arm64.dmg"
+          artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
           dmg_root="$RUNNER_TEMP/dmg-root"
 
           mkdir -p .build/artifacts
@@ -250,7 +250,7 @@ jobs:
           tag_commit=$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")
           main_commit=$(git rev-parse origin/main^{commit})
           test "$tag_commit" = "$main_commit"
-          artifact=".build/artifacts/Codex-Account-Switcher-${RELEASE_TAG}-macos-arm64.dmg"
+          artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
           gh release create "$RELEASE_TAG" "$artifact" "$artifact.sha256" \
             --title "Codex Account Switcher ${RELEASE_TAG}" \
             --notes-file .github/release-notes.md \

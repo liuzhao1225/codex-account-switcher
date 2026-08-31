@@ -5,6 +5,7 @@ const root = process.cwd();
 const siteRoot = path.join(root, "site");
 const baseURL = "https://liuzhao1225.github.io/codex-account-switcher/";
 const llmsURL = `${baseURL}llms.txt`;
+const latestDMGURL = "https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg";
 const errors = [];
 
 function fail(message) {
@@ -84,6 +85,10 @@ for (const file of htmlFiles) {
   for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)) {
     const target = localTargetForHref(file, match[1]);
     if (target && !fs.existsSync(target)) fail(`${relative}: broken internal link ${match[1]}`);
+  }
+
+  for (const match of html.matchAll(/https:\/\/github\.com\/liuzhao1225\/codex-account-switcher\/releases\/[^"'\s<]+\.dmg/g)) {
+    if (match[0] !== latestDMGURL) fail(`${relative}: release download must use ${latestDMGURL}`);
   }
 }
 
