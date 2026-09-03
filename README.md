@@ -8,8 +8,8 @@
 <h1 align="center">Codex Account Switcher</h1>
 
 <p align="center">
-  <strong>Switch Codex accounts from your Mac menu bar.</strong><br>
-  Add accounts once, then choose when you need them. No Terminal commands or config-file editing.
+  <strong>Switch Codex accounts and configured model providers from your Mac menu bar.</strong><br>
+  Add accounts once, then choose an account or provider when you need it.
 </p>
 
 <p align="center">
@@ -37,9 +37,9 @@
 
 <p align="center">Created and maintained by <a href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">Zhao Liu (GitHub: liuzhao1225)</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
 
-Codex Account Switcher is a free, native Mac app for people who use more than one authorized Codex account. Add personal, work, or client accounts through the browser once, then choose the account you need from the menu bar. The everyday workflow requires no coding knowledge, Terminal commands, copied tokens, or config-file editing.
+Codex Account Switcher is a free, native Mac app for people who use more than one authorized Codex account or model provider. Add personal, work, or client accounts through the browser once, then choose the account you need from the menu bar. Custom providers already configured in Codex, such as Azure OpenAI or a local gateway, appear in the same popover without exposing their credentials to the switcher UI.
 
-After you select and confirm an account, the app closes Codex Desktop, completes the account handoff, verifies the selected identity, and reopens Desktop. Saved account data stays on your Mac. The app runs without its own proxy, traffic router, cloud account service, or automatic account rotation.
+After you select and confirm an account or provider, the app closes Codex Desktop, applies the selection through Codex's local interfaces, and reopens Desktop. Account selections activate the built-in OpenAI provider and verify the selected identity. Provider selections update only Codex's `model_provider`; their existing authentication configuration remains owned by Codex. Saved account data stays on your Mac. The app runs without its own proxy, traffic router, cloud account service, or automatic account rotation.
 
 ## Official project identity
 
@@ -83,6 +83,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | --- | --- |
 | **No-code setup** | Add accounts through the normal browser sign-in flow, with no Terminal commands or config files. |
 | **Menu-bar account choice** | Keep personal, work, and client accounts clearly labeled in one Mac menu. |
+| **Configured provider choice** | Select custom providers already declared in Codex configuration without manually editing `model_provider`. |
 | **Completed Desktop handoff** | Select and confirm an account, then let the app close, switch, verify, and reopen Codex Desktop. |
 | **Local account storage** | Keep saved account data on your Mac without an app-owned proxy or cloud account service. |
 | **Usage at a glance** | Check weekly allowance by default, or enable the exact 300-minute (5-hour) service window and reset time in Settings. The optional row is off by default. |
@@ -93,8 +94,11 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 1. **Download the Mac app:** open the Apple-notarized DMG and drag the app to Applications.
 2. **Add each account once:** complete the familiar browser sign-in and give each account a clear name.
 3. **Choose and continue:** select an account from the menu bar, confirm, and let the app reopen Codex Desktop.
+4. **Use configured providers when needed:** select a provider already present under Codex's `model_providers` configuration; the switcher updates the active provider and restarts Desktop.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
+
+Codex binds each conversation to the provider it was created with. A provider switch applies to new conversations; continuing an older conversation with another provider requires creating or forking a conversation in Codex.
 
 ## Feedback wanted
 
@@ -110,6 +114,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.
 - The current release uses file-backed credential storage and does not store profile credentials in macOS Keychain.
 - The product runs without its own account proxy, traffic router, or cloud account service.
+- Provider discovery and selection use the installed Codex app-server. The switcher stores no custom-provider API key, does not read provider environment-variable values, and changes only `model_provider`.
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
@@ -200,6 +205,14 @@ No. Install the app, add each account through a normal browser sign-in, then cho
 ### How do I switch accounts?
 
 Add each authorized account once. Select the account from the menu bar and confirm. The app closes Codex Desktop, completes the handoff, verifies the selected account, and reopens Desktop.
+
+### How do I switch model providers?
+
+Configure the provider in Codex first. It then appears under **Configured Providers** in the menu-bar popover. Selecting it changes Codex's active `model_provider` and reopens Desktop. Existing conversations keep their original provider.
+
+### Can I enter an API key in the switcher?
+
+Not currently. Provider credentials remain under Codex or the provider's configured authentication mechanism. This keeps provider selection separate from secret handling and avoids storing additional API keys in the switcher's application data.
 
 ### Does it switch accounts automatically?
 

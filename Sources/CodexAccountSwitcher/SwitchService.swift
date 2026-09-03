@@ -17,14 +17,25 @@ struct SwitchService: SwitchServicing {
     let desktop: any DesktopControlling
     let store: any AccountStoring
     let codex: any CodexIdentityReading
+    let configuration: any ProviderConfigurationServicing
 
     func switchAccount(to targetID: UUID) async throws {
         let target: AccountProfile
         let originalActiveID: UUID
+        let codexHome = await store.activeCodexHome()
+        let originalProviderID: String
         do {
             target = try await store.profile(id: targetID)
         } catch {
             throw OperationError.stage(.activateTargetCredential, error)
+        }
+
+        do {
+            originalProviderID = try await configuration
+                .readConfiguration(codexHome: codexHome)
+                .activeProviderID
+        } catch {
+            throw OperationError.stage(.activateTargetProvider, error)
         }
 
         do {
@@ -57,13 +68,30 @@ struct SwitchService: SwitchServicing {
         }
 
         do {
-            let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
+            try await configuration.activateProvider(
+                id: CodexConfigurationClient.openAIProviderID,
+                codexHome: codexHome
+            )
+        } catch {
+            throw await restoringOriginalState(
+                originalActiveID: originalActiveID,
+                originalProviderID: originalProviderID,
+                codexHome: codexHome,
+                failedStage: .activateTargetProvider,
+                originalError: error
+            )
+        }
+
+        do {
+            let identity = try await codex.readIdentity(profileHome: codexHome)
             guard identity.matches(target) else {
                 throw CodexClientError.identityUnavailable
             }
         } catch {
-            throw await restoringOriginalCredential(
+            throw await restoringOriginalState(
                 originalActiveID: originalActiveID,
+                originalProviderID: originalProviderID,
+                codexHome: codexHome,
                 failedStage: .verifyTargetIdentity,
                 originalError: error
             )
@@ -72,8 +100,10 @@ struct SwitchService: SwitchServicing {
         do {
             try await store.commitActiveAccountID(targetID)
         } catch {
-            throw await restoringOriginalCredential(
+            throw await restoringOriginalState(
                 originalActiveID: originalActiveID,
+                originalProviderID: originalProviderID,
+                codexHome: codexHome,
                 failedStage: .commitActiveAccountID,
                 originalError: error
             )
@@ -86,28 +116,39 @@ struct SwitchService: SwitchServicing {
         }
     }
 
-    private func restoringOriginalCredential(
+    private func restoringOriginalState(
         originalActiveID: UUID,
+        originalProviderID: String,
+        codexHome: URL,
         failedStage: SwitchStage,
         originalError: any Error
     ) async -> OperationError {
+        var restorationErrors: [String] = []
         do {
             try await store.restoreActiveCredential(id: originalActiveID)
-            return OperationError.stage(failedStage, originalError)
         } catch let restorationError {
-            return OperationError(
-                stage: failedStage,
-                titleKey: "switch_failed",
-                messageKey: nil,
-                message: """
-                \(originalError.localizedDescription) Restoring the previous credential also failed: \
-                \(restorationError.localizedDescription)
-                """,
-                underlyingDescription: """
-                \(String(describing: originalError)); restoration: \
-                \(String(describing: restorationError))
-                """
-            )
+            restorationErrors.append("credential: \(restorationError.localizedDescription)")
         }
+        do {
+            try await configuration.activateProvider(id: originalProviderID, codexHome: codexHome)
+        } catch let restorationError {
+            restorationErrors.append("provider: \(restorationError.localizedDescription)")
+        }
+        guard !restorationErrors.isEmpty else {
+            return OperationError.stage(failedStage, originalError)
+        }
+        return OperationError(
+            stage: failedStage,
+            titleKey: "switch_failed",
+            messageKey: nil,
+            message: """
+            \(originalError.localizedDescription) Restoring the previous state also failed: \
+            \(restorationErrors.joined(separator: "; "))
+            """,
+            underlyingDescription: """
+            \(String(describing: originalError)); restoration: \
+            \(restorationErrors.joined(separator: "; "))
+            """
+        )
     }
 }

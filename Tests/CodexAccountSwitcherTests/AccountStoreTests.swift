@@ -91,7 +91,8 @@ struct AccountStoreTests {
         let service = SwitchService(
             desktop: StoreTestDesktop(),
             store: fixture.store,
-            codex: StoreTestFailingCodex()
+            codex: StoreTestFailingCodex(),
+            configuration: StoreTestConfiguration()
         )
 
         for _ in 0..<2 {
@@ -125,7 +126,8 @@ struct AccountStoreTests {
         let service = SwitchService(
             desktop: StoreTestDesktop(),
             store: fixture.store,
-            codex: StoreTestMatchingCodex(target: profiles.target)
+            codex: StoreTestMatchingCodex(target: profiles.target),
+            configuration: StoreTestConfiguration()
         )
 
         do {
@@ -289,6 +291,14 @@ private struct StoreTestMatchingCodex: CodexIdentityReading {
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         AccountIdentity(accountID: target.accountID, email: target.email)
     }
+}
+
+private struct StoreTestConfiguration: ProviderConfigurationServicing {
+    func readConfiguration(codexHome: URL) -> ProviderConfigurationSnapshot {
+        ProviderConfigurationSnapshot(activeProviderID: "openai", providers: [])
+    }
+
+    func activateProvider(id: String, codexHome: URL) {}
 }
 
 private struct StoreFixture {

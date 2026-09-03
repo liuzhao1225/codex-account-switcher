@@ -2,12 +2,13 @@
 
 ## 1. Overview
 
-Codex Account Switcher is a native macOS menu-bar application that manages multiple local Codex authentication snapshots.
+Codex Account Switcher is a native macOS menu-bar application that manages multiple local Codex authentication snapshots and selects custom model providers already configured in Codex.
 
-The system has one core operation:
+The system has two core operations:
 
 ```text
 copy the selected profile's auth.json into ~/.codex/auth.json
+set model_provider through the Codex app-server configuration API
 ```
 
 Everything else exists to make that operation understandable and usable:
@@ -17,7 +18,9 @@ Everything else exists to make that operation understandable and usable:
 - close and reopen Codex Desktop;
 - save the currently active credential before replacing it;
 - verify that Codex can read the selected identity;
-- maintain a small amount of local metadata.
+- maintain a small amount of local metadata;
+- list configured providers without reading their environment-variable values;
+- restore the built-in OpenAI provider when a saved ChatGPT account is selected.
 
 The MVP uses direct sequential code and lets failures surface. One bounded consistency action restores the validated original profile credential when target verification or the registry commit fails after activation. There is no general rollback framework.
 
@@ -26,6 +29,7 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 ### 2.1 Goals
 
 - one-click account selection after one confirmation;
+- one-click configured-provider selection after one confirmation;
 - native macOS behavior;
 - no modification to Codex Desktop;
 - shared Codex configuration and history under `~/.codex`;
@@ -45,7 +49,9 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 - secure enclave or Keychain integration;
 - account routing per request;
 - concurrent account use inside one Codex process;
-- compatibility abstraction for every future Codex authentication backend.
+- compatibility abstraction for every future Codex authentication backend;
+- API-key entry or custom-provider credential storage;
+- moving an existing conversation to another provider.
 
 ## 3. Platform and technology
 
@@ -70,6 +76,8 @@ flowchart LR
     VM[AppModel @MainActor]
     Store[AccountStore actor]
     Switch[SwitchService]
+    ProviderSwitch[ProviderSwitchService]
+    ProviderConfig[CodexConfigurationClient]
     Codex[CodexClient]
     Desktop[DesktopController]
     Login[macOS Login Items]
@@ -79,10 +87,14 @@ flowchart LR
     VM --> Store
     VM --> Switch
     VM --> Codex
+    VM --> ProviderSwitch
     VM --> Login
     Switch --> Store
     Switch --> Desktop
     Switch --> Codex
+    Switch --> ProviderConfig
+    ProviderSwitch --> Desktop
+    ProviderSwitch --> ProviderConfig
     Store --> FS
     Codex --> CLI[Installed codex executable]
 ```
@@ -97,14 +109,17 @@ Sources/CodexAccountSwitcher/
 ├── AppModel.swift
 ├── MenuBarPopover.swift
 ├── AccountRow.swift
+├── ProviderRow.swift
 ├── ManageAccountsView.swift
 ├── SettingsView.swift
 ├── Models.swift
 ├── Localization.swift
 ├── AccountStore.swift
 ├── CodexClient.swift
+├── CodexConfigurationClient.swift
 ├── WeeklyUsageNormalizer.swift
 ├── SwitchService.swift
+├── ProviderSwitchService.swift
 └── DesktopController.swift
 
 Tests/CodexAccountSwitcherTests/
@@ -250,6 +265,7 @@ enum SwitchStage: String {
     case closeDesktop
     case saveCurrentCredential
     case activateTargetCredential
+    case activateTargetProvider
     case verifyTargetIdentity
     case commitActiveAccountID
     case reopenDesktop
@@ -348,7 +364,15 @@ WeeklyUsage(
 
 If no six-to-eight-day window exists, return `weeklyUsageUnavailable`. Missing 5-hour data leaves the optional fields empty. A 4-hour or 6-hour window never populates them. The client makes one `account/rateLimits/read` request and parses both windows from the same response whether the display setting is on or off.
 
-### 9.4 Timeouts
+### 9.4 Provider configuration
+
+`CodexConfigurationClient` calls `config/read` to obtain the active `model_provider` and configured `model_providers`. It retains only provider identifiers and display names for the UI. Selecting a provider calls `config/value/write` with `keyPath = "model_provider"`, then reads the configuration again to verify the result.
+
+The switcher does not persist provider definitions or custom-provider secrets. Environment variables, command-backed authentication, and other provider-specific credential mechanisms remain owned by Codex and the user's existing configuration.
+
+Conversation provider identity is persisted by Codex. The switcher does not edit Codex's thread database or rollout files, so provider selection applies to new conversations and does not mutate existing conversations.
+
+### 9.5 Timeouts
 
 Use one fixed 20-second process/request timeout. Login completion has a separate 10-minute timeout. On timeout:
 

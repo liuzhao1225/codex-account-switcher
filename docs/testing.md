@@ -5,7 +5,7 @@
 The MVP test suite should prove two things:
 
 1. the direct happy path works;
-2. failures stop exactly where they occur and remain visible while the bounded pre-commit credential restoration preserves account consistency.
+2. failures stop exactly where they occur and remain visible while bounded credential and provider restoration preserves account consistency.
 
 It should test the documented verification/commit restoration and confirm that no general rollback state machine, retry, credential backup file, journal, or startup recovery exists.
 
@@ -56,6 +56,16 @@ Test:
 - differing emails fail;
 - missing ID and email fails.
 
+### 2.4 Provider configuration
+
+Test:
+
+- custom provider identifiers and configured names are read from `config/read`;
+- missing provider names receive a readable label derived from the identifier;
+- the built-in `openai` provider is not duplicated in the custom-provider list;
+- unknown providers are rejected before a write;
+- `config/value/write` changes only `model_provider` and the result is verified with a fresh read.
+
 ## 3. Switch-flow tests
 
 Use fakes for Desktop, account storage, and Codex identity.
@@ -66,6 +76,7 @@ Expected call order:
 closeDesktop
 saveCurrent
 activateTarget
+activateOpenAIProvider
 readActiveIdentity
 commitActiveAccountID
 openDesktop
@@ -87,6 +98,9 @@ Specific partial-state assertions:
 - a retry after restoration cannot overwrite the original profile with target credentials;
 - a restoration failure reports both the original and restoration errors;
 - Desktop-open error leaves target auth and target metadata active.
+- provider activation failure restores both the original credential and provider;
+- configured-provider switching runs close, activate, and reopen in order;
+- a provider write followed by verification failure restores the original provider.
 
 Use both the fake store and the real `AccountStore` so call ordering, atomic credential installation, registry-write failure, and on-disk bytes are covered.
 
@@ -110,6 +124,7 @@ Assert that the client does not retry, makes one rate-limit request per read, an
 Verify:
 
 - current row is highlighted;
+- configured providers appear in a separate section and expose selected state;
 - no checkmark or `Current` label exists;
 - reset text remains on the name line in the default compact layout;
 - enabled 5-hour display shows separate 5h and 7d rows with percentages and reset times;
@@ -129,7 +144,9 @@ Verify:
 - a short-interval timer test proves that a manual refresh postpones the previous deadline and cancellation stops later rounds;
 - active profile remove button is disabled;
 - disabling Show 5-hour Usage restores the existing weekly row layout;
-- the menu-bar percentage remains weekly when 5-hour display is enabled.
+- the menu-bar percentage remains weekly when 5-hour display is enabled;
+- the menu-bar percentage is hidden while a custom provider is active;
+- provider confirmation explains that existing conversations keep their original provider.
 
 ## 6. Manual test matrix
 
@@ -161,6 +178,10 @@ With two real test accounts:
 16. force identity mismatch and confirm the original `auth.json` is restored while the mismatch remains visible;
 17. make `accounts.json` unwritable and confirm the original `auth.json` is restored while the state-write failure remains visible;
 18. make restoration fail and confirm both errors are shown.
+19. configure a custom provider, confirm it appears by configured name, and switch to it;
+20. confirm only `model_provider` changes and the provider's credential configuration is untouched;
+21. confirm a new conversation uses the selected provider and an existing conversation remains on its original provider;
+22. select a saved ChatGPT account and confirm the built-in `openai` provider is restored before identity verification.
 
 ## 7. Repository checks
 

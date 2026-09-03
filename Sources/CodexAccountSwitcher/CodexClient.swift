@@ -446,6 +446,32 @@ struct CodexClient: CodexIdentityReading, WeeklyUsageReading, LoginServicing {
         }
     }
 
+    func readConfiguration(profileHome: URL) async throws -> JSONValue {
+        try await withSession(profileHome: profileHome) { session in
+            try await session.request(
+                method: "config/read",
+                id: 1,
+                params: ["includeLayers": false],
+                timeout: requestTimeout
+            )
+        }
+    }
+
+    func writeModelProvider(_ providerID: String, profileHome: URL) async throws {
+        _ = try await withSession(profileHome: profileHome) { session in
+            try await session.request(
+                method: "config/value/write",
+                id: 1,
+                params: [
+                    "keyPath": "model_provider",
+                    "value": providerID,
+                    "mergeStrategy": "replace",
+                ],
+                timeout: requestTimeout
+            )
+        }
+    }
+
     private func withSession<T: Sendable>(
         profileHome: URL,
         operation: (JSONRPCSession) async throws -> T

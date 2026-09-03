@@ -80,6 +80,32 @@ private struct FakeCodex: CodexIdentityReading {
     }
 }
 
+private actor FakeProviderConfiguration: ProviderConfigurationServicing {
+    let recorder: Recorder?
+    private var providerID: String
+
+    init(providerID: String = "openai", recorder: Recorder? = nil) {
+        self.providerID = providerID
+        self.recorder = recorder
+    }
+
+    func readConfiguration(codexHome: URL) -> ProviderConfigurationSnapshot {
+        ProviderConfigurationSnapshot(
+            activeProviderID: providerID,
+            providers: [ProviderProfile(id: "azure", displayName: "Azure OpenAI")]
+        )
+    }
+
+    func activateProvider(id: String, codexHome: URL) async {
+        await recorder?.append(.activateTargetProvider)
+        providerID = id
+    }
+}
+
+private struct FakeProviderSwitchService: ProviderSwitchServicing {
+    func switchProvider(to providerID: String) async throws {}
+}
+
 private struct InjectedReopenFailure: LocalizedError {
     var errorDescription: String? { "Injected Desktop reopen failure" }
 }
@@ -252,14 +278,27 @@ struct CoreChecks {
         try secondBytes.write(to: activeCredential)
 
         let recorder = Recorder()
+        let providerConfiguration = FakeProviderConfiguration(providerID: "azure", recorder: recorder)
         let switcher = SwitchService(
             desktop: FakeDesktop(recorder: recorder),
             store: FakeStore(recorder: recorder, original: first, target: second),
-            codex: FakeCodex(recorder: recorder, target: second)
+            codex: FakeCodex(recorder: recorder, target: second),
+            configuration: providerConfiguration
         )
         try await switcher.switchAccount(to: second.id)
         let recordedStages = await recorder.snapshot()
         try require(recordedStages == SwitchStage.allCases, "switch stage order")
+        let providerSwitcher = ProviderSwitchService(
+            desktop: FakeDesktop(recorder: recorder),
+            store: FakeStore(recorder: recorder, original: first, target: second),
+            configuration: providerConfiguration
+        )
+        try await providerSwitcher.switchProvider(to: "azure")
+        let providerSwitchStages = Array((await recorder.snapshot()).suffix(3))
+        try require(
+            providerSwitchStages == [.closeDesktop, .activateTargetProvider, .reopenDesktop],
+            "provider switch stage order"
+        )
 
         let fakeCodex = root.appending(path: "fake-codex")
         try createExecutable(at: fakeCodex, body: """
@@ -294,10 +333,49 @@ struct CoreChecks {
         let identity = try await client.readIdentity(profileHome: root)
         try require(identity.accountID == "acct-123", "JSONL account handshake")
 
+        let providerMarker = root.appending(path: "provider-selected")
+        let providerCodex = root.appending(path: "provider-codex")
+        try createExecutable(at: providerCodex, body: """
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\\n' '{"id":0,"result":{}}' ;;
+            *config*read*)
+              if test -f '\(providerMarker.path)'; then
+                printf '%s\\n' '{"id":1,"result":{"config":{"model_provider":"openai","model_providers":{"azure":{"name":"Azure OpenAI"}}},"origins":{}}}'
+              else
+                printf '%s\\n' '{"id":1,"result":{"config":{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI"},"local_proxy":{}}},"origins":{}}}'
+              fi
+              ;;
+            *config*value*write*)
+              : > '\(providerMarker.path)'
+              printf '%s\\n' '{"id":1,"result":{"filePath":"/tmp/config.toml","status":"ok","version":"1"}}'
+              ;;
+          esac
+        done
+        """)
+        let providerClient = CodexConfigurationClient(
+            codex: CodexClient(
+                locator: CodexExecutableLocator(explicitURL: providerCodex),
+                requestTimeout: .seconds(3)
+            )
+        )
+        let providerSnapshot = try await providerClient.readConfiguration(codexHome: root)
+        try require(providerSnapshot.activeProviderID == "azure", "active provider discovery")
+        try require(
+            providerSnapshot.providers.map(\.displayName) == ["Azure OpenAI", "Local Proxy"],
+            "configured provider discovery and display names"
+        )
+        try await providerClient.activateProvider(id: "openai", codexHome: root)
+        let updatedProviderSnapshot = try await providerClient.readConfiguration(codexHome: root)
+        try require(updatedProviderSnapshot.activeProviderID == "openai", "provider activation")
+
         let appModel = AppModel(
             store: store,
             codex: client,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await appModel.start()
         try require(
@@ -362,7 +440,9 @@ struct CoreChecks {
         let countingModel = AppModel(
             store: store,
             codex: countingClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await countingModel.start()
         try require(countingModel.accounts.count == 3, "counting model loaded all profiles")
@@ -412,7 +492,9 @@ struct CoreChecks {
         let scheduledModel = AppModel(
             store: store,
             codex: scheduledClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await scheduledModel.startBackgroundUsageRefresh(every: .seconds(3))
         try await waitForLineCount(at: scheduledRequestCountURL, atLeast: 2)
@@ -501,7 +583,9 @@ struct CoreChecks {
         let failureModel = AppModel(
             store: store,
             codex: failingClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await failureModel.start()
         failureModel.refreshWeeklyUsage()

@@ -29,16 +29,32 @@ struct MenuBarPopover: View {
                     SettingsView(model: model) {
                         page = .accounts
                     }
-                case let .confirmSwitch(account):
+                case let .confirmAccountSwitch(account):
                     SwitchConfirmationPage(
-                        model: model,
-                        account: account,
+                        title: model.format("switch_title", account.displayName),
+                        message: model.text("switch_body"),
+                        cancelTitle: model.text("cancel"),
+                        confirmTitle: model.text("switch_account"),
                         onCancel: {
                             page = .accounts
                         },
                         onConfirm: {
                             page = .accounts
                             Task { await model.switchAccount(to: account.id) }
+                        }
+                    )
+                case let .confirmProviderSwitch(provider):
+                    SwitchConfirmationPage(
+                        title: model.format("switch_provider_title", provider.displayName),
+                        message: model.text("switch_provider_body"),
+                        cancelTitle: model.text("cancel"),
+                        confirmTitle: model.text("switch_provider"),
+                        onCancel: {
+                            page = .accounts
+                        },
+                        onConfirm: {
+                            page = .accounts
+                            Task { await model.switchProvider(to: provider) }
                         }
                     )
                 }
@@ -65,31 +81,55 @@ struct MenuBarPopover: View {
                     .background(.orange.opacity(0.08))
             }
 
-            if model.accounts.isEmpty {
+            if model.accounts.isEmpty && model.providers.isEmpty {
                 Text(model.text("no_accounts"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 28)
             } else {
                 VStack(spacing: 2) {
-                    ForEach(model.accounts) { account in
-                        Button {
-                            if account.id == model.activeAccountID {
-                                NSApp.keyWindow?.close()
-                            } else {
-                                page = .confirmSwitch(account)
+                    if !model.accounts.isEmpty {
+                        sectionHeader(model.text("accounts"))
+                        ForEach(model.accounts) { account in
+                            Button {
+                                if model.isAccountActive(account) {
+                                    NSApp.keyWindow?.close()
+                                } else {
+                                    page = .confirmAccountSwitch(account)
+                                }
+                            } label: {
+                                AccountRow(
+                                    account: account,
+                                    usageState: model.usageStates[account.id] ?? .idle,
+                                    isActive: model.isAccountActive(account),
+                                    language: model.settings.language,
+                                    showsFiveHourUsage: model.settings.showsFiveHourUsage
+                                )
                             }
-                        } label: {
-                            AccountRow(
-                                account: account,
-                                usageState: model.usageStates[account.id] ?? .idle,
-                                isActive: account.id == model.activeAccountID,
-                                language: model.settings.language,
-                                showsFiveHourUsage: model.settings.showsFiveHourUsage
-                            )
+                            .buttonStyle(.plain)
+                            .disabled(model.isMutating)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(model.isMutating)
+                    }
+
+                    if !model.providers.isEmpty {
+                        sectionHeader(model.text("providers"))
+                        ForEach(model.providers) { provider in
+                            Button {
+                                if model.isProviderActive(provider) {
+                                    NSApp.keyWindow?.close()
+                                } else {
+                                    page = .confirmProviderSwitch(provider)
+                                }
+                            } label: {
+                                ProviderRow(
+                                    provider: provider,
+                                    isActive: model.isProviderActive(provider),
+                                    language: model.settings.language
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(model.isMutating)
+                        }
                     }
                 }
                 .padding(5)
@@ -125,43 +165,56 @@ struct MenuBarPopover: View {
             .padding(.vertical, 5)
         }
     }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 9.5, weight: .semibold))
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.top, 5)
+            .padding(.bottom, 1)
+    }
 }
 
 private enum PopoverPage {
     case accounts
     case manageAccounts
     case settings
-    case confirmSwitch(AccountProfile)
+    case confirmAccountSwitch(AccountProfile)
+    case confirmProviderSwitch(ProviderProfile)
 }
 
 private struct SwitchConfirmationPage: View {
-    @ObservedObject var model: AppModel
-    let account: AccountProfile
+    let title: String
+    let message: String
+    let cancelTitle: String
+    let confirmTitle: String
     let onCancel: () -> Void
     let onConfirm: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             PopoverHeader(
-                title: model.format("switch_title", account.displayName),
-                backTitle: model.text("cancel"),
+                title: title,
+                backTitle: cancelTitle,
                 onBack: onCancel
             )
 
             Divider()
 
             VStack(alignment: .leading, spacing: 14) {
-                Text(model.text("switch_body"))
+                Text(message)
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 7) {
-                    Button(model.text("cancel"), action: onCancel)
+                    Button(cancelTitle, action: onCancel)
                         .buttonStyle(.bordered)
                         .frame(maxWidth: .infinity)
 
-                    Button(model.text("switch"), action: onConfirm)
+                    Button(confirmTitle, action: onConfirm)
                         .buttonStyle(.borderedProminent)
                         .frame(maxWidth: .infinity)
                 }
