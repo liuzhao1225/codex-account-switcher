@@ -152,6 +152,17 @@ Create a local app bundle:
 ./scripts/package-local-app.sh
 ```
 
+To package a specific Codex app-server backend and use it for both the switcher and Codex Desktop:
+
+```bash
+CODEX_BACKEND_BINARY=/absolute/path/to/codex \
+CODEX_CODE_MODE_HOST_BINARY=/absolute/path/to/codex-code-mode-host \
+./scripts/package-local-app.sh
+```
+
+Both executables are required because Codex Desktop resolves the code-mode host beside the selected
+app-server executable.
+
 The bundle is written to `.build/release/Codex Account Switcher.app`.
 
 ### Automated releases

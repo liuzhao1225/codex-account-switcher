@@ -8,6 +8,22 @@ RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
 APP_ICON="$PROJECT_DIR/assets/AppIcon.icns"
 APP_VERSION=${RELEASE_VERSION:-0.1.6}
 CODESIGN_IDENTITY=${CODESIGN_IDENTITY:--}
+CODEX_BACKEND_BINARY=${CODEX_BACKEND_BINARY:-}
+CODEX_CODE_MODE_HOST_BINARY=${CODEX_CODE_MODE_HOST_BINARY:-}
+
+if [[ -n "$CODEX_BACKEND_BINARY" ]]; then
+    if [[ ! -x "$CODEX_BACKEND_BINARY" ]]; then
+        echo "CODEX_BACKEND_BINARY is not an executable file: $CODEX_BACKEND_BINARY" >&2
+        exit 1
+    fi
+    if [[ ! -x "$CODEX_CODE_MODE_HOST_BINARY" ]]; then
+        echo "CODEX_CODE_MODE_HOST_BINARY is required and must be executable when packaging a Codex backend." >&2
+        exit 1
+    fi
+elif [[ -n "$CODEX_CODE_MODE_HOST_BINARY" ]]; then
+    echo "CODEX_BACKEND_BINARY is required when CODEX_CODE_MODE_HOST_BINARY is set." >&2
+    exit 1
+fi
 
 cd "$PROJECT_DIR"
 BUILD_ARGUMENTS=(-c release)
@@ -27,6 +43,12 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BUILD_DIR/CodexAccountSwitcher" "$MACOS_DIR/CodexAccountSwitcher"
 chmod 0755 "$MACOS_DIR/CodexAccountSwitcher"
+if [[ -n "$CODEX_BACKEND_BINARY" ]]; then
+    cp "$CODEX_BACKEND_BINARY" "$MACOS_DIR/codex"
+    cp "$CODEX_CODE_MODE_HOST_BINARY" "$MACOS_DIR/codex-code-mode-host"
+    chmod 0755 "$MACOS_DIR/codex"
+    chmod 0755 "$MACOS_DIR/codex-code-mode-host"
+fi
 ditto "$BUILD_DIR/$RESOURCE_BUNDLE" "$RESOURCES_DIR/$RESOURCE_BUNDLE"
 ditto "$APP_ICON" "$RESOURCES_DIR/AppIcon.icns"
 cp "$PROJECT_DIR/LICENSE" "$RESOURCES_DIR/LICENSE.txt"

@@ -432,6 +432,12 @@ If Desktop is not running, `close()` succeeds immediately.
 ### 11.2 Open
 
 Use `NSWorkspace.shared.openApplication` with the installed Codex application URL.
+Resolve the Codex executable through `CodexExecutableLocator` and pass its path to Desktop as
+`CODEX_CLI_PATH`. This keeps the switcher's app-server operations and Codex Desktop on the same
+backend implementation. Local packages can embed that executable by setting
+`CODEX_BACKEND_BINARY` and its required sibling `CODEX_CODE_MODE_HOST_BINARY` when running
+`scripts/package-local-app.sh`. Packaging fails if only one executable is supplied, preventing a
+Desktop installation whose terminal and code-mode tools cannot start.
 
 If launch fails, return the AppKit error. The account switch remains at whatever stage already completed; no automatic account restoration occurs.
 
