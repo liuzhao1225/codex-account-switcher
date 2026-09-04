@@ -2,12 +2,13 @@
 
 ## 1. Product principle
 
-Codex Account Switcher is a simple switcher. Every persistent control must directly support one of four jobs:
+Codex Account Switcher is a simple switcher. Every persistent control must directly support one of five jobs:
 
 1. inspect account Usage;
 2. select an account;
 3. maintain the saved account list;
-4. exit the application.
+4. exit the application;
+5. select a custom model provider already configured in Codex.
 
 Anything outside those jobs is excluded from the MVP.
 
@@ -31,6 +32,8 @@ The current account is represented by a highlighted row. It does not use:
 - a checkmark;
 - a `Current` label;
 - a second status column.
+
+Custom providers returned by Codex are shown in a separate **Configured Providers** section. Provider rows show a configured name, use a checkmark in addition to highlighting for active state, and never display ChatGPT Usage.
 
 The footer divides its width equally between:
 
@@ -73,6 +76,8 @@ These are product semantics, not Settings options.
 
 The confirmation renders inside the popover. Cancel returns to the account list, keeps the popover open, and starts no switch operation.
 
+Provider selection uses a separate confirmation that states two fixed consequences: Codex Desktop restarts, and existing conversations remain bound to their original provider.
+
 ## 5. Direct switching flow
 
 The switch implementation is intentionally sequential:
@@ -82,6 +87,7 @@ Preflight target and original active profile
 → close Codex Desktop
 → save current credentials
 → activate target credentials
+→ activate the built-in OpenAI provider
 → verify target identity
 → commit active profile
 → reopen Codex Desktop
@@ -99,6 +105,10 @@ The MVP does not implement:
 - silent fallback to the previous account.
 
 When a step fails, execution stops and the exact original error is shown. If the bounded credential restoration also fails, the same error report contains both failures.
+
+Configured-provider switching closes Codex Desktop, writes only `model_provider` through Codex app-server, and reopens Desktop. A failed provider activation attempts to restore the previous provider. A Desktop-reopen failure keeps the selected provider active.
+
+Provider credentials are not an account-switching concern. The app does not request or store custom-provider API keys, read provider environment-variable values, or execute provider authentication commands itself.
 
 ## 6. Credential storage
 

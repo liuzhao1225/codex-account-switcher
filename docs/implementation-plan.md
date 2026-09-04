@@ -143,7 +143,26 @@ Implement:
 - app icon and menu-bar icon;
 - local `.app` packaging script.
 
-## 9. Suggested first implementation order
+## 9. Milestone 8 — configured providers
+
+Implement:
+
+- provider discovery through `config/read`;
+- a separate **Configured Providers** section;
+- provider activation through `config/value/write`;
+- built-in OpenAI provider activation during account switching;
+- bounded provider restoration when activation cannot be verified;
+- clear messaging that existing conversations remain provider-bound.
+
+Exit criteria:
+
+- every configured custom provider appears by configured name or readable identifier;
+- provider selection restarts Codex Desktop and changes only `model_provider`;
+- account selection restores `openai` before identity verification;
+- the switcher does not request or persist custom-provider credentials;
+- thread databases and rollout files are never edited.
+
+## 10. Suggested first implementation order
 
 ```text
 AccountProfile
@@ -153,11 +172,12 @@ AccountProfile
 → DesktopController
 → CodexClient identity and Usage
 → SwitchService
+→ CodexConfigurationClient and ProviderSwitchService
 → Manage Accounts
 → localization
 ```
 
-## 10. Code-review checklist
+## 11. Code-review checklist
 
 Before merging MVP code, verify:
 
@@ -176,4 +196,7 @@ Before merging MVP code, verify:
 - active account is a row highlight;
 - CLI processes are not enumerated or killed;
 - errors include the failed stage;
-- auth contents are never logged.
+- auth contents are never logged;
+- provider credentials are never requested, persisted, or logged;
+- provider switching uses Codex app-server configuration APIs;
+- existing conversations are not rewritten to another provider.

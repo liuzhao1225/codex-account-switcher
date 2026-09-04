@@ -17,6 +17,16 @@ struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendable {
     }
 }
 
+struct ProviderProfile: Identifiable, Equatable, Hashable, Sendable {
+    let id: String
+    let displayName: String
+}
+
+struct ProviderConfigurationSnapshot: Equatable, Sendable {
+    let activeProviderID: String
+    let providers: [ProviderProfile]
+}
+
 struct AccountRegistry: Codable, Equatable, Sendable {
     var activeAccountID: UUID?
     var accounts: [AccountProfile]
@@ -145,6 +155,7 @@ enum SwitchStage: String, CaseIterable, Sendable {
     case closeDesktop
     case saveCurrentCredential
     case activateTargetCredential
+    case activateTargetProvider
     case verifyTargetIdentity
     case commitActiveAccountID
     case reopenDesktop
@@ -230,6 +241,23 @@ enum CodexClientError: LocalizedError, Equatable, Sendable {
             "No weekly Codex Usage window is available."
         case let .loginFailed(message):
             "Codex login failed: \(message)"
+        }
+    }
+}
+
+enum ProviderConfigurationError: LocalizedError, Equatable, Sendable {
+    case malformedConfiguration
+    case providerNotConfigured(String)
+    case providerDidNotActivate(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .malformedConfiguration:
+            "Codex returned an invalid provider configuration."
+        case let .providerNotConfigured(identifier):
+            "The Codex provider '\(identifier)' is not configured."
+        case let .providerDidNotActivate(identifier):
+            "Codex did not activate the provider '\(identifier)'."
         }
     }
 }

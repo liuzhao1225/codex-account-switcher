@@ -3,6 +3,8 @@ import Foundation
 
 enum DesktopControllerError: LocalizedError, Sendable {
     case applicationNotFound
+    case backendNotFound
+    case backendCompanionNotFound
     case quitRequestFailed
     case forceQuitFailed
     case didNotExit
@@ -12,6 +14,10 @@ enum DesktopControllerError: LocalizedError, Sendable {
         switch self {
         case .applicationNotFound:
             "The Codex Desktop application could not be found."
+        case .backendNotFound:
+            "The Codex app-server executable could not be found."
+        case .backendCompanionNotFound:
+            "The Codex code-mode host could not be found beside the app-server executable."
         case .quitRequestFailed:
             "Codex Desktop rejected the quit request."
         case .forceQuitFailed:
@@ -27,6 +33,11 @@ enum DesktopControllerError: LocalizedError, Sendable {
 struct DesktopController: DesktopControlling {
     private let bundleIdentifiers = ["com.openai.codex"]
     private let applicationPaths = ["/Applications/ChatGPT.app", "/Applications/Codex.app"]
+    private let codexLocator: CodexExecutableLocator
+
+    init(codexLocator: CodexExecutableLocator = .init()) {
+        self.codexLocator = codexLocator
+    }
 
     func closeDesktop() async throws {
         let running = NSWorkspace.shared.runningApplications.filter { application in
@@ -69,8 +80,22 @@ struct DesktopController: DesktopControlling {
         guard let url = applicationURL() else {
             throw DesktopControllerError.applicationNotFound
         }
+        let codexURL: URL
+        do {
+            codexURL = try codexLocator.locate()
+        } catch {
+            throw DesktopControllerError.backendNotFound
+        }
+        let codeModeHostURL = codexURL
+            .deletingLastPathComponent()
+            .appending(path: "codex-code-mode-host")
+        guard FileManager.default.isExecutableFile(atPath: codeModeHostURL.path) else {
+            throw DesktopControllerError.backendCompanionNotFound
+        }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
+        configuration.createsNewApplicationInstance = true
+        configuration.environment = ["CODEX_CLI_PATH": codexURL.path]
         do {
             _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
         } catch {
