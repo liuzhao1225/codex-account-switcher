@@ -221,6 +221,8 @@ jobs:
           mounted_app="$mount_point/Codex Account Switcher.app"
           mounted_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mounted_app/Contents/Info.plist")
           test "$mounted_version" = "$RELEASE_VERSION"
+          mounted_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$mounted_app/Contents/Info.plist")
+          test "$mounted_build" = "$RELEASE_VERSION"
           mounted_icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$mounted_app/Contents/Info.plist")
           test "$mounted_icon" = "AppIcon"
           test -s "$mounted_app/Contents/Resources/AppIcon.icns"
@@ -241,6 +243,26 @@ jobs:
           )
           cat "$artifact.sha256"
 
+      - name: Sign the Sparkle update feed
+        if: env.SHOULD_RELEASE == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SPARKLE_PRIVATE_KEY"
+          key_file="$RUNNER_TEMP/sparkle-private-key"
+          trap 'rm -f "$key_file"' EXIT
+          umask 077
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
+          .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+            --ed-key-file "$key_file" \
+            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/" \
+            --full-release-notes-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}" \
+            --maximum-deltas 0 \
+            -o .build/artifacts/appcast.xml \
+            .build/artifacts
+          test -s .build/artifacts/appcast.xml
+
       - name: Create GitHub Release
         if: env.SHOULD_RELEASE == 'true'
         env:
@@ -251,7 +273,7 @@ jobs:
           main_commit=$(git rev-parse origin/main^{commit})
           test "$tag_commit" = "$main_commit"
           artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
-          gh release create "$RELEASE_TAG" "$artifact" "$artifact.sha256" \
+          gh release create "$RELEASE_TAG" "$artifact" "$artifact.sha256" .build/artifacts/appcast.xml \
             --title "Codex Account Switcher ${RELEASE_TAG}" \
             --notes-file .github/release-notes.md \
             --latest \

@@ -180,7 +180,9 @@ enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case profileNotFound
     case activeProfileMissing
     case activeCredentialMissing
+    case activeCredentialMismatch
     case targetCredentialMissing
+    case duplicateAccount
     case cannotRemoveActiveAccount
 
     var errorDescription: String? {
@@ -191,8 +193,12 @@ enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "No active account profile is configured."
         case .activeCredentialMissing:
             "The active Codex auth.json file is missing."
+        case .activeCredentialMismatch:
+            "Codex is signed in to a different account than Switcher expects. No saved credential was overwritten. Use Register Current Account to associate the current login before switching."
         case .targetCredentialMissing:
             "The selected account has no saved auth.json file."
+        case .duplicateAccount:
+            "This account is already saved. Select the existing account instead."
         case .cannotRemoveActiveAccount:
             "The active account cannot be removed."
         }
@@ -205,6 +211,7 @@ enum CodexClientError: LocalizedError, Equatable, Sendable {
     case malformedResponse
     case remoteError(code: Int?, message: String)
     case connectionClosed
+    case connectionClosedWithDetails(String)
     case timeout
     case identityUnavailable
     case weeklyUsageUnavailable
@@ -222,6 +229,8 @@ enum CodexClientError: LocalizedError, Equatable, Sendable {
             code.map { "Codex app-server error \($0): \(message)" } ?? "Codex app-server error: \(message)"
         case .connectionClosed:
             "Codex app-server closed the connection."
+        case let .connectionClosedWithDetails(details):
+            "Codex app-server closed the connection: \(details)"
         case .timeout:
             "Codex app-server did not respond before the timeout."
         case .identityUnavailable:

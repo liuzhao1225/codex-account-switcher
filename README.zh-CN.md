@@ -73,6 +73,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | --- | --- |
 | macOS | 14 Sonoma 或更高版本 |
 | 处理器 | Apple Silicon（`arm64`） |
+| Codex 运行时 | 系统 `codex` 命令或共享的 `CODEX_CLI_PATH` 设置 |
 | 分发形式 | GitHub Releases DMG |
 | 下载体积 | 约 2 MB |
 | 主要用途 | 切换 Codex Desktop 账号 |
@@ -91,7 +92,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 ## 工作原理
 
 1. **下载 Mac 应用：** 打开已完成 Apple 公证的 DMG，把应用拖入“应用程序”。
-2. **每个账号添加一次：** 完成熟悉的浏览器登录，并给每个账号设置清晰名称。
+2. **每个账号添加一次：** 完成熟悉的浏览器登录，应用根据登录身份生成账号名称。
 3. **选择后继续使用：** 从菜单栏选择账号并确认，由应用重新打开 Codex Desktop。
 
 已经运行的终端进程会保留原有运行状态。启动新的 Codex CLI 进程即可使用刚刚选择的账号。
@@ -122,12 +123,12 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.6](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.6) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.7](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.7) 提供 |
 | 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `v*` tag 后发布签名版本 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.6 提供 |
+| DMG 发布 | 已在 v0.1.7 提供 |
 
 ## 开发
 
@@ -199,7 +200,7 @@ swift test
 
 ### 如何切换账号？
 
-每个获准使用的账号添加一次，从菜单栏选择并确认。应用会关闭 Codex Desktop、完成交接、校验所选账号，再重新打开 Desktop。
+每个获准使用的账号添加一次。先完成或停止正在运行的 Desktop 任务，再从菜单栏选择并确认。如 Desktop 显示退出提示，请处理该提示。应用最多等待 30 秒正常退出，随后完成交接、校验所选账号并重新打开 Desktop；无法正常退出时会停止切换，账号保持不变。
 
 ### 应用会自动切换账号吗？
 
@@ -220,3 +221,11 @@ swift test
 ## 许可证
 
 Codex Account Switcher 基于 [MIT License](LICENSE) 发布。
+
+## 0.1.7 自动更新
+
+0.1.7 通过 Sparkle 每小时检查更新。菜单栏蓝点和主页底部工具栏上方的更新行提示新版本；点击更新后，由框架下载、安装并重启 Switcher。设置页提供手动检查和自动检查开关。账号操作进行中会延后最终重启。
+
+发布前需要配置仓库 `SPARKLE_PRIVATE_KEY`，并上传带签名的 `appcast.xml`。已安装的 0.1.6 没有更新器，需要先手动升级一次。发布流程将带签名的更新源与公证 DMG 一同上传。
+
+保留机制、修复及仍存在的设计缺口见[全项目消融报告](docs/project-ablation-2026-09-05.md)。

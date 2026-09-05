@@ -4,13 +4,9 @@ import Darwin
 protocol AccountStoring: Sendable {
     func loadRegistry() async throws -> AccountRegistry
     func profile(id: UUID) async throws -> AccountProfile
-    func profileHome(id: UUID) async -> URL
-    func activeCodexHome() async -> URL
     func activeCredentialExists() async -> Bool
-    func createProfileDirectory(id: UUID) async throws -> URL
-    func importCurrentProfile(_ profile: AccountProfile) async throws
-    func addProfile(_ profile: AccountProfile) async throws
-    func removeAccount(id: UUID) async throws
+    func clearActiveCredential() async throws
+    func activeCodexHome() async -> URL
     func saveCurrentCredential() async throws
     func activateTargetCredential(id: UUID) async throws
     func restoreActiveCredential(id: UUID) async throws
@@ -154,8 +150,30 @@ actor AccountStore: AccountStoring {
         }
         try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: authURL.path)
         var current = try loadRegistry()
+        let identity = AccountIdentity(accountID: profile.accountID, email: profile.email)
+        guard !current.accounts.contains(where: { identity.matches($0) }) else {
+            throw AccountStoreError.duplicateAccount
+        }
         current.accounts.append(profile)
         try saveRegistry(current)
+    }
+
+    func discardUnregisteredProfile(id: UUID) throws {
+        guard try !loadRegistry().accounts.contains(where: { $0.id == id }) else { return }
+        let directory = profileHome(id: id)
+        if fileManager.fileExists(atPath: directory.path) { try fileManager.removeItem(at: directory) }
+    }
+
+    func registerActiveIdentity(_ identity: AccountIdentity) throws {
+        let current = try loadRegistry()
+        if let profile = current.accounts.first(where: { identity.matches($0) }) {
+            try copyCredential(from: activeHomeURL.appending(path: "auth.json"),
+                               to: profileHome(id: profile.id).appending(path: "auth.json"))
+            try commitActiveAccountID(profile.id)
+        } else {
+            try importCurrentProfile(AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
+                email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date()))
+        }
     }
 
     func removeAccount(id: UUID) throws {
@@ -171,9 +189,22 @@ actor AccountStore: AccountStoring {
             cache.entries.removeAll(where: { $0.profileID == id })
             try saveUsageCache(cache)
         }
-        try fileManager.removeItem(at: profileHome(id: id))
+        let original = current
         current.accounts.removeAll(where: { $0.id == id })
         try saveRegistry(current)
+        do {
+            try fileManager.removeItem(at: profileHome(id: id))
+        } catch {
+            let removalError = error
+            do {
+                try saveRegistry(original)
+            } catch {
+                throw NSError(domain: "CodexAccountSwitcher.AccountStore", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "\(removalError.localizedDescription) Restoring the account list also failed: \(error.localizedDescription)",
+                ])
+            }
+            throw removalError
+        }
     }
 
     func saveCurrentCredential() throws {
@@ -193,6 +224,10 @@ actor AccountStore: AccountStoring {
 
     func activateTargetCredential(id: UUID) throws {
         try installCredential(id: id)
+    }
+
+    func clearActiveCredential() throws {
+        try fileManager.removeItem(at: activeHomeURL.appending(path: "auth.json"))
     }
 
     func restoreActiveCredential(id: UUID) throws {

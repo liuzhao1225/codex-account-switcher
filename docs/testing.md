@@ -150,8 +150,8 @@ With two real test accounts:
 5. confirm the menu-bar percentage still matches weekly Usage;
 6. start a Codex CLI under A;
 7. switch A → B;
-8. with an active local chat, confirm the switcher closes Desktop without visual automation or manual interaction;
-9. confirm Desktop reopens as B without manual confirmation or restart;
+8. with an active local chat, leave Desktop's native quit dialog pending and confirm a close-stage error after 30 seconds, with account A still active and Desktop still running; then finish or stop the task and close Desktop normally;
+9. switch again and confirm Desktop reopens as B; reopen existing tasks and check their earlier and latest messages;
 10. confirm the existing CLI was not terminated;
 11. start a new CLI and confirm it uses B;
 12. switch B → A;
@@ -179,6 +179,8 @@ launch-at-login state comes from macOS Service Management
 no account-rename UI or model operation
 ```
 
+History safety regression tests cover a graceful exit taking more than two seconds, timeout and cancellation, no credential mutation after a close-stage failure, byte preservation of history/index/WAL files through A → B → A, and selection of Desktop's runtime override. These checks do not prove recovery of an already damaged Codex history projection.
+
 ## 8. Release automation checks
 
 The release workflow runs only on `v*` tag pushes under one repository-wide release concurrency group. Static validation should confirm:
@@ -190,3 +192,13 @@ The release workflow runs only on `v*` tag pushes under one repository-wide rele
 - an existing GitHub Release sets `SHOULD_RELEASE=false` and all tests, signing, notarization, packaging, and publication steps skip successfully;
 - a missing Release sets `SHOULD_RELEASE=true`, then the tag workflow runs tests, signing, notarization, packaging, checksum generation, and `gh release create --latest --verify-tag`;
 - conflicting tags and API failures stop with the original values visible.
+
+## 9. Whole-project ablation and integrity regression
+
+See [the September 5 full-project report](project-ablation-2026-09-05.md) for the fixed baseline, single-removal matrix, local evidence, and open lifecycle gaps. The final suite executes 50 tests across seven suites plus CoreChecks. On the local CLT setup, build completion from `swift test` alone is insufficient; the separate Swift Testing runner actually executed the suite.
+
+New regression cases cover external-login contamination, successful RPC responses with a wrong target identity, account-list write failure before credential deletion, list restoration after deletion failure, a final JSON response without a newline, unrelated RPC error IDs, subprocess error details, numeric overflow, and Codex quota isolation from other metered products.
+
+Public release acceptance still requires a signed feed, an increasing Sparkle build version, and a real download/install/relaunch test. Delegate simulations and local codesign verification do not establish those outcomes.
+
+Release follow-up: the full runner now executes 54 tests, including parameterized first-activation success and failure cases. An isolated Sparkle app completed a real signed download/install/relaunch from 0.1.7 to 0.1.8; see the ablation report for the fixture boundaries.

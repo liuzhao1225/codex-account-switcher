@@ -250,6 +250,7 @@ final class AppModel: ObservableObject {
                     underlyingDescription: error.underlyingDescription
                 )
             } else {
+                if error.stage == .saveCurrentCredential { activeIdentityConfirmed = false }
                 visibleError = error
             }
         } catch {
@@ -273,8 +274,8 @@ final class AppModel: ObservableObject {
     }
 
     private func performAddAccount() async {
+        let id = UUID()
         do {
-            let id = UUID()
             let home = try await store.createProfileDirectory(id: id)
             try Task.checkCancellation()
             let identity = try await codex.login(profileHome: home)
@@ -289,11 +290,31 @@ final class AppModel: ObservableObject {
             )
             try await store.addProfile(profile)
             apply(try await store.loadRegistry())
-        } catch is CancellationError {
-            return
         } catch {
-            showError(error)
+            let loginError = error
+            do {
+                try await store.discardUnregisteredProfile(id: id)
+            } catch {
+                showError(NSError(domain: "CodexAccountSwitcher.Login", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "\(loginError.localizedDescription) Removing the incomplete profile also failed: \(error.localizedDescription)",
+                ]))
+                return
+            }
+            if !(loginError is CancellationError) { showError(loginError) }
         }
+    }
+
+    func registerCurrentAccount() async {
+        guard !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        do {
+            let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
+            try await store.registerActiveIdentity(identity)
+            apply(try await store.loadRegistry())
+            activeIdentityConfirmed = true
+            visibleError = nil
+        } catch { showError(error) }
     }
 
     func removeAccount(id: UUID) async {

@@ -3,6 +3,15 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct SwitchServiceTests {
+    @Test func quitFailureLeavesBothAccountsUntouched() async {
+        let fixture = SwitchFixture(failure: .closeDesktop)
+        await expectFailure(fixture, stage: .closeDesktop)
+        #expect(await fixture.recorder.snapshot() == [.closeDesktop])
+        #expect(await fixture.store.credentialOwner() == fixture.original.id)
+        #expect(await fixture.store.activeAccountID() == fixture.original.id)
+        #expect(await fixture.store.restoredProfileIDs().isEmpty)
+    }
+
     @Test func executesTheSixSwitchStagesInOrder() async throws {
         let fixture = SwitchFixture(failure: nil)
 
@@ -144,6 +153,7 @@ private struct FakeDesktop: DesktopControlling {
 }
 
 private actor FakeStore: AccountStoring {
+    func clearActiveCredential() {}
     let recorder: CallRecorder
     let failure: SwitchStage?
     let restoreFails: Bool
@@ -228,8 +238,12 @@ private actor FakeStore: AccountStoring {
 private struct FakeCodex: CodexIdentityReading {
     let recorder: CallRecorder
     let failure: SwitchStage?
+    let store: FakeStore
     let target: AccountProfile
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        if await store.credentialOwner() == store.original.id {
+            return AccountIdentity(accountID: store.original.accountID, email: store.original.email)
+        }
         await recorder.append(.verifyTargetIdentity)
         if failure == .verifyTargetIdentity { throw InjectedFailure(stage: .verifyTargetIdentity) }
         return AccountIdentity(accountID: target.accountID, email: target.email)
@@ -265,7 +279,7 @@ private struct SwitchFixture {
         service = SwitchService(
             desktop: FakeDesktop(recorder: recorder, failure: failure),
             store: store,
-            codex: FakeCodex(recorder: recorder, failure: failure, target: target)
+            codex: FakeCodex(recorder: recorder, failure: failure, store: store, target: target)
         )
     }
 }

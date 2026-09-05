@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updater: AppUpdater
     let onBack: () -> Void
 
     var body: some View {
@@ -109,6 +110,40 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 44)
             }
+
+            Divider()
+            Button(model.text("register_current_account")) {
+                Task { await model.registerCurrentAccount() }
+            }
+            .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
+            .padding(10)
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(model.format("current_version", updater.currentVersion))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(model.text("check_for_updates")) { updater.checkForUpdates() }
+                        .disabled((!updater.canCheckForUpdates && updater.availableVersion == nil)
+                            || updater.isInstalling || model.isMutating || model.isAddingAccount)
+                }
+                Toggle(model.text("automatically_check_updates"), isOn: Binding(
+                    get: { updater.automaticallyChecks },
+                    set: { updater.setAutomaticallyChecks($0) }
+                ))
+                .toggleStyle(.switch)
+                Text(model.text("update_check_hint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let error = updater.lastError {
+                    Text(model.text("update_check_failed") + " " + error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(.system(size: 11.5))
+            .padding(14)
         }
         .onAppear {
             model.refreshLaunchAtLoginStatus()

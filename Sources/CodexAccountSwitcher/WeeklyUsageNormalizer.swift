@@ -30,6 +30,6 @@ enum WeeklyUsageNormalizer {
     }
 
     private static func remainingPercent(for window: RateLimitWindow) -> Int {
-        min(100, max(0, Int((100 - window.usedPercent).rounded())))
+        Int(min(100, max(0, (100 - window.usedPercent).rounded())))
     }
 }

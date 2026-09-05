@@ -43,6 +43,7 @@ private struct FakeDesktop: DesktopControlling {
 }
 
 private actor FakeStore: AccountStoring {
+    func clearActiveCredential() {}
     let recorder: Recorder
     let original: AccountProfile
     let target: AccountProfile
@@ -70,11 +71,22 @@ private actor FakeStore: AccountStoring {
     func commitActiveAccountID(_ id: UUID) async { await recorder.append(.commitActiveAccountID) }
 }
 
-private struct FakeCodex: CodexIdentityReading {
+private actor FakeCodex: CodexIdentityReading {
     let recorder: Recorder
+    let original: AccountProfile
     let target: AccountProfile
+    private var hasVerifiedOriginal = false
+    init(recorder: Recorder, original: AccountProfile, target: AccountProfile) {
+        self.recorder = recorder
+        self.original = original
+        self.target = target
+    }
 
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        if !hasVerifiedOriginal {
+            hasVerifiedOriginal = true
+            return AccountIdentity(accountID: original.accountID, email: original.email)
+        }
         await recorder.append(.verifyTargetIdentity)
         return AccountIdentity(accountID: target.accountID, email: target.email)
     }
@@ -255,7 +267,7 @@ struct CoreChecks {
         let switcher = SwitchService(
             desktop: FakeDesktop(recorder: recorder),
             store: FakeStore(recorder: recorder, original: first, target: second),
-            codex: FakeCodex(recorder: recorder, target: second)
+            codex: FakeCodex(recorder: recorder, original: first, target: second)
         )
         try await switcher.switchAccount(to: second.id)
         let recordedStages = await recorder.snapshot()

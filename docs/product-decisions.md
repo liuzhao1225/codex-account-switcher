@@ -9,7 +9,7 @@ Codex Account Switcher is a simple switcher. Every persistent control must direc
 3. maintain the saved account list;
 4. exit the application.
 
-Anything outside those jobs is excluded from the MVP.
+The September 5 update adds one explicit maintenance job: keep Switcher current through a quiet update notice and user-initiated installation. Sparkle owns scheduling, downloading, validation, and relaunch. Other product expansion remains outside the MVP.
 
 ## 2. Main menu
 

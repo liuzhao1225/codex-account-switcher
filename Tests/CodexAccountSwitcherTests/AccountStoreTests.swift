@@ -4,6 +4,182 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct AccountStoreTests {
+    @Test(arguments: ["success", "wrong-identity", "commit-failure"])
+    func firstActivationHandlesSuccessAndFailure(outcome: String) async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let auth = fixture.activeHome.appending(path: "auth.json")
+        try FileManager.default.removeItem(at: auth)
+        let profile = AccountProfile(id: UUID(), displayName: "First", email: nil, accountID: "first", createdAt: Date())
+        let home = try await fixture.store.createProfileDirectory(id: profile.id)
+        let bytes = Data((outcome == "wrong-identity" ? #"{"accountId":"wrong"}"# : #"{"accountId":"first"}"#).utf8)
+        try bytes.write(to: home.appending(path: "auth.json"))
+        try await fixture.store.addProfile(profile)
+        let registry = fixture.support.appending(path: "accounts.json")
+        if outcome == "commit-failure" {
+            guard Darwin.chflags(registry.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
+        }
+        defer { _ = Darwin.chflags(registry.path, 0) }
+        let service = SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+        if outcome == "success" {
+            try await service.switchAccount(to: profile.id)
+            #expect(try await fixture.store.loadRegistry().activeAccountID == profile.id)
+            #expect(try Data(contentsOf: auth) == bytes)
+        } else {
+            await #expect(throws: OperationError.self) { try await service.switchAccount(to: profile.id) }
+            #expect(try await fixture.store.loadRegistry().activeAccountID == nil)
+            #expect(!FileManager.default.fileExists(atPath: auth.path))
+        }
+        #expect(try Data(contentsOf: home.appending(path: "auth.json")) == bytes)
+    }
+
+    @Test func duplicateIdentityIsRejectedButDifferentWorkspaceIsAllowed() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        for accountID in [profiles.target.accountID!, "other-workspace"] {
+            let profile = AccountProfile(id: UUID(), displayName: "Another", email: profiles.target.email,
+                                         accountID: accountID, createdAt: Date())
+            let home = try await fixture.store.createProfileDirectory(id: profile.id)
+            try Data("test-only".utf8).write(to: home.appending(path: "auth.json"))
+            if accountID == profiles.target.accountID {
+                await #expect(throws: AccountStoreError.duplicateAccount) { try await fixture.store.addProfile(profile) }
+                try await fixture.store.discardUnregisteredProfile(id: profile.id)
+                #expect(!FileManager.default.fileExists(atPath: home.path))
+            } else {
+                try await fixture.store.addProfile(profile)
+                try await fixture.store.discardUnregisteredProfile(id: profile.id)
+                #expect(FileManager.default.fileExists(atPath: home.path))
+            }
+        }
+        #expect(try await fixture.store.loadRegistry().accounts.count == 3)
+    }
+
+    @Test func registeringExternalLoginReusesIdentityAndPreservesOtherProfiles() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let bytes = Data(#"{"accountId":"target-id","email":"target@example.com","refresh":"new"}"#.utf8)
+        try bytes.write(to: fixture.activeHome.appending(path: "auth.json"))
+        try await fixture.store.registerActiveIdentity(AccountIdentity(accountID: "target-id", email: "target@example.com"))
+        let current = try await fixture.store.loadRegistry()
+        #expect(current.accounts.count == 2)
+        #expect(current.activeAccountID == profiles.target.id)
+        let target = await fixture.store.profileHome(id: profiles.target.id)
+        let original = await fixture.store.profileHome(id: profiles.original.id)
+        #expect(try Data(contentsOf: target.appending(path: "auth.json")) == bytes)
+        #expect(try Data(contentsOf: original.appending(path: "auth.json")) == profiles.originalBytes)
+    }
+
+    @Test @MainActor func failedLoginRemovesOnlyItsUnregisteredProfile() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let executable = fixture.root.appending(path: "fake-login")
+        try Data(#"""
+        #!/bin/sh
+        read -r line
+        printf '%s' 'test-only' > "$CODEX_HOME/auth.json"
+        printf '%s\n' 'malformed handshake'
+        """#.utf8).write(to: executable)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let model = AppModel(store: fixture.store, codex: CodexClient(locator: .init(explicitURL: executable)),
+            switchService: SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex()))
+        model.addAccount()
+        for _ in 0..<200 where model.isAddingAccount { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(!model.isAddingAccount)
+        #expect(model.visibleError != nil)
+        let directories = try FileManager.default.contentsOfDirectory(atPath: fixture.support.appending(path: "accounts").path)
+        #expect(Set(directories) == Set([profiles.original.id.uuidString, profiles.target.id.uuidString]))
+    }
+
+    @Test func externalLoginCannotOverwriteTheSavedOriginalAccount() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let external = Data(#"{"accountId":"external","email":"external@example.com"}"#.utf8)
+        try external.write(to: fixture.activeHome.appending(path: "auth.json"))
+        do {
+            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+                .switchAccount(to: profiles.target.id)
+            Issue.record("An external login must not be saved under the original account")
+        } catch let error as OperationError {
+            #expect(error.stage == .saveCurrentCredential)
+        }
+        let originalHome = await fixture.store.profileHome(id: profiles.original.id)
+        #expect(try Data(contentsOf: originalHome.appending(path: "auth.json")) == profiles.originalBytes)
+        #expect(try Data(contentsOf: fixture.activeHome.appending(path: "auth.json")) == external)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == profiles.original.id)
+    }
+
+    @Test func wrongTargetIdentityRestoresOriginalWithoutCommitting() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let targetHome = await fixture.store.profileHome(id: profiles.target.id)
+        try Data(#"{"accountId":"wrong","email":"wrong@example.com"}"#.utf8)
+            .write(to: targetHome.appending(path: "auth.json"))
+        do {
+            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+                .switchAccount(to: profiles.target.id)
+            Issue.record("A successful RPC with the wrong identity must not commit the target")
+        } catch let error as OperationError {
+            #expect(error.stage == .verifyTargetIdentity)
+        }
+        #expect(try Data(contentsOf: fixture.activeHome.appending(path: "auth.json")) == profiles.originalBytes)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == profiles.original.id)
+    }
+
+    @Test func failedAccountListWriteDoesNotDeleteCredentials() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let registry = fixture.support.appending(path: "accounts.json")
+        guard Darwin.chflags(registry.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
+        defer { _ = Darwin.chflags(registry.path, 0) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        let home = await fixture.store.profileHome(id: profiles.target.id)
+        #expect(FileManager.default.fileExists(atPath: home.appending(path: "auth.json").path))
+        #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
+    }
+
+    @Test func failedCredentialDeletionKeepsAccountInList() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let auth = await fixture.store.profileHome(id: profiles.target.id).appending(path: "auth.json")
+        guard Darwin.chflags(auth.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
+        defer { _ = Darwin.chflags(auth.path, 0) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        #expect(FileManager.default.fileExists(atPath: auth.path))
+        #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
+    }
+
+    @Test func switchingPreservesThreadHistoryAndSidebarFiles() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        let paths = [
+            "sessions/2026/09/05/rollout.jsonl", "archived_sessions/rollout.jsonl",
+            "state_5.sqlite", "state_5.sqlite-wal", "thread_history_1.sqlite",
+            "thread_history_1.sqlite-wal", "session_index.jsonl", ".codex-global-state.json",
+        ]
+        for path in paths {
+            let url = fixture.activeHome.appending(path: path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("unchanged:\(path)".utf8).write(to: url)
+        }
+        for target in [profiles.target, profiles.original] {
+            try await SwitchService(
+                desktop: StoreTestDesktop(), store: fixture.store,
+                codex: StoreTestMatchingCodex()
+            ).switchAccount(to: target.id)
+            for path in paths {
+                #expect(try Data(contentsOf: fixture.activeHome.appending(path: path)) == Data("unchanged:\(path)".utf8))
+            }
+        }
+    }
+
     @Test func persistsProfilesAndEnforcesLifecycleRules() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -125,7 +301,7 @@ struct AccountStoreTests {
         let service = SwitchService(
             desktop: StoreTestDesktop(),
             store: fixture.store,
-            codex: StoreTestMatchingCodex(target: profiles.target)
+            codex: StoreTestMatchingCodex()
         )
 
         do {
@@ -257,6 +433,8 @@ struct AccountStoreTests {
             id: UUID(), displayName: "Original", email: "original@example.com",
             accountID: "original-id", createdAt: Date(), lastUsedAt: nil
         )
+        try Data(#"{"accountId":"original-id","email":"original@example.com"}"#.utf8)
+            .write(to: fixture.activeHome.appending(path: "auth.json"))
         try await fixture.store.importCurrentProfile(original)
         let originalAuth = await fixture.store.profileHome(id: original.id).appending(path: "auth.json")
         let originalBytes = try Data(contentsOf: originalAuth)
@@ -266,7 +444,8 @@ struct AccountStoreTests {
             accountID: "target-id", createdAt: Date(), lastUsedAt: nil
         )
         let targetHome = try await fixture.store.createProfileDirectory(id: target.id)
-        try Data("target-auth".utf8).write(to: targetHome.appending(path: "auth.json"))
+        try Data(#"{"accountId":"target-id","email":"target@example.com"}"#.utf8)
+            .write(to: targetHome.appending(path: "auth.json"))
         try await fixture.store.addProfile(target)
         return (original, target, originalBytes)
     }
@@ -279,15 +458,16 @@ private struct StoreTestDesktop: DesktopControlling {
 
 private struct StoreTestFailingCodex: CodexIdentityReading {
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
-        throw CodexClientError.identityUnavailable
+        let identity = try await StoreTestMatchingCodex().readIdentity(profileHome: profileHome)
+        if identity.accountID == "target-id" { throw CodexClientError.identityUnavailable }
+        return identity
     }
 }
 
 private struct StoreTestMatchingCodex: CodexIdentityReading {
-    let target: AccountProfile
-
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
-        AccountIdentity(accountID: target.accountID, email: target.email)
+        let fields = try JSONSerialization.jsonObject(with: Data(contentsOf: profileHome.appending(path: "auth.json"))) as! [String: String]
+        return AccountIdentity(accountID: fields["accountId"], email: fields["email"])
     }
 }
 

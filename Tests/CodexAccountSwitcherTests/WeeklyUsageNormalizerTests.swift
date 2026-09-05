@@ -3,6 +3,15 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct WeeklyUsageNormalizerTests {
+    @Test func clampsExtremePercentagesBeforeIntegerConversion() throws {
+        for (used, expected) in [(1e100, 0), (-1e100, 100)] {
+            let usage = try WeeklyUsageNormalizer.normalize([
+                RateLimitWindow(usedPercent: used, windowDurationMins: 10_080, resetsAt: 100),
+            ])
+            #expect(usage.remainingPercent == expected)
+        }
+    }
+
     @Test func selectsLongestWeeklyWindowAndCalculatesRemaining() throws {
         let reset = Date(timeIntervalSince1970: 1_750_000_000)
         let result = try WeeklyUsageNormalizer.normalize([

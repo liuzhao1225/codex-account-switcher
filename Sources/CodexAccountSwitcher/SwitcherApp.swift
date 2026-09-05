@@ -4,13 +4,20 @@ import SwiftUI
 @main
 struct SwitcherApp: App {
     @StateObject private var model = AppModel.live()
+    @StateObject private var updater = AppUpdater()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarPopover(model: model)
+            MenuBarPopover(model: model, updater: updater)
         } label: {
             HStack(spacing: 4) {
                 MenuBarLogo()
+                    .overlay(alignment: .topTrailing) {
+                        if updater.availableVersion != nil {
+                            Circle().fill(.blue).frame(width: 5, height: 5)
+                                .offset(x: 2, y: -1)
+                        }
+                    }
                 if model.settings.showsMenuBarPercentage,
                    let remainingPercent = model.activeRemainingPercent {
                     Text("\(remainingPercent)%")
@@ -20,7 +27,11 @@ struct SwitcherApp: App {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(menuBarAccessibilityLabel)
                 .task {
+                    updater.start()
                     await model.startBackgroundUsageRefresh()
+                }
+                .onChange(of: model.isMutating || model.isAddingAccount) { _, busy in
+                    updater.accountOperationInProgress = busy
                 }
         }
         .menuBarExtraStyle(.window)
@@ -30,12 +41,13 @@ struct SwitcherApp: App {
     }
 
     private var menuBarAccessibilityLabel: String {
+        let updateStatus = updater.availableVersion.map { ", " + model.format("update_available", $0) } ?? ""
         guard model.settings.showsMenuBarPercentage,
               let remainingPercent = model.activeRemainingPercent
         else {
-            return "Codex Account Switcher"
+            return "Codex Account Switcher" + updateStatus
         }
-        return "Codex Account Switcher, \(remainingPercent)%"
+        return "Codex Account Switcher, \(remainingPercent)%" + updateStatus
     }
 }
 

@@ -265,11 +265,10 @@ The stage is held in memory only for progress and error messages.
 Lookup order:
 
 1. test-only explicit URL;
-2. `CODEX_SWITCHER_CODEX_PATH` override;
-3. a bundled auxiliary executable;
-4. `/Applications/ChatGPT.app/Contents/Resources/codex`;
-5. `/Applications/Codex.app/Contents/Resources/codex`;
-6. the inherited `PATH`.
+2. the login shell's shared `CODEX_CLI_PATH`, resolved through its `PATH` when it is a command name;
+3. the login shell's `codex` command when no shared override is set.
+
+The runtime version is never pinned. Each operation resolves the current system command. The same login-shell PATH is passed to app-server so npm launchers can resolve Node. A missing command or invalid explicit path is an error; the switcher does not silently start another bundled version.
 
 If not found, show one direct error:
 
@@ -294,7 +293,7 @@ The client communicates with newline-delimited JSON-RPC messages over stdin/stdo
 Basic handshake:
 
 ```json
-{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.6"}}}
+{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codex_account_switcher","title":"Codex Account Switcher","version":"0.1.7"}}}
 {"method":"initialized","params":{}}
 ```
 
@@ -322,7 +321,7 @@ There is no fallback to local display name or file hash.
 
 ### 9.3 Usage read
 
-Call `account/rateLimits/read`, collect `primary` and `secondary` windows from both top-level and named rate-limit buckets, then normalize by duration:
+Call `account/rateLimits/read`. Select `rateLimitsByLimitId["codex"]` when present, otherwise the legacy `rateLimits`. Normalize only that bucket’s `primary` and `secondary`; never merge other metered products:
 
 ```text
 fiveHour = first window where windowDurationMins == 300
@@ -401,7 +400,9 @@ func open() async throws
 
 Use `NSRunningApplication` for the Codex Desktop bundle identifier and call `terminate()`.
 
-Codex Desktop can display the `Quit ChatGPT?` confirmation while work is active. Allow two seconds for a normal exit; if Desktop is still running, call `NSRunningApplication.forceTerminate()` for the same `com.openai.codex` application. This is deterministic and does not depend on screenshots, coordinates, localization, or Accessibility access. After the force-quit request, allow up to 15 seconds for Electron and its helper processes to exit; return a clear error if the request is rejected or Desktop remains running.
+Codex Desktop can display a quit confirmation while work is active. Allow up to 30 seconds for its normal exit, including its history and settings flush. Never force-terminate Desktop. If the quit request is rejected or Desktop remains running, report a close-stage error before saving or replacing credentials. The user can finish or stop active tasks, close Desktop, and switch again. Cancellation also stops the wait.
+
+The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. There is no switcher-specific override or automatic selection of another bundled CLI.
 
 If Desktop is not running, `close()` succeeds immediately.
 
@@ -497,7 +498,7 @@ The restoration helper reuses the saved profile credential and the same atomic i
 Preflight performs only the minimum required to start:
 
 - target profile exists;
-- `originalActiveID` exists and refers to a registry profile before any credential write;
+- when `originalActiveID` exists, it refers to a registry profile before credential writes; with no active ID, the shared auth file must also be absent;
 - no in-process switch is currently running.
 
 It does not inspect every filesystem property, create backups, test network reachability, or pre-verify credentials.
@@ -510,7 +511,7 @@ Closing Desktop comes before saving the active credential so Codex has a chance 
 
 ### 12.5 Save current credentials
 
-The registry must identify one active account:
+The registry must identify one active account. After Desktop exits, read the shared home’s current identity and match it against this profile before saving. An external login mismatch stops visibly and leaves saved profiles unchanged.
 
 ```text
 copy ~/.codex/auth.json
@@ -635,24 +636,17 @@ sequenceDiagram
 7. Append profile metadata.
 8. Return to Manage Accounts.
 
-If any step fails, stop and show the error. An incomplete profile directory may remain. The MVP does not automatically resume or repair login.
+If any step fails, stop and show the error. Remove this login attempt’s directory only while it remains unregistered. Preserve the original error; surface cleanup failure too. Cancellation stops the login session and performs the same cleanup.
 
 ## 15. Remove-account flow
 
-```swift
-func removeAccount(id: UUID) throws {
-    guard id != registry.activeAccountID else {
-        throw AccountStoreError.cannotRemoveActiveAccount
-    }
-    usageCache.entries.removeAll { $0.profileID == id }
-    try saveUsageCache(usageCache)
-    try fileManager.removeItem(at: profileHome(id: id))
-    registry.accounts.removeAll { $0.id == id }
-    try saveRegistry(registry)
-}
-```
+1. Reject the active or an unknown profile.
+2. Remove its cached Usage if present.
+3. Persist the account list without the removed profile.
+4. Delete the profile directory.
+5. If directory deletion fails, restore the original account list and report the original error. Report both errors if list restoration also fails.
 
-The order is intentionally direct. If metadata save fails after directory deletion, the error is visible. No tombstone or retry queue is created.
+A registry-write failure leaves the credential directory intact. The bounded list restoration covers the demonstrated deletion failure; it does not make recursive deletion crash-atomic or restore a partially deleted directory. No tombstone, retry queue, journal, or credential copy is introduced.
 
 ## 16. UI state management
 
@@ -739,3 +733,9 @@ Do not add the following unless a new product decision explicitly requires it:
 - switch-behavior settings;
 - CLI process control;
 - automatic account selection.
+
+## 20. v0.1.7 lifecycle completion
+
+First activation skips saving an original credential when both active ID and shared auth are absent; recheck file absence after Desktop closes. If verification or commit fails, clear only the newly installed active auth and preserve the saved target profile. Normal switches retain the existing original-credential restoration path.
+
+AccountStore rejects duplicate identities on add. Register Current Account explicitly associates the shared login with a matching saved profile or imports a new one. Login cleanup checks the registry before deleting the attempt directory. The updater uses the semantic release version as CFBundleVersion, eliminating a separately maintained build number.

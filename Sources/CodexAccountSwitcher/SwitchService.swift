@@ -20,7 +20,8 @@ struct SwitchService: SwitchServicing {
 
     func switchAccount(to targetID: UUID) async throws {
         let target: AccountProfile
-        let originalActiveID: UUID
+        let originalActiveID: UUID?
+        let originalProfile: AccountProfile?
         do {
             target = try await store.profile(id: targetID)
         } catch {
@@ -29,11 +30,18 @@ struct SwitchService: SwitchServicing {
 
         do {
             let registry = try await store.loadRegistry()
-            guard let activeID = registry.activeAccountID,
-                  registry.accounts.contains(where: { $0.id == activeID }) else {
-                throw AccountStoreError.activeProfileMissing
+            originalActiveID = registry.activeAccountID
+            if let activeID = registry.activeAccountID {
+                guard let profile = registry.accounts.first(where: { $0.id == activeID }) else {
+                    throw AccountStoreError.activeProfileMissing
+                }
+                originalProfile = profile
+            } else {
+                guard await !store.activeCredentialExists() else {
+                    throw AccountStoreError.activeProfileMissing
+                }
+                originalProfile = nil
             }
-            originalActiveID = activeID
         } catch {
             throw OperationError.stage(.saveCurrentCredential, error)
         }
@@ -45,7 +53,15 @@ struct SwitchService: SwitchServicing {
         }
 
         do {
-            try await store.saveCurrentCredential()
+            if let originalProfile {
+                let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
+                guard identity.matches(originalProfile) else {
+                    throw AccountStoreError.activeCredentialMismatch
+                }
+                try await store.saveCurrentCredential()
+            } else if await store.activeCredentialExists() {
+                throw AccountStoreError.activeCredentialMismatch
+            }
         } catch {
             throw OperationError.stage(.saveCurrentCredential, error)
         }
@@ -87,12 +103,16 @@ struct SwitchService: SwitchServicing {
     }
 
     private func restoringOriginalCredential(
-        originalActiveID: UUID,
+        originalActiveID: UUID?,
         failedStage: SwitchStage,
         originalError: any Error
     ) async -> OperationError {
         do {
-            try await store.restoreActiveCredential(id: originalActiveID)
+            if let originalActiveID {
+                try await store.restoreActiveCredential(id: originalActiveID)
+            } else {
+                try await store.clearActiveCredential()
+            }
             return OperationError.stage(failedStage, originalError)
         } catch let restorationError {
             return OperationError(
