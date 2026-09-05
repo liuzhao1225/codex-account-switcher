@@ -123,12 +123,12 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.9](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.9) |
+| Apple Silicon build | Available in [v0.1.10](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.10) |
 | Automation | PR and `main` CI run tests; pushing a matching `v*` tag publishes the signed release |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
-| DMG release | Available in v0.1.9 |
+| DMG release | Available in v0.1.10 |
 
 ## Development
 
@@ -222,9 +222,9 @@ No. It is an independent MIT-licensed open-source project for macOS.
 
 Codex Account Switcher is released under the [MIT License](LICENSE).
 
-## Automatic updates in 0.1.9
+## Automatic updates in 0.1.10
 
-Version 0.1.9 checks hourly through Sparkle. A blue menu-bar dot and an update row above the popover footer indicate a new version; clicking Update starts the framework’s download, installation, and Switcher relaunch flow. Settings provides a manual check and automatic-check toggle. Account operations defer the final relaunch.
+Version 0.1.10 checks hourly through Sparkle. A blue menu-bar dot and an update row above the popover footer indicate a new version; clicking Update starts the framework’s download, installation, and Switcher relaunch flow. Settings provides a manual check and automatic-check toggle. Account operations defer the final relaunch.
 
 Publishing requires the `SPARKLE_PRIVATE_KEY` repository secret and a signed `appcast.xml` release asset. The installed 0.1.6 has no updater and needs one manual upgrade. The release workflow publishes the signed update feed alongside the notarized DMG.
 

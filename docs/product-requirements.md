@@ -259,14 +259,21 @@ Remove first opens a confirmation page inside the popover. Cancel and the header
 
 ## 9. Settings
 
-The in-popover Settings page contains four fields:
+The 326-point Settings page groups general preferences and software updates:
 
 ```text
 Launch at Login                [toggle]
 Show Percentage in Menu Bar   [toggle]
 Show 5-hour Usage             [toggle]
 Language  [System Default ▾]
+
+Software Update
+Check for updates automatically [toggle]
+Hourly update description
+Version 0.1.10      [Check for Updates]
 ```
+
+All setting rows use 13-point system text, 14-point horizontal insets, a minimum 44-point height, and small native controls aligned to the right. Group captions and supporting descriptions use 11-point system text. Row separators share the text insets. Approval messages and update failures wrap below the relevant row using the same description layout.
 
 Launch at Login reads and writes the main app's macOS Login Item registration. It shows a direct approval message and System Settings link for `requiresApproval`, and an unavailable message for `notFound`. The macOS status is the only source of truth and is not persisted in `settings.json`.
 

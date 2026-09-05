@@ -91,7 +91,7 @@
             <p class="eyebrow">Plain-language privacy record</p>
             <h1>Privacy for Codex Account Switcher</h1>
             <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your Mac.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
-            <p class="article-meta">Updated September 5, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.9</p>
+            <p class="article-meta">Updated September 5, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.10</p>
           </div>
         </header>
 
@@ -122,7 +122,7 @@
               <section id="network">
                 <h2>What network activity occurs?</h2>
                 <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification and usage refreshes launch Codex app-server for the relevant local profile, which may communicate with OpenAI. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
-                <p>Version 0.1.9 uses Sparkle to check the GitHub Releases update feed hourly and download updates when requested. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
+                <p>Version 0.1.10 uses Sparkle to check the GitHub Releases update feed hourly and download updates when requested. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
                 <p>This website is a static GitHub Pages site with no project-added analytics script, advertising tracker, account system, or contact form. GitHub may process normal hosting request data under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
               </section>
 
