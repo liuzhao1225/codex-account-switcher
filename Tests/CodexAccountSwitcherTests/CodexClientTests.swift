@@ -35,6 +35,35 @@ struct CodexClientTests {
         #expect(try await client.readIdentity(profileHome: fixture.root).accountID == "last-response")
     }
 
+    @Test func waitsForStderrThatArrivesAfterStdoutEOF() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        read -r line
+        exec 1>&-
+        sleep 0.05
+        printf '%s\n' 'Delayed stderr: unsupported protocol' >&2
+        exit 42
+        """#)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        do {
+            _ = try await client.readIdentity(profileHome: fixture.root)
+            Issue.record("Expected runtime failure")
+        } catch {
+            #expect(error.localizedDescription.contains("Delayed stderr: unsupported protocol"))
+        }
+    }
+
+    @Test func stderrCompletionStillHonorsRequestTimeout() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        read -r line
+        exec 1>&-
+        sleep 2
+        """#)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .milliseconds(50))
+        await #expect(throws: CodexClientError.timeout) { try await client.readIdentity(profileHome: fixture.root) }
+    }
+
     @Test func includesSubprocessFailureReason() async throws {
         let fixture = try ScriptFixture(body: #"""
         read -r line

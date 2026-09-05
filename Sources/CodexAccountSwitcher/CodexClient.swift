@@ -148,17 +148,43 @@ private final class StderrDrain: @unchecked Sendable {
     private var tail = Data()
     private let maximumBytes = 4_096
 
-    var message: String {
+    private var isFinished = false
+    private var waiters: [CheckedContinuation<String, Never>] = []
+
+    func finishedMessage() async -> String {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if isFinished {
+                let message = String(decoding: tail, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                lock.unlock()
+                continuation.resume(returning: message)
+            } else {
+                waiters.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+
+    func finish() {
         lock.lock()
-        defer { lock.unlock() }
-        return String(decoding: tail, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isFinished else { lock.unlock(); return }
+        isFinished = true
+        let message = String(decoding: tail, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        let pending = waiters
+        waiters.removeAll()
+        lock.unlock()
+        pending.forEach { $0.resume(returning: message) }
     }
 
     init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
             guard let self else { return }
             let data = readable.availableData
-            guard !data.isEmpty else { return }
+            guard !data.isEmpty else {
+                readable.readabilityHandler = nil
+                self.finish()
+                return
+            }
             self.lock.lock()
             self.tail.append(data)
             if self.tail.count > self.maximumBytes {
@@ -217,7 +243,7 @@ private actor JSONRPCSession {
                 "clientInfo": [
                     "name": "codex_account_switcher",
                     "title": "Codex Account Switcher",
-                    "version": "0.1.7",
+                    "version": "0.1.8",
                 ],
             ],
         ])
@@ -253,6 +279,7 @@ private actor JSONRPCSession {
             process.terminate()
         }
         pump.finish()
+        stderrDrain.finish()
     }
 
     private func response(id: Int, timeout: Duration) async throws -> RPCEnvelope {
@@ -289,7 +316,8 @@ private actor JSONRPCSession {
             }
         }
         if didTimeout { throw CodexClientError.timeout }
-        let details = stderrDrain.message
+        let details = await stderrDrain.finishedMessage()
+        if didTimeout { throw CodexClientError.timeout }
         if !details.isEmpty { throw CodexClientError.connectionClosedWithDetails(details) }
         throw CodexClientError.connectionClosed
     }
@@ -300,6 +328,7 @@ private actor JSONRPCSession {
         errorOutput.readabilityHandler = nil
         if process.isRunning { process.terminate() }
         pump.finish()
+        stderrDrain.finish()
     }
 
     private func send(_ object: [String: Any]) throws {

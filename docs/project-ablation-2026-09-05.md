@@ -109,3 +109,11 @@ CFBundleVersion 与 CFBundleShortVersionString 统一使用发布语义版本，
 独立临时应用实际完成 0.1.7 → 0.1.8 升级：启动旧版本 → 检测更新 → HTTP 下载带 Ed25519 签名的 ZIP → 解包 → 安装 → 退出旧进程 → 重新启动 0.1.8。读回安装目录的 CFBundleVersion 为 0.1.8，且新进程写出启动标记。测试应用使用独立 bundle ID、自动应答的测试 user driver、本地 HTTP 服务与 ad-hoc 代码签名；不启动正式 Switcher 或触碰账号数据。
 
 原始证据为 `.build/update-install-check/result.json`、events.log、Probe.m 和 run.py。该实验验证真实 Sparkle 安装重启及语义版本比较，正式 GitHub DMG 的 Developer ID、公证和下载完整性另由发布工作流及发布后读回核验。
+
+## 远端 CI 发现与 v0.1.8 修复
+
+0fac331 的主分支 CI 在 includesSubprocessFailureReason 上失败，而同提交的发布测试通过：stdout EOF 早于 stderr 回调，具体错误偶发丢失。v0.1.7 发布在打包阶段主动取消，没有生成 GitHub Release。保留原 tag，不移动已上传的版本标签。
+
+修复为等待 stderr EOF 再组合错误；请求超时及主动停止会结束这项等待，避免子进程保持 stderr 打开造成无限等待。新增确定性的“先关闭 stdout，延迟写 stderr”样本与 stderr 不关闭的超时样本。修复版本使用 v0.1.8，先等待主分支 CI 通过再打 tag。
+
+确定性样本在 0fac331 上失败，修复后 56 项测试与 CoreChecks 全通过；原始对照日志为 `.build/project-ablation/rpc-before-test.log` 和 `race-fixed-tests.log`。
