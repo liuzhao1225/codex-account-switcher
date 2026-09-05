@@ -335,4 +335,4 @@ The tag workflow publishes the signed feed. See the ablation reports and release
 
 With no registered active account and no active auth.json, selecting a saved account activates it directly after Desktop exits normally. Verification or registry persistence failure removes the newly installed active credential and leaves the app signed out. Existing unregistered credentials are never overwritten by this path.
 
-Settings provides Register Current Account. It reads the current shared login identity, updates that same identity’s saved credential or imports a new profile, and records it as active. A mismatch during switching exposes the same action. Other profiles remain unchanged.
+Manage Accounts provides Register Current Account below Add Account. It reads the current shared login identity, updates that same identity’s saved credential or imports a new profile, and records it as active. A mismatch during switching links to Manage Accounts. Other profiles remain unchanged.

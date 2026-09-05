@@ -112,12 +112,6 @@ struct SettingsView: View {
             }
 
             Divider()
-            Button(model.text("register_current_account")) {
-                Task { await model.registerCurrentAccount() }
-            }
-            .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
-            .padding(10)
-            Divider()
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(model.format("current_version", updater.currentVersion))

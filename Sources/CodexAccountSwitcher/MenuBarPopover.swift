@@ -62,8 +62,8 @@ struct MenuBarPopover: View {
             if !model.activeIdentityConfirmed {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(model.text("active_unconfirmed"))
-                    Button(model.text("register_current_account")) {
-                        Task { await model.registerCurrentAccount() }
+                    Button(model.text("manage")) {
+                        page = .manageAccounts
                     }
                     .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
                 }

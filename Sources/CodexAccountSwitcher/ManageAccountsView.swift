@@ -110,6 +110,23 @@ struct ManageAccountsView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
+
+                Button {
+                    Task { await model.registerCurrentAccount() }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .frame(width: 14)
+                        Text(model.text("register_current_account"))
+                        Spacer()
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .frame(height: 30)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating || model.isAddingAccount)
             }
             .padding(5)
         }
