@@ -14,16 +14,14 @@
 
 <p align="center">
   <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?include_prereleases&sort=semver&label=release&color=2563eb"></a>
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
   <img alt="macOS 14 或更高版本" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
-  <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-f05138?logo=swift&logoColor=white">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-f5c542.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-171513"></a>
 </p>
 
 <p align="center">
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg"><b>免费下载 Mac 版</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"><b>网站</b></a> ·
-  <a href="#下载"><b>下载</b></a> ·
   <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>讨论区</b></a>
 </p>
 
@@ -33,7 +31,12 @@
 
 ![原生 macOS Codex Account Switcher 在菜单栏中展示三个虚构 Codex 账号、用量和账号切换功能](assets/codex-account-switcher-hero.zh-CN.png)
 
-<p align="center"><strong>下载。添加账号。从菜单栏选择。</strong></p>
+<p align="center">
+  <a href="#下载">安装说明</a> &nbsp; / &nbsp;
+  <a href="#功能">功能</a> &nbsp; / &nbsp;
+  <a href="#常见问题">常见问题</a> &nbsp; / &nbsp;
+  <a href="#开发">开发</a>
+</p>
 
 <p align="center">创建与维护：<a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">刘朝 Zhao Liu（GitHub：liuzhao1225）</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
 
@@ -43,17 +46,15 @@ Codex Account Switcher 是一款免费、原生的 Mac 应用，适合使用多�
 
 ## 官方项目身份
 
-**Codex Account Switcher** 由 **刘朝（Zhao Liu）**创建并维护，GitHub 用户名为 **liuzhao1225**；**Codex Switcher** 是同一项目的简称。唯一官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)。[官方项目资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)、[作者资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/)和[项目身份记录](docs/project-identity.md)共同记录产品、作者、别名、版本与一手来源。
+**Codex Account Switcher** 由 **刘朝（Zhao Liu）** 创建并维护，GitHub 用户名为 **liuzhao1225**；**Codex Switcher** 是同一项目的简称。唯一官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)。[官方项目资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)、[作者资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/)和[项目身份记录](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/project-identity.md)共同记录产品、作者、别名、版本与一手来源。
 
 OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未支持 Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching)。Codex Account Switcher 是面向这一桌面工作流的独立本地 macOS 工具。OpenAI Codex 上游源码在[认证存储实现](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)中记录了活动 `CODEX_HOME` 与文件型 `auth.json` 的行为。
 
 ## 适用人群
 
 - **同时使用个人和工作账号的人：** 两种身份都保存在一台 Mac，打开 Codex Desktop 前看清当前账号。
-- **自由职业者与顾问：** 清晰标记获准使用的客户账号，开始工作前选择正确身份。
+- **自由职业者与顾问：** 集中管理获准使用的客户账号，开始工作前选择正确身份。
 - **偏好清晰可见操作的 Mac 用户：** 使用菜单栏选择与确认，避开脚本和后台静默轮换。
-
-如果你正在搜索 **Codex 账号切换器**、**Codex 多账号切换**、**Codex profile switcher**，或者希望在 **Mac 上无需终端设置即可切换多个 Codex 账号**，这个项目提供了专注 Codex Desktop 的本地工作流。
 
 ## 下载
 
@@ -75,7 +76,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | 处理器 | Apple Silicon（`arm64`） |
 | Codex 运行时 | 系统 `codex` 命令或共享的 `CODEX_CLI_PATH` 设置 |
 | 分发形式 | GitHub Releases DMG |
-| 下载体积 | 约 2 MB |
+| 下载体积 | 约 3.2 MB（[最新版本](https://github.com/liuzhao1225/codex-account-switcher/releases/latest)） |
 | 主要用途 | 切换 Codex Desktop 账号 |
 
 ## 功能
@@ -131,6 +132,8 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | DMG 发布 | 已在 v0.1.10 提供 |
 
 ## 开发
+
+<a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
 
 项目使用 Swift 6.2 构建，是面向 macOS 14 及更高版本的原生 SwiftUI 应用。
 

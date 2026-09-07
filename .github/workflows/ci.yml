@@ -10,6 +10,14 @@ permissions:
   contents: read
 
 jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check SEO and GEO consistency
+        run: node scripts/check-site-geo.mjs
+
   test:
     runs-on: macos-26
 

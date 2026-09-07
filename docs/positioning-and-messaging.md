@@ -25,7 +25,7 @@ A focused Codex account switcher for the Mac menu bar.
 - Keeps personal, work, and client accounts clearly labeled in the menu bar.
 - Completes the Codex Desktop handoff after the user selects and confirms an account.
 - Stores saved account data locally and runs without its own proxy or cloud account service.
-- Free, MIT licensed, open source, and about 2 MB for the current Apple Silicon release.
+- Free, MIT licensed and open source. The [v0.1.10 Apple Silicon DMG](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.10) is about 3.2 MB (3,188,599 bytes, verified September 7, 2026).
 - Shows weekly usage as decision context, with an optional 5-hour row.
 
 ## Claim boundaries
@@ -34,7 +34,7 @@ A focused Codex account switcher for the Mac menu bar.
 | --- | --- | --- |
 | “Completes the switch after confirmation” | “Automatically rotates accounts” | The user always selects and confirms the target account. |
 | “Focused on account switching” | “Only switches accounts” | The app also manages accounts, shows usage, and provides settings. |
-| “Small native Mac app” or “about 2 MB download” | Unmeasured CPU or memory claims | Download size and native implementation are verified; broad performance claims require benchmarks. |
+| “Small native Mac app” or a release-specific download size | Unmeasured CPU or memory claims | Read the actual GitHub release asset size when updating copy; broad performance claims require benchmarks. |
 | “No Terminal commands or config-file editing” | “Zero setup” | The user still installs the app and signs in to each account once. |
 | “For accounts you own or are authorized to use” | Usage-limit bypass language | The product selects identities and does not increase limits or change permissions. |
 

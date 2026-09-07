@@ -4,6 +4,10 @@
 
 The app is designed for Apple Silicon Macs running macOS 14 or later. Users add each authorized account through browser sign-in, then choose and confirm an account from the menu bar. The app handles the Codex Desktop handoff without requiring Terminal commands or config-file editing. It stores account profiles locally, does not proxy Codex traffic, and does not rotate accounts automatically. Codex Account Switcher is independent community software and is not affiliated with OpenAI.
 
+Product facts verified September 7, 2026 against the source repository and GitHub Releases. The current release is v0.1.10, published September 5, 2026. Its Apple Silicon DMG is 3,188,599 bytes (about 3.2 MB). The project has one official product identity across its English and Simplified Chinese pages: Codex Account Switcher, created and maintained by Zhao Liu (刘朝), GitHub username liuzhao1225.
+
+Account switching restarts Codex Desktop and keeps shared local Codex history and configuration in place. Existing CLI processes keep their loaded identity; newly started CLI processes use the selected account. The app selects accounts and does not combine subscriptions or increase service usage limits. Saved credentials use local files with user-only permissions; the current release does not store profile credentials in macOS Keychain. The linked guides and privacy page describe these boundaries in detail.
+
 ## Product and download
 
 - [Product homepage](https://liuzhao1225.github.io/codex-account-switcher/): Product overview, screenshots, requirements, frequently asked questions, and download link.
@@ -28,8 +32,17 @@ The app is designed for Apple Silicon Macs running macOS 14 or later. Users add 
 - [Citation metadata](https://github.com/liuzhao1225/codex-account-switcher/blob/main/CITATION.cff): Machine-readable software and creator citation record.
 - [System design](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md): Local storage, switching sequence, usage cache, permissions, and failure behavior.
 
+## 简体中文
+
+- [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 原生 Mac 菜单栏 Codex 账号切换器，适用于 Apple Silicon 和 macOS 14+。
+- [中文项目资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/): 产品名称、作者、版本、官方仓库与实现来源。
+- [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): 登记当前登录账号、添加账号、确认切换，以及本地历史记录和 CLI 进程的行为。
+- [Codex Account 是什么](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/): 账号、工作区、本地配置与会话的区别。
+- [中文隐私说明](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/): 本地凭证存储、网络请求、自动更新与删除行为。
+- [中文作者资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/): 刘朝、Zhao Liu 与 liuzhao1225 的作者身份。
+- [中文联系与支持](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/contact/): 官方问题反馈与交流渠道。
+- [中文使用条款](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/terms/): 授权账号、许可证与责任边界。
+
 ## Optional
 
-- [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 中文产品介绍。
-- [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): 中文分步使用说明。
 - [OpenAI account switching documentation](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching): Official context for ChatGPT account switching and the current Codex desktop limitation.

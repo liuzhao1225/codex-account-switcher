@@ -14,16 +14,14 @@
 
 <p align="center">
   <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?include_prereleases&sort=semver&label=release&color=2563eb"></a>
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
   <img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
-  <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-f05138?logo=swift&logoColor=white">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-f5c542.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-171513"></a>
 </p>
 
 <p align="center">
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg"><b>Download free for Mac</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/"><b>Website</b></a> ·
-  <a href="#download"><b>Download</b></a> ·
   <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>Discussions</b></a>
 </p>
 
@@ -33,7 +31,12 @@
 
 ![Native macOS Codex Account Switcher showing three fictional Codex profiles, usage, and account switching from the menu bar](assets/codex-account-switcher-hero.png)
 
-<p align="center"><strong>Download. Add accounts. Choose from the menu bar.</strong></p>
+<p align="center">
+  <a href="#download">Installation</a> &nbsp; / &nbsp;
+  <a href="#features">Features</a> &nbsp; / &nbsp;
+  <a href="#frequently-asked-questions">FAQ</a> &nbsp; / &nbsp;
+  <a href="#development">Development</a>
+</p>
 
 <p align="center">Created and maintained by <a href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">Zhao Liu (GitHub: liuzhao1225)</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
 
@@ -43,17 +46,15 @@ After you select and confirm an account, the app closes Codex Desktop, completes
 
 ## Official project identity
 
-**Codex Account Switcher**, also called **Codex Switcher** in shortened descriptions, is created and maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. The canonical source repository is [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher). The [official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/), [creator profile](https://liuzhao1225.github.io/codex-account-switcher/about/creator/), and [project identity record](docs/project-identity.md) document the product, author, aliases, release, and primary sources.
+**Codex Account Switcher**, also called **Codex Switcher** in shortened descriptions, is created and maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. The canonical source repository is [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher). The [official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/), [creator profile](https://liuzhao1225.github.io/codex-account-switcher/about/creator/), and [project identity record](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/project-identity.md) document the product, author, aliases, release, and primary sources.
 
 OpenAI's official account switcher currently applies to ChatGPT on the web and [is not supported in Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching). Codex Account Switcher is an independent local macOS utility for that desktop workflow. OpenAI's upstream Codex source documents the active `CODEX_HOME` and file-based `auth.json` behavior in its [authentication storage implementation](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs).
 
 ## Who it is for
 
 - **People with personal and work accounts:** keep both identities ready on one Mac and see which account is active before opening Codex Desktop.
-- **Freelancers and consultants:** label authorized client accounts clearly and choose the correct one before starting work.
+- **Freelancers and consultants:** keep authorized client accounts together and choose the correct identity before starting work.
 - **Mac users who prefer visible controls:** use a normal app workflow with a menu-bar choice and confirmation instead of scripts or hidden automatic rotation.
-
-If you searched for a **Codex account switcher**, **Codex profile switcher**, or a way to **switch multiple Codex accounts on Mac without Terminal setup**, this project provides a focused local workflow for Codex Desktop.
 
 ## Download
 
@@ -75,7 +76,7 @@ The current public build targets **Apple Silicon** and requires **macOS 14 or la
 | Processor | Apple Silicon (`arm64`) |
 | Codex runtime | System `codex` command or the shared `CODEX_CLI_PATH` setting |
 | Distribution | GitHub Releases DMG |
-| Download size | About 2 MB |
+| Download size | About 3.2 MB ([latest release](https://github.com/liuzhao1225/codex-account-switcher/releases/latest)) |
 | Primary workflow | Codex Desktop account switching |
 
 ## Features
@@ -131,6 +132,8 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 | DMG release | Available in v0.1.10 |
 
 ## Development
+
+<a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
 
 The project is a native SwiftUI application built with Swift 6.2 for macOS 14+.
 

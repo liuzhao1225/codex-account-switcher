@@ -9,6 +9,7 @@ This directory defines the MVP for Codex Account Switcher.
 | Document | Purpose |
 | --- | --- |
 | [Product positioning and messaging](positioning-and-messaging.md) | Shared audience, promise, proof, SEO terms, and claim boundaries |
+| [SEO and GEO maintenance](seo-geo.md) | Page intent, crawler policy, structured-data consistency checks and measurement |
 | [Product decisions](product-decisions.md) | Binding product and architecture decisions |
 | [Product requirements](product-requirements.md) | User-visible behavior and acceptance criteria |
 | [System design](system-design.md) | Components, storage, flows, interfaces, and failure behavior |
