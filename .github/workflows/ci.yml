@@ -2,9 +2,21 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "windows/**"
+      - "scripts/package-windows.ps1"
+      - "scripts/generate-windows-icons.py"
+      - ".github/workflows/windows.yml"
+      - ".github/release-notes-windows.md"
   push:
     branches:
       - main
+    paths-ignore:
+      - "windows/**"
+      - "scripts/package-windows.ps1"
+      - "scripts/generate-windows-icons.py"
+      - ".github/workflows/windows.yml"
+      - ".github/release-notes-windows.md"
 
 permissions:
   contents: read
@@ -17,6 +29,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check SEO and GEO consistency
         run: node scripts/check-site-geo.mjs
+      - name: Check platform release routing
+        run: node --test scripts/tests/*.test.mjs
 
   test:
     runs-on: macos-26

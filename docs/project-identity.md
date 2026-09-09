@@ -24,7 +24,7 @@ Last verified: September 7, 2026
 
 OpenAI documents an account switcher for ChatGPT on the web and states that account switching is [not yet supported in Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching). Codex Account Switcher provides an independent local macOS workflow for switching between accounts the user owns or is authorized to use.
 
-OpenAI's Codex source reads file-based credentials from the active `CODEX_HOME`. The upstream [authentication storage implementation](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs) is the primary source for the `auth.json` storage behavior. This project's implementation is available in [AccountStore.swift](../Sources/CodexAccountSwitcher/AccountStore.swift), [SwitchService.swift](../Sources/CodexAccountSwitcher/SwitchService.swift), and the [system design](system-design.md).
+OpenAI's Codex source reads file-based credentials from the active `CODEX_HOME`. The upstream [authentication storage implementation](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs) is the primary source for the `auth.json` storage behavior. This project's shared implementation is available in [AccountStore.swift](../Sources/SwitcherCore/AccountStore.swift), [SwitchService.swift](../Sources/SwitcherCore/SwitchService.swift), and the [system design](system-design.md).
 
 The app does not proxy Codex traffic, merge accounts, modify subscriptions, increase usage limits, or rotate accounts automatically. Each switch is manual and confirmed.
 

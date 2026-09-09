@@ -1,17 +1,25 @@
 import Foundation
 
-struct RateLimitWindow: Codable, Equatable, Sendable {
-    let usedPercent: Double
-    let windowDurationMins: Int
-    let resetsAt: TimeInterval
+// One quota interpretation on macOS and Windows.
+
+public struct RateLimitWindow: Codable, Equatable, Sendable {
+    public let usedPercent: Double
+    public let windowDurationMins: Int
+    public let resetsAt: TimeInterval
+
+    public init(usedPercent: Double, windowDurationMins: Int, resetsAt: TimeInterval) {
+        self.usedPercent = usedPercent
+        self.windowDurationMins = windowDurationMins
+        self.resetsAt = resetsAt
+    }
 }
 
-enum WeeklyUsageNormalizer {
-    static let fiveHourMinutes = 5 * 60
-    static let minimumWeeklyMinutes = 6 * 24 * 60
-    static let maximumWeeklyMinutes = 8 * 24 * 60
+public enum WeeklyUsageNormalizer {
+    public static let fiveHourMinutes = 5 * 60
+    public static let minimumWeeklyMinutes = 6 * 24 * 60
+    public static let maximumWeeklyMinutes = 8 * 24 * 60
 
-    static func normalize(_ windows: [RateLimitWindow]) throws -> WeeklyUsage {
+    public static func normalize(_ windows: [RateLimitWindow]) throws -> WeeklyUsage {
         guard let weekly = windows
             .filter({ minimumWeeklyMinutes...maximumWeeklyMinutes ~= $0.windowDurationMins })
             .max(by: { $0.windowDurationMins < $1.windowDurationMins })

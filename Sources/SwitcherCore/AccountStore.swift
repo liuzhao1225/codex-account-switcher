@@ -1,7 +1,12 @@
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#endif
+#if os(Windows)
+import SwitcherPlatform
+#endif
 
-protocol AccountStoring: Sendable {
+public protocol AccountStoring: Sendable {
     func loadRegistry() async throws -> AccountRegistry
     func profile(id: UUID) async throws -> AccountProfile
     func activeCredentialExists() async -> Bool
@@ -13,26 +18,31 @@ protocol AccountStoring: Sendable {
     func commitActiveAccountID(_ id: UUID) async throws
 }
 
-actor AccountStore: AccountStoring {
-    let baseURL: URL
-    let activeHomeURL: URL
+public actor AccountStore: AccountStoring {
+    public let baseURL: URL
+    public let activeHomeURL: URL
 
     private let fileManager: FileManager
     private let legacyBaseURL: URL?
     private var registry: AccountRegistry?
     private var usageCache: UsageCache?
 
-    init(
+    public init(
         baseURL: URL? = nil,
         legacyBaseURL: URL? = nil,
         activeHomeURL: URL? = nil,
         fileManager: FileManager = .default
     ) {
         self.fileManager = fileManager
+        #if os(Windows)
+        let applicationSupportURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["LOCALAPPDATA"]
+            ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("AppData/Local").path)
+        #else
         let applicationSupportURL = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         )[0]
+        #endif
         if let baseURL {
             self.baseURL = baseURL
             self.legacyBaseURL = legacyBaseURL
@@ -47,6 +57,7 @@ actor AccountStore: AccountStoring {
             )
         }
         self.activeHomeURL = activeHomeURL
+            ?? ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
             ?? fileManager.homeDirectoryForCurrentUser.appending(path: ".codex", directoryHint: .isDirectory)
     }
 
@@ -55,42 +66,42 @@ actor AccountStore: AccountStoring {
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
 
-    func loadRegistry() throws -> AccountRegistry {
+    public func loadRegistry() throws -> AccountRegistry {
         try prepareDirectories()
         if let registry { return registry }
         guard fileManager.fileExists(atPath: accountsURL.path) else {
             registry = .empty
             return .empty
         }
-        let loaded = try Self.decoder.decode(AccountRegistry.self, from: Data(contentsOf: accountsURL))
+        let loaded = try Self.decoder.decode(AccountRegistry.self, from: readChecked(accountsURL))
         registry = loaded
         return loaded
     }
 
-    func loadSettings() throws -> AppSettings {
+    public func loadSettings() throws -> AppSettings {
         try prepareDirectories()
         guard fileManager.fileExists(atPath: settingsURL.path) else { return .default }
-        return try Self.decoder.decode(AppSettings.self, from: Data(contentsOf: settingsURL))
+        return try Self.decoder.decode(AppSettings.self, from: readChecked(settingsURL))
     }
 
-    func saveSettings(_ settings: AppSettings) throws {
+    public func saveSettings(_ settings: AppSettings) throws {
         try prepareDirectories()
         try writeJSON(settings, to: settingsURL)
     }
 
-    func loadUsageCache() throws -> UsageCache {
+    public func loadUsageCache() throws -> UsageCache {
         try prepareDirectories()
         if let usageCache { return usageCache }
         guard fileManager.fileExists(atPath: usageCacheURL.path) else {
             usageCache = .empty
             return .empty
         }
-        let loaded = try Self.decoder.decode(UsageCache.self, from: Data(contentsOf: usageCacheURL))
+        let loaded = try Self.decoder.decode(UsageCache.self, from: readChecked(usageCacheURL))
         usageCache = loaded
         return loaded
     }
 
-    func cacheWeeklyUsage(_ usage: WeeklyUsage, profileID: UUID, fetchedAt: Date = Date()) throws {
+    public func cacheWeeklyUsage(_ usage: WeeklyUsage, profileID: UUID, fetchedAt: Date = Date()) throws {
         let registry = try loadRegistry()
         guard registry.accounts.contains(where: { $0.id == profileID }) else { return }
         var cache = try loadUsageCache()
@@ -103,7 +114,7 @@ actor AccountStore: AccountStoring {
         try saveUsageCache(cache)
     }
 
-    func profile(id: UUID) throws -> AccountProfile {
+    public func profile(id: UUID) throws -> AccountProfile {
         let registry = try loadRegistry()
         guard let profile = registry.accounts.first(where: { $0.id == id }) else {
             throw AccountStoreError.profileNotFound
@@ -111,25 +122,26 @@ actor AccountStore: AccountStoring {
         return profile
     }
 
-    func profileHome(id: UUID) -> URL {
+    public func profileHome(id: UUID) -> URL {
         profilesURL.appending(path: id.uuidString, directoryHint: .isDirectory)
     }
 
-    func activeCodexHome() -> URL { activeHomeURL }
+    public func activeCodexHome() -> URL { activeHomeURL }
 
-    func activeCredentialExists() -> Bool {
+    public func activeCredentialExists() -> Bool {
         fileManager.fileExists(atPath: activeHomeURL.appending(path: "auth.json").path)
     }
 
-    func createProfileDirectory(id: UUID) throws -> URL {
+    public func createProfileDirectory(id: UUID) throws -> URL {
         try prepareDirectories()
         let directory = profileHome(id: id)
+        try checkPath(directory)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: false)
-        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        try restrictPermissions(directory, directory: true)
         return directory
     }
 
-    func importCurrentProfile(_ profile: AccountProfile) throws {
+    public func importCurrentProfile(_ profile: AccountProfile) throws {
         let source = activeHomeURL.appending(path: "auth.json")
         guard fileManager.fileExists(atPath: source.path) else {
             throw AccountStoreError.activeCredentialMissing
@@ -143,12 +155,12 @@ actor AccountStore: AccountStoring {
         try saveRegistry(current)
     }
 
-    func addProfile(_ profile: AccountProfile) throws {
+    public func addProfile(_ profile: AccountProfile) throws {
         let authURL = profileHome(id: profile.id).appending(path: "auth.json")
         guard fileManager.fileExists(atPath: authURL.path) else {
             throw AccountStoreError.targetCredentialMissing
         }
-        try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: authURL.path)
+        try restrictPermissions(authURL, directory: false)
         var current = try loadRegistry()
         let identity = AccountIdentity(accountID: profile.accountID, email: profile.email)
         guard !current.accounts.contains(where: { identity.matches($0) }) else {
@@ -158,13 +170,13 @@ actor AccountStore: AccountStoring {
         try saveRegistry(current)
     }
 
-    func discardUnregisteredProfile(id: UUID) throws {
+    public func discardUnregisteredProfile(id: UUID) throws {
         guard try !loadRegistry().accounts.contains(where: { $0.id == id }) else { return }
         let directory = profileHome(id: id)
-        if fileManager.fileExists(atPath: directory.path) { try fileManager.removeItem(at: directory) }
+        if fileManager.fileExists(atPath: directory.path) { try removeProfileDirectory(directory) }
     }
 
-    func registerActiveIdentity(_ identity: AccountIdentity) throws {
+    public func registerActiveIdentity(_ identity: AccountIdentity) throws {
         let current = try loadRegistry()
         if let profile = current.accounts.first(where: { identity.matches($0) }) {
             try copyCredential(from: activeHomeURL.appending(path: "auth.json"),
@@ -176,7 +188,7 @@ actor AccountStore: AccountStoring {
         }
     }
 
-    func removeAccount(id: UUID) throws {
+    public func removeAccount(id: UUID) throws {
         var current = try loadRegistry()
         guard current.activeAccountID != id else {
             throw AccountStoreError.cannotRemoveActiveAccount
@@ -193,7 +205,7 @@ actor AccountStore: AccountStoring {
         current.accounts.removeAll(where: { $0.id == id })
         try saveRegistry(current)
         do {
-            try fileManager.removeItem(at: profileHome(id: id))
+            try removeProfileDirectory(profileHome(id: id))
         } catch {
             let removalError = error
             do {
@@ -207,7 +219,7 @@ actor AccountStore: AccountStoring {
         }
     }
 
-    func saveCurrentCredential() throws {
+    public func saveCurrentCredential() throws {
         let current = try loadRegistry()
         guard let activeID = current.activeAccountID else {
             throw AccountStoreError.activeProfileMissing
@@ -222,15 +234,16 @@ actor AccountStore: AccountStoring {
         try copyCredential(from: source, to: profileHome(id: activeID).appending(path: "auth.json"))
     }
 
-    func activateTargetCredential(id: UUID) throws {
+    public func activateTargetCredential(id: UUID) throws {
         try installCredential(id: id)
     }
 
-    func clearActiveCredential() throws {
+    public func clearActiveCredential() throws {
+        try checkPath(activeHomeURL.appending(path: "auth.json"))
         try fileManager.removeItem(at: activeHomeURL.appending(path: "auth.json"))
     }
 
-    func restoreActiveCredential(id: UUID) throws {
+    public func restoreActiveCredential(id: UUID) throws {
         try installCredential(id: id)
     }
 
@@ -241,13 +254,14 @@ actor AccountStore: AccountStoring {
             throw AccountStoreError.targetCredentialMissing
         }
 
+        try checkPath(activeHomeURL)
         try fileManager.createDirectory(at: activeHomeURL, withIntermediateDirectories: true)
         let destination = activeHomeURL.appending(path: "auth.json")
-        let bytes = try Data(contentsOf: source)
+        let bytes = try readChecked(source)
         try secureAtomicWrite(bytes, to: destination)
     }
 
-    func commitActiveAccountID(_ id: UUID) throws {
+    public func commitActiveAccountID(_ id: UUID) throws {
         var current = try loadRegistry()
         guard let index = current.accounts.firstIndex(where: { $0.id == id }) else {
             throw AccountStoreError.profileNotFound
@@ -268,23 +282,58 @@ actor AccountStore: AccountStoring {
     }
 
     private func prepareDirectories() throws {
+        try checkPath(baseURL)
+        try checkPath(profilesURL)
         if !fileManager.fileExists(atPath: baseURL.path),
            let legacyBaseURL,
            fileManager.fileExists(atPath: legacyBaseURL.path) {
+            try checkPath(legacyBaseURL)
             try fileManager.moveItem(at: legacyBaseURL, to: baseURL)
         }
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
-        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: baseURL.path)
+        try restrictPermissions(baseURL, directory: true)
         try fileManager.createDirectory(at: profilesURL, withIntermediateDirectories: true)
-        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: profilesURL.path)
+        try restrictPermissions(profilesURL, directory: true)
     }
 
     private func copyCredential(from source: URL, to destination: URL) throws {
-        let bytes = try Data(contentsOf: source)
+        let bytes = try readChecked(source)
         try secureAtomicWrite(bytes, to: destination)
     }
 
+    private func checkPath(_ path: URL) throws {
+        #if os(Windows)
+        let error = switcher_check_path(path.path)
+        guard error == 0 else { throw windowsError(error) }
+        #endif
+    }
+
+    private func readChecked(_ path: URL) throws -> Data {
+        try checkPath(path)
+        return try Data(contentsOf: path)
+    }
+
+    private func removeProfileDirectory(_ path: URL) throws {
+        #if os(Windows)
+        func checkTree(_ directory: URL) throws {
+            try checkPath(directory)
+            for child in try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) {
+                try checkPath(child)
+                if try child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true { try checkTree(child) }
+            }
+        }
+        try checkTree(path)
+        #endif
+        try fileManager.removeItem(at: path)
+    }
+
     private func secureAtomicWrite(_ bytes: Data, to destination: URL) throws {
+        #if os(Windows)
+        let error = bytes.withUnsafeBytes { buffer in
+            switcher_atomic_write(destination.path, buffer.baseAddress, buffer.count)
+        }
+        guard error == 0 else { throw windowsError(error) }
+        #else
         let temporary = destination
             .deletingLastPathComponent()
             .appending(path: "\(destination.lastPathComponent).switcher-\(UUID().uuidString).tmp")
@@ -322,11 +371,29 @@ actor AccountStore: AccountStoring {
             try? fileManager.removeItem(at: temporary)
             throw error
         }
+        #endif
     }
 
+    private func restrictPermissions(_ path: URL, directory: Bool) throws {
+        #if os(Windows)
+        let error = switcher_restrict_path(path.path, directory ? 1 : 0)
+        guard error == 0 else { throw windowsError(error) }
+        #else
+        try fileManager.setAttributes([.posixPermissions: directory ? 0o700 : 0o600], ofItemAtPath: path.path)
+        #endif
+    }
+
+    #if os(Windows)
+    private func windowsError(_ code: UInt32) -> NSError {
+        NSError(domain: "CodexAccountSwitcher.Windows", code: Int(code), userInfo: [
+            NSLocalizedDescriptionKey: "Windows could not access private account storage (error \(code)).",
+        ])
+    }
+    #else
     private func currentPOSIXError() -> POSIXError {
         POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
     }
+    #endif
 
     private func writeJSON<T: Encodable>(_ value: T, to destination: URL) throws {
         let bytes = try Self.encoder.encode(value)

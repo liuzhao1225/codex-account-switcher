@@ -1,24 +1,30 @@
 import Foundation
 
-protocol DesktopControlling: Sendable {
+// The same ordered handoff and bounded restoration run on both platforms.
+
+public protocol DesktopControlling: Sendable {
     func closeDesktop() async throws
     func reopenDesktop() async throws
 }
 
-protocol CodexIdentityReading: Sendable {
+public protocol CodexIdentityReading: Sendable {
     func readIdentity(profileHome: URL) async throws -> AccountIdentity
 }
 
-protocol SwitchServicing: Sendable {
+public protocol SwitchServicing: Sendable {
     func switchAccount(to targetID: UUID) async throws
 }
 
-struct SwitchService: SwitchServicing {
-    let desktop: any DesktopControlling
-    let store: any AccountStoring
-    let codex: any CodexIdentityReading
+public struct SwitchService: SwitchServicing {
+    public let desktop: any DesktopControlling
+    public let store: any AccountStoring
+    public let codex: any CodexIdentityReading
 
-    func switchAccount(to targetID: UUID) async throws {
+    public init(desktop: any DesktopControlling, store: any AccountStoring, codex: any CodexIdentityReading) {
+        self.desktop = desktop; self.store = store; self.codex = codex
+    }
+
+    public func switchAccount(to targetID: UUID) async throws {
         let target: AccountProfile
         let originalActiveID: UUID?
         let originalProfile: AccountProfile?

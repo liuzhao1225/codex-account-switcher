@@ -1,7 +1,9 @@
-import AppKit
 import Foundation
+#if canImport(AppKit)
+import AppKit
+#endif
 
-enum JSONValue: Decodable, Sendable {
+public enum JSONValue: Decodable, Sendable {
     case object([String: JSONValue])
     case array([JSONValue])
     case string(String)
@@ -9,7 +11,7 @@ enum JSONValue: Decodable, Sendable {
     case bool(Bool)
     case null
 
-    init(from decoder: any Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
             self = .null
@@ -26,24 +28,24 @@ enum JSONValue: Decodable, Sendable {
         }
     }
 
-    var objectValue: [String: JSONValue]? {
+    public var objectValue: [String: JSONValue]? {
         guard case let .object(value) = self else { return nil }
         return value
     }
 
-    var stringValue: String? {
+    public var stringValue: String? {
         guard case let .string(value) = self else { return nil }
         return value
     }
 
-    var doubleValue: Double? {
+    public var doubleValue: Double? {
         guard case let .number(value) = self else { return nil }
         return value
     }
 
-    var intValue: Int? { doubleValue.flatMap(Int.init(exactly:)) }
+    public var intValue: Int? { doubleValue.flatMap(Int.init(exactly:)) }
 
-    var boolValue: Bool? {
+    public var boolValue: Bool? {
         guard case let .bool(value) = self else { return nil }
         return value
     }
@@ -52,16 +54,16 @@ enum JSONValue: Decodable, Sendable {
 }
 
 private struct RPCRemoteError: Decodable, Sendable {
-    let code: Int?
-    let message: String
+    public let code: Int?
+    public let message: String
 }
 
 private struct RPCEnvelope: Decodable, Sendable {
-    let id: Int?
-    let method: String?
-    let params: JSONValue?
-    let result: JSONValue?
-    let error: RPCRemoteError?
+    public let id: Int?
+    public let method: String?
+    public let params: JSONValue?
+    public let result: JSONValue?
+    public let error: RPCRemoteError?
 }
 
 private final class LinePump: @unchecked Sendable {
@@ -71,7 +73,7 @@ private final class LinePump: @unchecked Sendable {
     private var waiters: [CheckedContinuation<Data?, any Error>] = []
     private var isFinished = false
 
-    init(handle: FileHandle) {
+    public init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
             guard let self else { return }
             let data = readable.availableData
@@ -98,7 +100,7 @@ private final class LinePump: @unchecked Sendable {
         }
     }
 
-    func next() async throws -> Data? {
+    public func next() async throws -> Data? {
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
             if !lines.isEmpty {
@@ -127,7 +129,7 @@ private final class LinePump: @unchecked Sendable {
         }
     }
 
-    func finish() {
+    public func finish() {
         lock.lock()
         guard !isFinished else { lock.unlock(); return }
         isFinished = true
@@ -151,7 +153,7 @@ private final class StderrDrain: @unchecked Sendable {
     private var isFinished = false
     private var waiters: [CheckedContinuation<String, Never>] = []
 
-    func finishedMessage() async -> String {
+    public func finishedMessage() async -> String {
         await withCheckedContinuation { continuation in
             lock.lock()
             if isFinished {
@@ -165,7 +167,7 @@ private final class StderrDrain: @unchecked Sendable {
         }
     }
 
-    func finish() {
+    public func finish() {
         lock.lock()
         guard !isFinished else { lock.unlock(); return }
         isFinished = true
@@ -176,7 +178,7 @@ private final class StderrDrain: @unchecked Sendable {
         pending.forEach { $0.resume(returning: message) }
     }
 
-    init(handle: FileHandle) {
+    public init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
             guard let self else { return }
             let data = readable.availableData
@@ -204,8 +206,9 @@ private actor JSONRPCSession {
     private let stderrDrain: StderrDrain
     private let decoder = JSONDecoder()
     private var didTimeout = false
+    private var pendingNotifications: [RPCEnvelope] = []
 
-    init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
+    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
@@ -235,7 +238,7 @@ private actor JSONRPCSession {
         }
     }
 
-    func initialize(timeout: Duration) async throws {
+    public func initialize(timeout: Duration, clientVersion: String) async throws {
         try send([
             "method": "initialize",
             "id": 0,
@@ -243,7 +246,7 @@ private actor JSONRPCSession {
                 "clientInfo": [
                     "name": "codex_account_switcher",
                     "title": "Codex Account Switcher",
-                    "version": "0.1.10",
+                    "version": clientVersion,
                 ],
             ],
         ])
@@ -251,7 +254,7 @@ private actor JSONRPCSession {
         try send(["method": "initialized", "params": [:]])
     }
 
-    func request(
+    public func request(
         method: String,
         id: Int,
         params: [String: Any] = [:],
@@ -263,7 +266,7 @@ private actor JSONRPCSession {
         return result
     }
 
-    func notification(method: String, timeout: Duration) async throws -> JSONValue {
+    public func notification(method: String, timeout: Duration) async throws -> JSONValue {
         let envelope = try await receive(
             where: { $0.method == method && $0.id == nil },
             timeout: timeout
@@ -271,7 +274,7 @@ private actor JSONRPCSession {
         return envelope.params ?? .object([:])
     }
 
-    func stop() {
+    public func stop() {
         output.readabilityHandler = nil
         errorOutput.readabilityHandler = nil
         try? input.close()
@@ -290,6 +293,9 @@ private actor JSONRPCSession {
         where predicate: @escaping @Sendable (RPCEnvelope) -> Bool,
         timeout: Duration
     ) async throws -> RPCEnvelope {
+        if let index = pendingNotifications.firstIndex(where: predicate) {
+            return pendingNotifications.remove(at: index)
+        }
         didTimeout = false
         let timeoutTask = Task { [weak self] in
             do {
@@ -313,6 +319,11 @@ private actor JSONRPCSession {
                     throw CodexClientError.remoteError(code: error.code, message: error.message)
                 }
                 return message
+            }
+            // Login completion can arrive before the login/start response.
+            if message.method == "account/login/completed", message.id == nil {
+                pendingNotifications.append(message)
+                if pendingNotifications.count > 16 { pendingNotifications.removeFirst() }
             }
         }
         if didTimeout { throw CodexClientError.timeout }
@@ -341,19 +352,47 @@ private actor JSONRPCSession {
     }
 }
 
-struct CodexExecutableLocator: Sendable {
-    let explicitURL: URL?
+public struct CodexExecutableLocator: Sendable {
+    public let explicitURL: URL?
 
-    init(explicitURL: URL? = nil) {
+    public init(explicitURL: URL? = nil) {
         self.explicitURL = explicitURL
     }
 
-    func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
+    public func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
         if let explicitURL, isExecutable(explicitURL.path) {
             return explicitURL
         }
         let command = environment["CODEX_CLI_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         let executable = command.flatMap { $0.isEmpty ? nil : $0 } ?? "codex"
+        #if os(Windows)
+        if executable.contains("/") || executable.contains("\\") {
+            guard URL(fileURLWithPath: executable).path == executable.replacingOccurrences(of: "\\", with: "/")
+                    || (executable.count > 2 && executable[executable.index(after: executable.startIndex)] == ":") else {
+                throw CodexClientError.executableNotFound
+            }
+            guard isExecutable(executable) else { throw CodexClientError.executableNotFound }
+            return URL(fileURLWithPath: executable)
+        }
+        for directory in (environment["Path"] ?? environment["PATH"] ?? "").split(separator: ";") {
+            let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent(
+                executable.lowercased().hasSuffix(".exe") ? executable : executable + ".exe")
+            if isExecutable(candidate.path) { return candidate }
+        }
+        if let local = environment["LOCALAPPDATA"] {
+            let bin = URL(fileURLWithPath: local).appendingPathComponent("OpenAI/Codex/bin")
+            let versions = (try? FileManager.default.contentsOfDirectory(at: bin,
+                includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+            for version in versions.sorted(by: {
+                let left = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let right = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return left > right
+            }) {
+                let candidate = version.appendingPathComponent("codex.exe")
+                if isExecutable(candidate.path) { return candidate }
+            }
+        }
+        #else
         if executable.contains("/") {
             guard executable.hasPrefix("/"), isExecutable(executable) else {
                 throw CodexClientError.processLaunchFailed("CODEX_CLI_PATH is not executable: \(executable)")
@@ -368,11 +407,13 @@ struct CodexExecutableLocator: Sendable {
         {
             return URL(fileURLWithPath: path)
         }
+        #endif
         throw CodexClientError.executableNotFound
     }
 
-    func launchConfiguration() throws -> (executable: URL, environment: [String: String]) {
+    public func launchConfiguration() throws -> (executable: URL, environment: [String: String]) {
         var environment = ProcessInfo.processInfo.environment
+        #if !os(Windows)
         if explicitURL == nil {
             // GUI apps do not inherit the terminal's login PATH. Read the same shell settings
             // Desktop uses, and pass that PATH to npm's `#!/usr/bin/env node` launcher as well.
@@ -392,24 +433,52 @@ struct CodexExecutableLocator: Sendable {
             environment["PATH"] = String(fields[fields.count - 3])
             environment["CODEX_CLI_PATH"] = String(fields[fields.count - 2])
         }
+        #endif
         return (try locate(environment: environment), environment)
     }
 
     private func isExecutable(_ path: String) -> Bool {
+        #if os(Windows)
+        var isDirectory: ObjCBool = false
+        return path.lowercased().hasSuffix(".exe")
+            && FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && !isDirectory.boolValue
+        #else
         FileManager.default.isExecutableFile(atPath: path)
+        #endif
     }
 }
 
-struct CodexClient: CodexIdentityReading {
-    let locator: CodexExecutableLocator
-    let requestTimeout: Duration
+public protocol AccountClient: CodexIdentityReading {
+    func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage
+    func login(profileHome: URL) async throws -> AccountIdentity
+}
 
-    init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20)) {
+public struct CodexClient: AccountClient {
+    public let locator: CodexExecutableLocator
+    public let requestTimeout: Duration
+    public let clientVersion: String
+    private let openBrowser: @Sendable (URL) async throws -> Void
+
+    public init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20),
+                clientVersion: String = "0.1.10",
+                openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser) {
         self.locator = locator
         self.requestTimeout = requestTimeout
+        self.clientVersion = clientVersion
+        self.openBrowser = openBrowser
     }
 
-    func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+    public static func defaultOpenBrowser(_ url: URL) async throws {
+        #if canImport(AppKit)
+        guard await MainActor.run(body: { NSWorkspace.shared.open(url) }) else {
+            throw CodexClientError.loginFailed("The sign-in page could not be opened.")
+        }
+        #else
+        throw CodexClientError.loginFailed("A native browser adapter is required.")
+        #endif
+    }
+
+    public func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         let result = try await withSession(profileHome: profileHome) { session in
             try await session.request(
                 method: "account/read",
@@ -421,7 +490,7 @@ struct CodexClient: CodexIdentityReading {
         return try parseIdentity(result)
     }
 
-    func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
+    public func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         let result = try await withSession(profileHome: profileHome) { session in
             try await session.request(
                 method: "account/rateLimits/read",
@@ -432,12 +501,12 @@ struct CodexClient: CodexIdentityReading {
         return try WeeklyUsageNormalizer.normalize(parseWindows(result))
     }
 
-    func login(profileHome: URL) async throws -> AccountIdentity {
+    public func login(profileHome: URL) async throws -> AccountIdentity {
         let launch = try locator.launchConfiguration()
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment)
         return try await withTaskCancellationHandler {
             do {
-                try await session.initialize(timeout: requestTimeout)
+                try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
                 let start = try await session.request(
                     method: "account/login/start",
                     id: 1,
@@ -453,8 +522,7 @@ struct CodexClient: CodexIdentityReading {
                 else {
                     throw CodexClientError.malformedResponse
                 }
-                let opened = await MainActor.run { NSWorkspace.shared.open(authURL) }
-                guard opened else { throw CodexClientError.loginFailed("The sign-in page could not be opened.") }
+                try await openBrowser(authURL)
 
                 let completion = try await session.notification(
                     method: "account/login/completed",
@@ -491,7 +559,7 @@ struct CodexClient: CodexIdentityReading {
         let launch = try locator.launchConfiguration()
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment)
         do {
-            try await session.initialize(timeout: requestTimeout)
+            try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
             let result = try await operation(session)
             await session.stop()
             return result

@@ -3,13 +3,13 @@ name: Release macOS app
 on:
   push:
     tags:
-      - "v*"
+      - "macos-v*"
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.repository }}
+  group: release-macos-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
 
           release_version=$(sed -n 's/^version:[[:space:]]*\([^[:space:]]*\)$/\1/p' CITATION.cff)
           package_version=$(sed -n 's/^APP_VERSION=${RELEASE_VERSION:-\([^}]*\)}$/\1/p' scripts/package-local-app.sh)
-          client_version=$(sed -n 's/^[[:space:]]*"version": "\([^"]*\)",$/\1/p' Sources/CodexAccountSwitcher/CodexClient.swift)
+          client_version=$(sed -n 's/^[[:space:]]*clientVersion: String = "\([^"]*\)",$/\1/p' Sources/SwitcherCore/CodexClient.swift)
 
           if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "CITATION.cff has an invalid release version: '$release_version'" >&2
@@ -49,9 +49,9 @@ jobs:
             exit 1
           fi
 
-          release_tag="v${release_version}"
+          release_tag="macos-v${release_version}"
           if [[ "$GITHUB_REF" != refs/tags/* ]]; then
-            echo "Unsupported release ref '$GITHUB_REF'; only v* tag pushes may publish a release" >&2
+            echo "Unsupported release ref '$GITHUB_REF'; only macos-v* tag pushes may publish a release" >&2
             exit 1
           fi
 
@@ -274,7 +274,7 @@ jobs:
           test "$tag_commit" = "$main_commit"
           artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
           gh release create "$RELEASE_TAG" "$artifact" "$artifact.sha256" .build/artifacts/appcast.xml \
-            --title "Codex Account Switcher ${RELEASE_TAG}" \
+            --title "macOS · v${RELEASE_VERSION}" \
             --notes-file .github/release-notes.md \
             --latest \
             --verify-tag

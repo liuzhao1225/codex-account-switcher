@@ -1,0 +1,143 @@
+name: Windows
+
+on:
+  pull_request:
+    paths:
+      - "windows/**"
+      - "Sources/SwitcherCore/**"
+      - "Sources/SwitcherPlatform/**"
+      - "Sources/SwitcherHost/**"
+      - "Tests/SwitcherCoreTests/**"
+      - "Package.swift"
+      - "scripts/package-windows.ps1"
+      - "scripts/generate-windows-icons.py"
+      - "scripts/validate-release-tag.mjs"
+      - "scripts/tests/**"
+      - ".github/workflows/windows.yml"
+  push:
+    branches: [main]
+    paths:
+      - "windows/**"
+      - "Sources/SwitcherCore/**"
+      - "Sources/SwitcherPlatform/**"
+      - "Sources/SwitcherHost/**"
+      - "Tests/SwitcherCoreTests/**"
+      - "Package.swift"
+      - "scripts/package-windows.ps1"
+      - "scripts/generate-windows-icons.py"
+      - "scripts/validate-release-tag.mjs"
+      - "scripts/tests/**"
+      - ".github/workflows/windows.yml"
+    tags:
+      - "windows-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: compnerd/gha-setup-swift@397094e75494a93fa8d81db0268dbc8f5d6cf7c6
+        with:
+          swift-version: swift-6.3.3-release
+          swift-build: 6.3.3-RELEASE
+      - name: Validate Windows release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          node scripts/validate-release-tag.mjs windows $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -ne 0) { throw 'Tag/version mismatch.' }
+          git fetch origin main
+          if ($LASTEXITCODE -ne 0) { throw 'Could not fetch main.' }
+          $headCommit = git rev-parse HEAD
+          $tagCommit = git rev-parse "$($env:GITHUB_REF_NAME)^{commit}"
+          $mainCommit = git rev-parse origin/main
+          if ($headCommit -ne $mainCommit -or $tagCommit -ne $mainCommit) {
+            throw 'Release tag and checkout must both point to current origin/main.'
+          }
+      - name: Check release routing
+        run: node --test scripts/tests/*.test.mjs
+      - name: Build Windows application
+        run: dotnet build windows/CodexAccountSwitcher -c Release --nologo
+      - name: Test the same Swift core used by macOS
+        shell: pwsh
+        run: |
+          dotnet build windows/CodexAccountSwitcher.Checks -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Transport fixture build failed.' }
+          $env:SWITCHER_TEST_RPC_EXE = Join-Path $pwd 'windows/CodexAccountSwitcher.Checks/bin/Release/net10.0-windows/CodexAccountSwitcher.Checks.exe'
+          swift test
+      - name: Build the shared core host
+        run: swift build -c release --product SwitcherHost
+      - name: Check native transport and shared storage with isolated credentials
+        shell: pwsh
+        run: |
+          $bin = swift build -c release --show-bin-path
+          if ($LASTEXITCODE -ne 0) { throw 'Shared host path lookup failed.' }
+          dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- "$bin/SwitcherHost.exe"
+      - name: Check WPF screens and data bindings with synthetic accounts
+        run: dotnet run --project windows/CodexAccountSwitcher.UiChecks -c Release
+      - name: Package self-contained EXE
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - name: Verify the EXE without SDK/runtime paths
+        shell: pwsh
+        run: |
+          $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $pwd 'windows/artifacts/Codex-Account-Switcher-windows-x64.exe'), '--self-test')
+          $start.UseShellExecute = $false
+          $start.CreateNoWindow = $true
+          $start.WindowStyle = 'Hidden'
+          $start.Environment['PATH'] = "$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($name in @('CODEX_SWITCHER_HOST_PATH', 'DOTNET_ROOT', 'SDKROOT', 'SWIFT_ROOT', 'SWIFT_PATH')) { $start.Environment.Remove($name) | Out-Null }
+          $start.Environment['CODEX_SWITCHER_SELF_TEST_RESULT'] = Join-Path $pwd 'windows/artifacts/package-self-test.txt'
+          $process = [Diagnostics.Process]::Start($start)
+          if (-not $process.WaitForExit(45000) -or $process.ExitCode -ne 0) { throw 'Self-contained package check failed.' }
+          Get-Content windows/artifacts/package-self-test.txt
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Account-Switcher-windows-x64
+          path: |
+            windows/artifacts/*.exe
+            windows/artifacts/*.sha256
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/windows-v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Codex-Account-Switcher-windows-x64
+          path: windows/artifacts
+      - name: Publish Windows preview
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tags = gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect existing releases.' }
+          if ($tags -contains $env:GITHUB_REF_NAME) { Write-Output 'Release already exists; leaving it unchanged.'; exit 0 }
+          $version = $env:GITHUB_REF_NAME -replace '^windows-v', ''
+          gh release create $env:GITHUB_REF_NAME `
+            windows/artifacts/Codex-Account-Switcher-windows-x64.exe `
+            windows/artifacts/Codex-Account-Switcher-windows-x64.exe.sha256 `
+            --title "Windows · v$version Preview" `
+            --notes-file .github/release-notes-windows.md `
+            --prerelease --latest=false --verify-tag
+          if ($LASTEXITCODE -ne 0) { throw 'Windows release failed.' }

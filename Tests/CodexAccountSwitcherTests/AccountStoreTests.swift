@@ -1,3 +1,4 @@
+@testable import SwitcherCore
 import Darwin
 import Foundation
 import Testing

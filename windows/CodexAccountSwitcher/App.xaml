@@ -1,0 +1,36 @@
+<Application x:Class="CodexAccountSwitcher.App"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" ShutdownMode="OnExplicitShutdown" ThemeMode="System">
+ <Application.Resources>
+  <SolidColorBrush x:Key="Surface" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ListSurface" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Ink" Color="#1A1A1A"/>
+  <SolidColorBrush x:Key="Muted" Color="#666666"/>
+  <SolidColorBrush x:Key="Line" Color="#DDDDDD"/>
+  <SolidColorBrush x:Key="Accent" Color="#0067C0"/>
+  <SolidColorBrush x:Key="Selected" Color="#E2EEFA"/>
+  <SolidColorBrush x:Key="Hover" Color="#0C000000"/>
+  <Style TargetType="Window">
+   <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI"/>
+   <Setter Property="FontSize" Value="13"/>
+   <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+  </Style>
+  <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+  <!-- Only account rows have a custom template. Commands and settings use Microsoft's Fluent controls. -->
+  <Style x:Key="AccountRow" TargetType="Button">
+   <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+   <Setter Property="Padding" Value="16,12"/>
+   <Setter Property="Background" Value="Transparent"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Row" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+     <ContentPresenter/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="Row" Property="BorderThickness" Value="1"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Application.Resources>
+</Application>

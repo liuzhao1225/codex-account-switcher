@@ -1,3 +1,4 @@
+import SwitcherCore
 import AppKit
 import SwiftUI
 

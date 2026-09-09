@@ -1,7 +1,12 @@
 import Foundation
 
-enum L10n {
-    static func string(_ key: String, language: AppLanguage) -> String {
+// Shared product copy; platform names are adapted by the native presentation layer.
+
+public enum L10n {
+    public static func allStrings(language: AppLanguage) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: (tables[.english] ?? [:]).keys.map { ($0, string($0, language: language)) })
+    }
+    public static func string(_ key: String, language: AppLanguage) -> String {
         let resolved: AppLanguage
         switch language {
         case .system:

@@ -215,7 +215,7 @@ for (const url of sitemapURLs) {
 }
 
 const llms = fs.readFileSync(path.join(siteRoot, "llms.txt"), "utf8");
-if (!llms.startsWith("# Codex Account Switcher\n")) fail("site/llms.txt: must start with the canonical project H1");
+if (!/^# Codex Account Switcher\r?\n/.test(llms)) fail("site/llms.txt: must start with the canonical project H1");
 if (!llms.includes("> Codex Account Switcher is")) fail("site/llms.txt: missing concise project summary");
 if (!llms.includes(`current release is v${releaseVersion}`)) fail("site/llms.txt: current release differs from CITATION.cff");
 for (const [, href] of llms.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) checkTarget(href, baseURL, "site/llms.txt");

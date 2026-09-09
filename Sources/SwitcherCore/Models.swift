@@ -1,14 +1,21 @@
 import Foundation
 
-struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendable {
-    let id: UUID
-    var displayName: String
-    let email: String?
-    let accountID: String?
-    let createdAt: Date
-    var lastUsedAt: Date?
+// Shared account and usage types for both native platform clients.
 
-    var initials: String {
+public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendable {
+    public let id: UUID
+    public var displayName: String
+    public let email: String?
+    public let accountID: String?
+    public let createdAt: Date
+    public var lastUsedAt: Date?
+
+    public init(id: UUID, displayName: String, email: String?, accountID: String?, createdAt: Date, lastUsedAt: Date? = nil) {
+        self.id = id; self.displayName = displayName; self.email = email
+        self.accountID = accountID; self.createdAt = createdAt; self.lastUsedAt = lastUsedAt
+    }
+
+    public var initials: String {
         let parts = displayName
             .split(whereSeparator: { $0.isWhitespace })
             .prefix(2)
@@ -17,33 +24,37 @@ struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendable {
     }
 }
 
-struct AccountRegistry: Codable, Equatable, Sendable {
-    var activeAccountID: UUID?
-    var accounts: [AccountProfile]
+public struct AccountRegistry: Codable, Equatable, Sendable {
+    public var activeAccountID: UUID?
+    public var accounts: [AccountProfile]
 
-    static let empty = AccountRegistry(activeAccountID: nil, accounts: [])
+    public init(activeAccountID: UUID?, accounts: [AccountProfile]) {
+        self.activeAccountID = activeAccountID; self.accounts = accounts
+    }
+
+    public static let empty = AccountRegistry(activeAccountID: nil, accounts: [])
 }
 
-enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
+public enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
     case english
     case simplifiedChinese
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 }
 
-struct AppSettings: Codable, Equatable, Sendable {
-    var language: AppLanguage
-    var showsMenuBarPercentage: Bool
-    var showsFiveHourUsage: Bool
+public struct AppSettings: Codable, Equatable, Sendable {
+    public var language: AppLanguage
+    public var showsMenuBarPercentage: Bool
+    public var showsFiveHourUsage: Bool
 
-    static let `default` = AppSettings(
+    public static let `default` = AppSettings(
         language: .system,
         showsMenuBarPercentage: true,
         showsFiveHourUsage: false
     )
 
-    init(
+    public init(
         language: AppLanguage,
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false
@@ -53,7 +64,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.showsFiveHourUsage = showsFiveHourUsage
     }
 
-    init(from decoder: any Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
         showsMenuBarPercentage = try container.decodeIfPresent(
@@ -67,13 +78,13 @@ struct AppSettings: Codable, Equatable, Sendable {
     }
 }
 
-struct WeeklyUsage: Codable, Equatable, Sendable {
-    let remainingPercent: Int
-    let resetsAt: Date
-    let fiveHourRemainingPercent: Int?
-    let fiveHourResetsAt: Date?
+public struct WeeklyUsage: Codable, Equatable, Sendable {
+    public let remainingPercent: Int
+    public let resetsAt: Date
+    public let fiveHourRemainingPercent: Int?
+    public let fiveHourResetsAt: Date?
 
-    init(
+    public init(
         remainingPercent: Int,
         resetsAt: Date,
         fiveHourRemainingPercent: Int? = nil,
@@ -86,25 +97,31 @@ struct WeeklyUsage: Codable, Equatable, Sendable {
     }
 }
 
-struct UsageCacheEntry: Codable, Equatable, Sendable {
-    let profileID: UUID
-    let usage: WeeklyUsage
-    let fetchedAt: Date
+public struct UsageCacheEntry: Codable, Equatable, Sendable {
+    public let profileID: UUID
+    public let usage: WeeklyUsage
+    public let fetchedAt: Date
+
+    public init(profileID: UUID, usage: WeeklyUsage, fetchedAt: Date) {
+        self.profileID = profileID; self.usage = usage; self.fetchedAt = fetchedAt
+    }
 }
 
-struct UsageCache: Codable, Equatable, Sendable {
-    var entries: [UsageCacheEntry]
+public struct UsageCache: Codable, Equatable, Sendable {
+    public var entries: [UsageCacheEntry]
 
-    static let empty = UsageCache(entries: [])
+    public init(entries: [UsageCacheEntry]) { self.entries = entries }
+
+    public static let empty = UsageCache(entries: [])
 }
 
-enum UsageViewState: Equatable, Sendable {
+public enum UsageViewState: Equatable, Sendable {
     case idle
     case loaded(WeeklyUsage)
     case stale(WeeklyUsage, String)
     case unavailable(String)
 
-    var displayedUsage: WeeklyUsage? {
+    public var displayedUsage: WeeklyUsage? {
         switch self {
         case let .loaded(usage), let .stale(usage, _):
             usage
@@ -113,24 +130,26 @@ enum UsageViewState: Equatable, Sendable {
         }
     }
 
-    var refreshError: String? {
+    public var refreshError: String? {
         guard case let .stale(_, message) = self else { return nil }
         return message
     }
 }
 
-struct AccountIdentity: Equatable, Sendable {
-    let accountID: String?
-    let email: String?
+public struct AccountIdentity: Equatable, Sendable {
+    public let accountID: String?
+    public let email: String?
 
-    var suggestedDisplayName: String {
+    public init(accountID: String?, email: String?) { self.accountID = accountID; self.email = email }
+
+    public var suggestedDisplayName: String {
         guard let email, let localPart = email.split(separator: "@").first else {
             return "Codex Account"
         }
         return String(localPart)
     }
 
-    func matches(_ profile: AccountProfile) -> Bool {
+    public func matches(_ profile: AccountProfile) -> Bool {
         if let expected = profile.accountID, let actual = accountID {
             return expected == actual
         }
@@ -141,7 +160,7 @@ struct AccountIdentity: Equatable, Sendable {
     }
 }
 
-enum SwitchStage: String, CaseIterable, Sendable {
+public enum SwitchStage: String, CaseIterable, Sendable {
     case closeDesktop
     case saveCurrentCredential
     case activateTargetCredential
@@ -150,14 +169,19 @@ enum SwitchStage: String, CaseIterable, Sendable {
     case reopenDesktop
 }
 
-struct OperationError: LocalizedError, Equatable, Sendable {
-    let stage: SwitchStage?
-    let titleKey: String
-    let messageKey: String?
-    let message: String
-    let underlyingDescription: String?
+public struct OperationError: LocalizedError, Equatable, Sendable {
+    public let stage: SwitchStage?
+    public let titleKey: String
+    public let messageKey: String?
+    public let message: String
+    public let underlyingDescription: String?
 
-    var errorDescription: String? {
+    public init(stage: SwitchStage?, titleKey: String, messageKey: String?, message: String, underlyingDescription: String?) {
+        self.stage = stage; self.titleKey = titleKey; self.messageKey = messageKey
+        self.message = message; self.underlyingDescription = underlyingDescription
+    }
+
+    public var errorDescription: String? {
         let title = L10n.string(titleKey, language: .english)
         if let stage {
             return "\(title) (\(stage.rawValue)): \(message)"
@@ -165,7 +189,7 @@ struct OperationError: LocalizedError, Equatable, Sendable {
         return "\(title): \(message)"
     }
 
-    static func stage(_ stage: SwitchStage, _ error: any Error) -> OperationError {
+    public static func stage(_ stage: SwitchStage, _ error: any Error) -> OperationError {
         OperationError(
             stage: stage,
             titleKey: "switch_failed",
@@ -176,7 +200,7 @@ struct OperationError: LocalizedError, Equatable, Sendable {
     }
 }
 
-enum AccountStoreError: LocalizedError, Equatable, Sendable {
+public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case profileNotFound
     case activeProfileMissing
     case activeCredentialMissing
@@ -185,7 +209,7 @@ enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case duplicateAccount
     case cannotRemoveActiveAccount
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .profileNotFound:
             "The account profile could not be found."
@@ -205,7 +229,7 @@ enum AccountStoreError: LocalizedError, Equatable, Sendable {
     }
 }
 
-enum CodexClientError: LocalizedError, Equatable, Sendable {
+public enum CodexClientError: LocalizedError, Equatable, Sendable {
     case executableNotFound
     case processLaunchFailed(String)
     case malformedResponse
@@ -217,7 +241,7 @@ enum CodexClientError: LocalizedError, Equatable, Sendable {
     case weeklyUsageUnavailable
     case loginFailed(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .executableNotFound:
             "The Codex executable could not be found."

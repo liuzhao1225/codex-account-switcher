@@ -5,15 +5,16 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 output_dir="$project_dir/.build/core-checks"
 mkdir -p "$output_dir"
 
+swiftc -emit-module -emit-library -module-name SwitcherCore \
+  "$project_dir"/Sources/SwitcherCore/*.swift \
+  -emit-module-path "$output_dir/SwitcherCore.swiftmodule" \
+  -o "$output_dir/libSwitcherCore.dylib"
+
 swiftc \
   -parse-as-library \
-  "$project_dir/Sources/CodexAccountSwitcher/Models.swift" \
-  "$project_dir/Sources/CodexAccountSwitcher/WeeklyUsageNormalizer.swift" \
-  "$project_dir/Sources/CodexAccountSwitcher/AccountStore.swift" \
-  "$project_dir/Sources/CodexAccountSwitcher/SwitchService.swift" \
+  -I "$output_dir" -L "$output_dir" -lSwitcherCore \
+  -Xlinker -rpath -Xlinker "$output_dir" \
   "$project_dir/Sources/CodexAccountSwitcher/DesktopController.swift" \
-  "$project_dir/Sources/CodexAccountSwitcher/CodexClient.swift" \
-  "$project_dir/Sources/CodexAccountSwitcher/Localization.swift" \
   "$project_dir/Sources/CodexAccountSwitcher/AppModel.swift" \
   "$project_dir/Checks/CoreChecks.swift" \
   -framework AppKit \

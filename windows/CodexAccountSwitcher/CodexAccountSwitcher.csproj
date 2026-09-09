@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Codex-Account-Switcher-windows-x64</AssemblyName>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <SwiftRuntimeArchive Condition="'$(SwiftRuntimeArchive)' == ''">../artifacts/SwiftRuntime.zip</SwiftRuntimeArchive>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CodexAccountSwitcher.Core/CodexAccountSwitcher.Core.csproj" />
+    <Resource Include="../../assets/account-switcher-logo.png" Link="logo.png" />
+    <Resource Include="app.ico" />
+    <Resource Include="tray-light.ico" />
+    <Resource Include="tray-dark.ico" />
+    <EmbeddedResource Include="../../LICENSE" Link="LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(SwiftRuntimeArchive)')">
+    <EmbeddedResource Include="$(SwiftRuntimeArchive)" LogicalName="SwitcherRuntime.zip" />
+  </ItemGroup>
+</Project>

@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import SwitcherCore
 import ServiceManagement
 
 enum CheckFailure: Error {

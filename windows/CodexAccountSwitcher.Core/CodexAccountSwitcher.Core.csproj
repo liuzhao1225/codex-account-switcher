@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Native Windows adapters and presentation transport only. Business logic is SwitcherCore (Swift). -->
+</Project>

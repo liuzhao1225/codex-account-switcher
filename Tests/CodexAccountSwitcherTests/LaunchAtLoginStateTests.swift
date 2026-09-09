@@ -1,3 +1,4 @@
+@testable import SwitcherCore
 import ServiceManagement
 import Testing
 @testable import CodexAccountSwitcher

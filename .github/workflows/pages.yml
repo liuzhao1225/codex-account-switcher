@@ -7,7 +7,11 @@ on:
     paths:
       - "site/**"
       - "scripts/check-site-geo.mjs"
+      - "scripts/prepare-macos-feed.mjs"
       - ".github/workflows/pages.yml"
+  workflow_run:
+    workflows: ["Release macOS app"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -21,6 +25,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -31,6 +36,11 @@ jobs:
 
       - name: Check SEO and GEO metadata
         run: node scripts/check-site-geo.mjs
+
+      - name: Prepare the macOS-only Sparkle feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-macos-feed.mjs
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4

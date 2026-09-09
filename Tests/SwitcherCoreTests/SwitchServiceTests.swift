@@ -1,6 +1,7 @@
+@testable import SwitcherCore
 import Foundation
 import Testing
-@testable import CodexAccountSwitcher
+
 
 struct SwitchServiceTests {
     @Test func quitFailureLeavesBothAccountsUntouched() async {

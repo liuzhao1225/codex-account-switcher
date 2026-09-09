@@ -63,39 +63,51 @@ let testingCompatibilitySettings: ([SwiftSetting], [LinkerSetting]) = {
     )
 }()
 
+var products: [Product] = [
+    .library(name: "SwitcherCore", targets: ["SwitcherCore"]),
+    .executable(name: "SwitcherHost", targets: ["SwitcherHost"]),
+]
+var dependencies: [Package.Dependency] = []
+var targets: [Target] = [
+    .target(name: "SwitcherPlatform", linkerSettings: [
+        .linkedLibrary("advapi32", .when(platforms: [.windows])),
+        .linkedLibrary("ole32", .when(platforms: [.windows])),
+    ]),
+    .target(name: "SwitcherCore", dependencies: [
+        .target(name: "SwitcherPlatform", condition: .when(platforms: [.windows])),
+    ]),
+    .executableTarget(name: "SwitcherHost", dependencies: ["SwitcherCore"]),
+    .testTarget(name: "SwitcherCoreTests", dependencies: ["SwitcherCore"],
+                swiftSettings: testingCompatibilitySettings.0,
+                linkerSettings: testingCompatibilitySettings.1),
+]
+#if os(macOS)
+products.append(.executable(name: "CodexAccountSwitcher", targets: ["CodexAccountSwitcher"]))
+dependencies.append(.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"))
+targets += [
+    .executableTarget(
+        name: "CodexAccountSwitcher",
+        dependencies: ["SwitcherCore", .product(name: "Sparkle", package: "Sparkle")],
+        resources: [.process("Resources")],
+        linkerSettings: [
+            .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
+            .linkedFramework("AppKit"),
+            .linkedFramework("ServiceManagement"),
+        ]
+    ),
+    .testTarget(name: "CodexAccountSwitcherTests", dependencies: ["CodexAccountSwitcher", "SwitcherCore"],
+                swiftSettings: testingCompatibilitySettings.0,
+                linkerSettings: testingCompatibilitySettings.1),
+]
+#endif
+
 let package = Package(
     name: "CodexAccountSwitcher",
     defaultLocalization: "en",
     platforms: [
         .macOS(.v14),
     ],
-    products: [
-        .executable(
-            name: "CodexAccountSwitcher",
-            targets: ["CodexAccountSwitcher"]
-        ),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
-    ],
-    targets: [
-        .executableTarget(
-            name: "CodexAccountSwitcher",
-            dependencies: [.product(name: "Sparkle", package: "Sparkle")],
-            resources: [
-                .process("Resources"),
-            ],
-            linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
-                .linkedFramework("AppKit"),
-                .linkedFramework("ServiceManagement"),
-            ]
-        ),
-        .testTarget(
-            name: "CodexAccountSwitcherTests",
-            dependencies: ["CodexAccountSwitcher"],
-            swiftSettings: testingCompatibilitySettings.0,
-            linkerSettings: testingCompatibilitySettings.1
-        ),
-    ]
+    products: products,
+    dependencies: dependencies,
+    targets: targets
 )

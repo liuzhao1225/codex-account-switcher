@@ -1,3 +1,4 @@
+import SwitcherCore
 import SwiftUI
 
 struct SettingsView: View {

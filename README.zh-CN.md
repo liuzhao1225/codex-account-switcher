@@ -125,11 +125,17 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 | 项目 | 状态 |
 | --- | --- |
 | Apple Silicon 版本 | 已在 [v0.1.10](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.10) 提供 |
-| 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `v*` tag 后发布签名版本 |
+| 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `macos-v*` tag 后发布签名 Mac 版本 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
 | DMG 发布 | 已在 v0.1.10 提供 |
+
+## Windows 预览版
+
+项目保留 macOS 原生界面，并在 [`windows/`](windows/README.md) 新增紧凑的 Windows 托盘界面。两端调用同一份 Swift 账号核心，共享登录、切换、额度、缓存和设置逻辑。免安装的 `Codex-Account-Switcher-windows-x64.exe` 包含 .NET 与 Swift 核心运行时，用户无需另装 SDK。已发布构建见 [Windows 发布列表](https://github.com/liuzhao1225/codex-account-switcher/releases?q=windows-v)，本地构建步骤见 [Windows 开发文档](windows/README.md)。预览版尚未签名；支持检查 Windows 更新并打开下载页，暂不自动替换程序。
+
+后续两端分别使用 **`macos-v<版本号>`** 和 **`windows-v<版本号>`**，各自维护版本并触发发布。历史 `v*` tag 保持不变。详见[分平台版本与发布管理](docs/platform-releases.md)。
 
 ## 开发
 
@@ -155,14 +161,18 @@ swift test
 
 ### 自动发布
 
-只有推送一个已经存在的 `v*` tag 才会启动 release workflow。普通 `main` push 仍会运行 CI，不会启动发布，也不会自动创建 tag。维护者需先将 `CITATION.cff`、本地打包默认版本和 Codex app-server 客户端版本更新为同一个语义化版本，合并到 `main`，再从当前 `origin/main` commit 创建并推送对应 tag。
+只有推送一个已经存在的 `macos-v*` tag 才会启动 macOS release workflow。普通 `main` push 仍会运行 CI，不会启动发布，也不会自动创建 tag。维护者需先将 `CITATION.cff`、本地打包默认版本和 Codex app-server 客户端版本更新为同一个语义化版本，合并到 `main`，再从当前 `origin/main` commit 创建并推送对应 tag。
 
-tag workflow 会校验 tag 名与三处版本，并要求 tag commit 和检出的 commit 都等于当前 `origin/main`。同 tag 的 GitHub Release 已存在时，workflow 成功结束，不重复构建或发布；Release 缺失时，GitHub runner 才会执行测试、Developer ID 签名、Apple 公证与票据附加、DMG 打包、SHA-256 生成，以及 `gh release create --latest --verify-tag`。每个 Release 都上传固定名称的 `Codex-Account-Switcher-macos-arm64.dmg` 和 `Codex-Account-Switcher-macos-arm64.dmg.sha256`，公开下载链接可永久使用 `releases/latest/download/...`。tag 或 commit 不一致时，日志会显示冲突值并直接失败。
+tag workflow 会校验 tag 名与三处版本，并要求 tag commit 和检出的 commit 都等于当前 `origin/main`。同 tag 的 GitHub Release 已存在时，workflow 成功结束，不重复构建或发布；Release 缺失时，GitHub runner 才会执行测试、Developer ID 签名、Apple 公证与票据附加、DMG 打包、SHA-256 生成，以及 `gh release create --latest --verify-tag`。每个 macOS Release 都上传固定名称的 `Codex-Account-Switcher-macos-arm64.dmg` 及其 SHA-256 文件。Windows 预览期间保留现有 Mac 的 `releases/latest/download/...` 地址；发布 Windows 正式版前须按分平台发布文档处理旧版 Mac 更新源兼容性。tag 或 commit 不一致时，日志会显示冲突值并直接失败。
 
 ### 项目结构
 
 ```text
-Sources/CodexAccountSwitcher/   SwiftUI 应用、账号状态、切换逻辑和本地化
+Sources/CodexAccountSwitcher/   macOS 原生 SwiftUI 界面与系统适配
+Sources/SwitcherCore/           两端共享的账号状态、切换、额度、RPC 和文案
+Sources/SwitcherHost/           Windows 原生界面使用的私有 stdio 核心进程
+Sources/SwitcherPlatform/       Windows 文件权限与原子替换
+windows/                       Windows 托盘界面、系统适配、检查与打包
 Tests/                              存储、客户端、切换和登录项的 Swift 测试
 Checks/                             独立的核心行为检查
 scripts/                            本地打包和验证命令
@@ -232,3 +242,5 @@ Codex Account Switcher 基于 [MIT License](LICENSE) 发布。
 发布前需要配置仓库 `SPARKLE_PRIVATE_KEY`，并上传带签名的 `appcast.xml`。已安装的 0.1.6 没有更新器，需要先手动升级一次。发布流程将带签名的更新源与公证 DMG 一同上传。
 
 保留机制、修复及仍存在的设计缺口见[全项目消融报告](docs/project-ablation-2026-09-05.md)。
+
+Windows ?????? **0.1.11**??? `windows-v0.1.11` ?????macOS ???? 0.1.10???? Mac ??????????

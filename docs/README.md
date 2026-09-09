@@ -43,3 +43,8 @@ Preflight
 ```
 
 The sequence is deliberately linear. Every step either succeeds or returns an error. Verification and registry-commit failures after activation restore the validated original profile credential; the implementation does not add a general recovery state machine around the switch.
+
+## Windows and platform releases
+
+- [Windows development, packaging and limitations](../windows/README.md)
+- [Independent macOS / Windows versions and tags](platform-releases.md)
