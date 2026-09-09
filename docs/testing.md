@@ -5,7 +5,7 @@
 The MVP test suite should prove two things:
 
 1. the direct happy path works;
-2. failures stop exactly where they occur and remain visible while the bounded pre-commit credential restoration preserves account consistency.
+2. failures stop exactly where they occur and remain visible while bounded credential and provider restoration preserves account consistency.
 
 It should test the documented verification/commit restoration and confirm that no general rollback state machine, retry, credential backup file, journal, or startup recovery exists.
 
@@ -65,6 +65,16 @@ Test:
 - differing emails fail;
 - missing ID and email fails.
 
+### 2.4 Provider configuration
+
+Test:
+
+- custom provider identifiers and configured names are read from `config/read`;
+- missing provider names receive a readable label derived from the identifier;
+- the built-in `openai` provider is not duplicated in the custom-provider list;
+- unknown providers are rejected before a write;
+- `config/value/write` changes only `model_provider` and the result is verified with a fresh read.
+
 ## 3. Switch-flow tests
 
 Use fakes for Desktop, account storage, and Codex identity.
@@ -73,6 +83,7 @@ Expected call order:
 
 ```text
 closeDesktop
+activateOpenAIProvider
 saveCurrent
 activateTarget
 readActiveIdentity
@@ -83,19 +94,23 @@ openDesktop
 Inject an error at each call and assert:
 
 - the error reports the correct `SwitchStage`;
-- no later call occurs;
+- no later mutation call occurs;
+- failures after `closeDesktop` restore the relevant provider/credential state and call `openDesktop`;
 - no retry occurs;
 - `isMutating` returns to false after presentation.
 
 Specific partial-state assertions:
 
 - the registry is read and `originalActiveID` is validated before saving or replacing credentials;
-- activation error before replacement leaves state metadata unchanged and runs no restoration;
+- target credential activation error leaves registry metadata unchanged, restores the previous login and provider, and reopens Desktop;
 - verification error restores the original active credential and leaves the original metadata active;
 - state-write error restores the original active credential and leaves the original metadata active;
 - a retry after restoration cannot overwrite the original profile with target credentials;
 - a restoration failure reports both the original and restoration errors;
 - Desktop-open error leaves target auth and target metadata active.
+- provider activation failure leaves credentials unchanged, restores the original provider, and reopens Desktop;
+- configured-provider switching runs close, activate, and reopen in order;
+- a provider write followed by verification failure restores the original provider and reopens Desktop.
 
 Use both the fake store and the real `AccountStore` so call ordering, atomic credential installation, registry-write failure, and on-disk bytes are covered.
 
@@ -119,7 +134,8 @@ Assert that the client does not retry, makes one rate-limit request per read, an
 Verify:
 
 - current row is highlighted;
-- no checkmark or `Current` label exists;
+- configured providers appear in a separate section and expose selected state;
+- account rows have no checkmark or `Current` label; provider rows expose a selected checkmark;
 - reset text remains on the name line in the default compact layout;
 - enabled 5-hour display shows separate 5h and 7d rows with percentages and reset times;
 - enabled 5-hour display omits the 5h row when data is absent;
@@ -138,7 +154,9 @@ Verify:
 - a short-interval timer test proves that a manual refresh postpones the previous deadline and cancellation stops later rounds;
 - active profile remove button is disabled;
 - disabling Show 5-hour Usage restores the existing weekly row layout;
-- the menu-bar percentage remains weekly when 5-hour display is enabled.
+- the menu-bar percentage remains weekly when 5-hour display is enabled;
+- the menu-bar percentage is hidden while a custom provider is active;
+- provider confirmation explains that existing conversations keep their original provider.
 
 ## 6. Manual test matrix
 
@@ -170,6 +188,10 @@ With two real test accounts:
 16. force identity mismatch and confirm the original `auth.json` is restored while the mismatch remains visible;
 17. make `accounts.json` unwritable and confirm the original `auth.json` is restored while the state-write failure remains visible;
 18. make restoration fail and confirm both errors are shown.
+19. configure a custom provider, confirm it appears by configured name, and switch to it;
+20. confirm only `model_provider` changes and the provider's credential configuration is untouched;
+21. confirm a new conversation uses the selected provider and an existing conversation remains on its original provider;
+22. select a saved ChatGPT account and confirm the built-in `openai` provider is restored before identity verification.
 
 ## 7. Repository checks
 
@@ -211,3 +233,7 @@ New regression cases cover external-login contamination, successful RPC response
 Public release acceptance still requires a signed feed, an increasing Sparkle build version, and a real download/install/relaunch test. Delegate simulations and local codesign verification do not establish those outcomes.
 
 Release follow-up: the full runner now executes 54 tests, including parameterized first-activation success and failure cases. An isolated Sparkle app completed a real signed download/install/relaunch from 0.1.7 to 0.1.8; see the ablation report for the fixture boundaries.
+
+## Native API regression checks
+
+The standalone `NativeAPIChecks` use real temporary AccountStore files and fake client/Desktop adapters. They verify API discovery without a custom provider definition, no secret copy during startup, same-account restoration, ChatGPT/API round trips, external logout, separate owner-only API storage, stale selection refresh, and rollback to the actual previous login after target-account or API verification failures. All fixture credentials are synthetic. A successful Desktop request with real credentials remains a separate user acceptance step.

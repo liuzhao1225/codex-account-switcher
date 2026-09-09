@@ -63,6 +63,18 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
+            sectionLabel("advanced")
+            settingRow("enable_provider_switching") {
+                settingSwitch("enable_provider_switching", isOn: Binding(
+                    get: { model.settings.enablesProviderSwitching },
+                    set: { enabled in Task { await model.setEnablesProviderSwitching(enabled) } }
+                ))
+                .disabled(model.isMutating || updater.isInstalling)
+            }
+            Text(model.text("provider_setup_notice"))
+                .foregroundStyle(.secondary)
+                .modifier(SettingsDetail())
+
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
                 settingSwitch("automatically_check_updates", isOn: Binding(

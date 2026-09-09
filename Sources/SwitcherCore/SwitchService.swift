@@ -9,6 +9,7 @@ public protocol DesktopControlling: Sendable {
 
 public protocol CodexIdentityReading: Sendable {
     func readIdentity(profileHome: URL) async throws -> AccountIdentity
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState
 }
 
 public protocol SwitchServicing: Sendable {
@@ -19,15 +20,18 @@ public struct SwitchService: SwitchServicing {
     public let desktop: any DesktopControlling
     public let store: any AccountStoring
     public let codex: any CodexIdentityReading
+    public let configuration: any ProviderConfigurationServicing
 
-    public init(desktop: any DesktopControlling, store: any AccountStoring, codex: any CodexIdentityReading) {
+    public init(desktop: any DesktopControlling, store: any AccountStoring,
+                codex: any CodexIdentityReading, configuration: any ProviderConfigurationServicing) {
         self.desktop = desktop; self.store = store; self.codex = codex
+        self.configuration = configuration
     }
 
     public func switchAccount(to targetID: UUID) async throws {
         let target: AccountProfile
-        let originalActiveID: UUID?
-        let originalProfile: AccountProfile?
+        let codexHome = await store.activeCodexHome()
+        let originalProviderID: String
         do {
             target = try await store.profile(id: targetID)
         } catch {
@@ -35,18 +39,19 @@ public struct SwitchService: SwitchServicing {
         }
 
         do {
+            originalProviderID = try await configuration
+                .readConfiguration(codexHome: codexHome)
+                .activeProviderID
+        } catch {
+            throw OperationError.stage(.activateTargetProvider, error)
+        }
+
+        do {
             let registry = try await store.loadRegistry()
-            originalActiveID = registry.activeAccountID
             if let activeID = registry.activeAccountID {
-                guard let profile = registry.accounts.first(where: { $0.id == activeID }) else {
+                guard registry.accounts.contains(where: { $0.id == activeID }) else {
                     throw AccountStoreError.activeProfileMissing
                 }
-                originalProfile = profile
-            } else {
-                guard await !store.activeCredentialExists() else {
-                    throw AccountStoreError.activeProfileMissing
-                }
-                originalProfile = nil
             }
         } catch {
             throw OperationError.stage(.saveCurrentCredential, error)
@@ -58,47 +63,40 @@ public struct SwitchService: SwitchServicing {
             throw OperationError.stage(.closeDesktop, error)
         }
 
+        var failedStage = SwitchStage.activateTargetProvider
+        var restoresCredential = false
+        var originalLogin: SavedLoginState?
+        let logins = LoginCredentialManager(store: store, codex: codex)
         do {
-            if let originalProfile {
-                let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
-                guard identity.matches(originalProfile) else {
-                    throw AccountStoreError.activeCredentialMismatch
-                }
-                try await store.saveCurrentCredential()
-            } else if await store.activeCredentialExists() {
-                throw AccountStoreError.activeCredentialMismatch
-            }
-        } catch {
-            throw OperationError.stage(.saveCurrentCredential, error)
-        }
+            try await configuration.activateProvider(
+                id: CodexConfigurationClient.openAIProviderID,
+                codexHome: codexHome
+            )
 
-        do {
+            failedStage = .saveCurrentCredential
+            originalLogin = try await logins.preserve(codexHome: codexHome)
+
+            failedStage = .activateTargetCredential
+            restoresCredential = true
             try await store.activateTargetCredential(id: targetID)
-        } catch {
-            throw OperationError.stage(.activateTargetCredential, error)
-        }
 
-        do {
-            let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
+            failedStage = .verifyTargetIdentity
+            let identity = try await codex.readIdentity(profileHome: codexHome)
             guard identity.matches(target) else {
                 throw CodexClientError.identityUnavailable
             }
-        } catch {
-            throw await restoringOriginalCredential(
-                originalActiveID: originalActiveID,
-                failedStage: .verifyTargetIdentity,
-                originalError: error
-            )
-        }
 
-        do {
+            failedStage = .commitActiveAccountID
             try await store.commitActiveAccountID(targetID)
         } catch {
-            throw await restoringOriginalCredential(
-                originalActiveID: originalActiveID,
-                failedStage: .commitActiveAccountID,
+            let restoredError = await restoringOriginalState(
+                originalLogin: restoresCredential ? originalLogin : nil,
+                originalProviderID: originalProviderID,
+                codexHome: codexHome,
+                failedStage: failedStage,
                 originalError: error
             )
+            throw await reopeningDesktop(after: restoredError)
         }
 
         do {
@@ -108,30 +106,60 @@ public struct SwitchService: SwitchServicing {
         }
     }
 
-    private func restoringOriginalCredential(
-        originalActiveID: UUID?,
+    private func restoringOriginalState(
+        originalLogin: SavedLoginState?,
+        originalProviderID: String,
+        codexHome: URL,
         failedStage: SwitchStage,
         originalError: any Error
     ) async -> OperationError {
-        do {
-            if let originalActiveID {
-                try await store.restoreActiveCredential(id: originalActiveID)
-            } else {
-                try await store.clearActiveCredential()
+        var restorationErrors: [String] = []
+        if let originalLogin {
+            do {
+                try await LoginCredentialManager(store: store, codex: codex).restore(originalLogin)
+            } catch let restorationError {
+                restorationErrors.append("credential: \(restorationError.localizedDescription)")
             }
-            return OperationError.stage(failedStage, originalError)
+        }
+        do {
+            try await configuration.activateProvider(id: originalProviderID, codexHome: codexHome)
         } catch let restorationError {
+            restorationErrors.append("provider: \(restorationError.localizedDescription)")
+        }
+        guard !restorationErrors.isEmpty else {
+            return OperationError.stage(failedStage, originalError)
+        }
+        return OperationError(
+            stage: failedStage,
+            titleKey: "switch_failed",
+            messageKey: nil,
+            message: """
+            \(originalError.localizedDescription) Restoring the previous state also failed: \
+            \(restorationErrors.joined(separator: "; "))
+            """,
+            underlyingDescription: """
+            \(String(describing: originalError)); restoration: \
+            \(restorationErrors.joined(separator: "; "))
+            """
+        )
+    }
+
+    private func reopeningDesktop(after error: OperationError) async -> OperationError {
+        do {
+            try await desktop.reopenDesktop()
+            return error
+        } catch let reopenError {
             return OperationError(
-                stage: failedStage,
-                titleKey: "switch_failed",
+                stage: error.stage,
+                titleKey: error.titleKey,
                 messageKey: nil,
                 message: """
-                \(originalError.localizedDescription) Restoring the previous credential also failed: \
-                \(restorationError.localizedDescription)
+                \(error.message) Reopening Codex Desktop also failed: \
+                \(reopenError.localizedDescription)
                 """,
                 underlyingDescription: """
-                \(String(describing: originalError)); restoration: \
-                \(String(describing: restorationError))
+                \(error.underlyingDescription ?? error.message); reopen: \
+                \(String(describing: reopenError))
                 """
             )
         }

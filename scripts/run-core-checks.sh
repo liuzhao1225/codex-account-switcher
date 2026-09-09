@@ -16,7 +16,7 @@ swiftc \
   -Xlinker -rpath -Xlinker "$output_dir" \
   "$project_dir/Sources/CodexAccountSwitcher/DesktopController.swift" \
   "$project_dir/Sources/CodexAccountSwitcher/AppModel.swift" \
-  "$project_dir/Checks/CoreChecks.swift" \
+  "$project_dir"/Checks/*.swift \
   -framework AppKit \
   -framework SwiftUI \
   -o "$output_dir/CoreChecks"

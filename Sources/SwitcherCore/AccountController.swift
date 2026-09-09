@@ -8,6 +8,9 @@ private enum UsageRefreshResult: Sendable {
 @MainActor
 open class AccountController {
     public var onChange: (@MainActor () -> Void)?
+    public private(set) var providers: [ProviderProfile] = [] { didSet { onChange?() } }
+    public private(set) var activeAuthentication: CodexAuthenticationState? { didSet { onChange?() } }
+    public private(set) var activeProviderID = CodexConfigurationClient.openAIProviderID { didSet { onChange?() } }
     public private(set) var accounts: [AccountProfile] = [] { didSet { onChange?() } }
     public private(set) var activeAccountID: UUID? { didSet { onChange?() } }
     public private(set) var usageStates: [UUID: UsageViewState] = [:] { didSet { onChange?() } }
@@ -19,6 +22,8 @@ open class AccountController {
 
     private let store: AccountStore
     private let codex: any AccountClient
+    private let configuration: any ProviderConfigurationServicing
+    private let providerSwitchService: any ProviderSwitchServicing
     private let switchService: any SwitchServicing
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
@@ -30,11 +35,15 @@ open class AccountController {
     public init(
         store: AccountStore,
         codex: any AccountClient,
-        switchService: any SwitchServicing
+        configuration: any ProviderConfigurationServicing,
+        switchService: any SwitchServicing,
+        providerSwitchService: any ProviderSwitchServicing
     ) {
         self.store = store
         self.codex = codex
         self.switchService = switchService
+        self.configuration = configuration
+        self.providerSwitchService = providerSwitchService
     }
 
     public func text(_ key: String) -> String {
@@ -46,17 +55,29 @@ open class AccountController {
     }
 
     public var activeRemainingPercent: Int? {
-        guard let activeAccountID else { return nil }
+        guard let activeAccountID,
+              let account = accounts.first(where: { $0.id == activeAccountID }),
+              isAccountActive(account)
+        else {
+            return nil
+        }
         return usageStates[activeAccountID]?.displayedUsage?.remainingPercent
     }
 
     public func start() async {
-        guard !hasStarted else { return }
+        if hasStarted {
+            await refreshProviderConfiguration()
+            await confirmActiveIdentity()
+            return
+        }
         hasStarted = true
         do {
             settings = try await store.loadSettings()
+            await refreshProviderConfiguration()
             var registry = try await store.loadRegistry()
-            if registry.accounts.isEmpty, await store.activeCredentialExists() {
+            if activeProviderID == CodexConfigurationClient.openAIProviderID,
+               activeAuthentication?.identity != nil,
+               registry.accounts.isEmpty, await store.activeCredentialExists() {
                 let activeHome = await store.activeCodexHome()
                 let identity = try await codex.readIdentity(profileHome: activeHome)
                 let profile = AccountProfile(
@@ -171,14 +192,21 @@ open class AccountController {
     }
 
     public func switchAccount(to id: UUID) async {
-        guard id != activeAccountID, !isMutating else { return }
+        guard !isMutating, !isAddingAccount else { return }
         isMutating = true
         defer { isMutating = false }
+        guard await refreshProviderConfiguration() else { return }
+        await confirmActiveIdentity()
+        guard !isAccountSelectionActive(id) else { return }
         do {
             try await switchService.switchAccount(to: id)
             apply(try await store.loadRegistry())
-            activeIdentityConfirmed = true
+            if await refreshProviderConfiguration() {
+                await confirmActiveIdentity()
+                visibleError = nil
+            }
         } catch let error as OperationError {
+            await refreshProviderConfiguration()
             if error.stage == .reopenDesktop {
                 do {
                     apply(try await store.loadRegistry())
@@ -199,6 +227,7 @@ open class AccountController {
                 visibleError = error
             }
         } catch {
+            await refreshProviderConfiguration()
             showError(error)
         }
     }
@@ -257,8 +286,10 @@ open class AccountController {
             let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
             try await store.registerActiveIdentity(identity)
             apply(try await store.loadRegistry())
-            activeIdentityConfirmed = true
-            visibleError = nil
+            if await refreshProviderConfiguration() {
+                await confirmActiveIdentity()
+                visibleError = nil
+            }
         } catch { showError(error) }
     }
 
@@ -320,15 +351,17 @@ open class AccountController {
     }
 
     private func confirmActiveIdentity() async {
-        guard let activeID = activeAccountID,
-              let profile = accounts.first(where: { $0.id == activeID })
-        else { return }
-        do {
-            let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
-            activeIdentityConfirmed = identity.matches(profile)
-        } catch {
-            activeIdentityConfirmed = false
+        if activeProviderID != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey {
+            activeIdentityConfirmed = true
+            return
         }
+        guard let identity = activeAuthentication?.identity,
+              let activeID = activeAccountID,
+              let profile = accounts.first(where: { $0.id == activeID }) else {
+            activeIdentityConfirmed = accounts.isEmpty && activeAuthentication == .signedOut
+            return
+        }
+        activeIdentityConfirmed = identity.matches(profile)
     }
 
     private func showError(_ error: any Error) {
@@ -340,4 +373,85 @@ open class AccountController {
             underlyingDescription: String(describing: error)
         )
     }
+
+    public func isAccountActive(_ account: AccountProfile) -> Bool {
+        activeProviderID == CodexConfigurationClient.openAIProviderID
+            && account.id == activeAccountID
+            && activeAuthentication?.identity?.matches(account) == true
+    }
+
+    public func isProviderActive(_ provider: ProviderProfile) -> Bool {
+        provider.id == activeProviderID
+            && (provider.id != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey)
+    }
+
+    public func switchProvider(to provider: ProviderProfile) async {
+        guard settings.enablesProviderSwitching, !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        guard await refreshProviderConfiguration() else { return }
+        guard !isProviderActive(provider) else { return }
+        do {
+            try await providerSwitchService.switchProvider(to: provider.id)
+            if await refreshProviderConfiguration() {
+                await confirmActiveIdentity()
+                visibleError = nil
+            }
+        } catch let error as OperationError {
+            await refreshProviderConfiguration()
+            if error.stage == .reopenDesktop {
+                visibleError = OperationError(
+                    stage: .reopenDesktop,
+                    titleKey: "switched_reopen_title",
+                    messageKey: "provider_switched_reopen_message",
+                    message: text("provider_switched_reopen_message"),
+                    underlyingDescription: error.underlyingDescription
+                )
+            } else {
+                visibleError = error
+            }
+        } catch {
+            showError(error)
+        }
+    }
+
+    public func setEnablesProviderSwitching(_ enabled: Bool) async {
+        var updated = settings
+        updated.enablesProviderSwitching = enabled
+        do {
+            try await store.saveSettings(updated)
+            settings = updated
+        } catch {
+            showError(error)
+        }
+    }
+
+    private func isAccountSelectionActive(_ id: UUID) -> Bool {
+        accounts.first(where: { $0.id == id }).map(isAccountActive) ?? false
+    }
+
+    @discardableResult
+    private func refreshProviderConfiguration() async -> Bool {
+        do {
+            let snapshot = try await configuration.readConfiguration(
+                codexHome: await store.activeCodexHome()
+            )
+            let authentication = try await codex.readAuthentication(profileHome: await store.activeCodexHome())
+            let hasSavedAPI = await store.hasOpenAIAPICredential()
+            var choices = snapshot.providers
+            if authentication == .apiKey || hasSavedAPI {
+                choices.insert(ProviderProfile(id: CodexConfigurationClient.openAIProviderID,
+                                               displayName: "OpenAI API"), at: 0)
+            }
+            providers = choices
+            activeProviderID = snapshot.activeProviderID
+            activeAuthentication = authentication
+            return true
+        } catch {
+            activeAuthentication = nil
+            showError(error)
+            return false
+        }
+    }
+
 }

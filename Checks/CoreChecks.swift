@@ -46,6 +46,9 @@ private struct FakeDesktop: DesktopControlling {
 
 private actor FakeStore: AccountStoring {
     func clearActiveCredential() {}
+    func hasOpenAIAPICredential() -> Bool { false }
+    func saveOpenAIAPICredential() throws { throw NativeAPIAuthenticationError.savedLoginUnavailable }
+    func activateOpenAIAPICredential() throws { throw NativeAPIAuthenticationError.savedLoginUnavailable }
     let recorder: Recorder
     let original: AccountProfile
     let target: AccountProfile
@@ -77,21 +80,67 @@ private actor FakeCodex: CodexIdentityReading {
     let recorder: Recorder
     let original: AccountProfile
     let target: AccountProfile
+    let configuration: FakeProviderConfiguration
+    let failsTargetIdentity: Bool
     private var hasVerifiedOriginal = false
-    init(recorder: Recorder, original: AccountProfile, target: AccountProfile) {
+    init(
+        recorder: Recorder,
+        original: AccountProfile,
+        target: AccountProfile,
+        configuration: FakeProviderConfiguration,
+        failsTargetIdentity: Bool = false
+    ) {
         self.recorder = recorder
         self.original = original
         self.target = target
+        self.configuration = configuration
+        self.failsTargetIdentity = failsTargetIdentity
     }
 
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        .chatGPT(try await readIdentity(profileHome: profileHome))
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        guard await configuration.activeProviderID() == CodexConfigurationClient.openAIProviderID else {
+            throw CodexClientError.identityUnavailable
+        }
         if !hasVerifiedOriginal {
             hasVerifiedOriginal = true
             return AccountIdentity(accountID: original.accountID, email: original.email)
         }
         await recorder.append(.verifyTargetIdentity)
+        if failsTargetIdentity { throw CodexClientError.identityUnavailable }
         return AccountIdentity(accountID: target.accountID, email: target.email)
     }
+}
+
+private actor FakeProviderConfiguration: ProviderConfigurationServicing {
+    let recorder: Recorder?
+    private var providerID: String
+
+    init(providerID: String = "openai", recorder: Recorder? = nil) {
+        self.providerID = providerID
+        self.recorder = recorder
+    }
+
+    func readConfiguration(codexHome: URL) -> ProviderConfigurationSnapshot {
+        ProviderConfigurationSnapshot(
+            activeProviderID: providerID,
+            providers: [ProviderProfile(id: "azure", displayName: "Azure OpenAI")]
+        )
+    }
+
+    func activateProvider(id: String, codexHome: URL) async {
+        await recorder?.append(.activateTargetProvider)
+        providerID = id
+    }
+
+    func activeProviderID() -> String { providerID }
+}
+
+private actor FakeProviderSwitchService: ProviderSwitchServicing {
+    private(set) var calls = 0
+    func switchProvider(to providerID: String) async throws { calls += 1 }
 }
 
 private struct InjectedReopenFailure: LocalizedError {
@@ -227,6 +276,8 @@ struct CoreChecks {
         try Data(#"{"language":"english"}"#.utf8).write(to: settingsURL)
         let legacySettings = try await store.loadSettings()
         try require(legacySettings.language == .english, "legacy settings language")
+        try require(!AppSettings.default.enablesProviderSwitching, "providers are opt-in")
+        try require(!legacySettings.enablesProviderSwitching, "upgrades do not enable providers")
         try require(
             legacySettings.showsMenuBarPercentage,
             "legacy settings enable menu bar percentage"
@@ -238,7 +289,8 @@ struct CoreChecks {
         let hiddenPercentageSettings = AppSettings(
             language: .simplifiedChinese,
             showsMenuBarPercentage: false,
-            showsFiveHourUsage: true
+            showsFiveHourUsage: true,
+            enablesProviderSwitching: true
         )
         try await store.saveSettings(hiddenPercentageSettings)
         let reloadedSettingsStore = AccountStore(baseURL: support, activeHomeURL: activeHome)
@@ -266,14 +318,62 @@ struct CoreChecks {
         try secondBytes.write(to: activeCredential)
 
         let recorder = Recorder()
+        let providerConfiguration = FakeProviderConfiguration(providerID: "azure", recorder: recorder)
         let switcher = SwitchService(
             desktop: FakeDesktop(recorder: recorder),
             store: FakeStore(recorder: recorder, original: first, target: second),
-            codex: FakeCodex(recorder: recorder, original: first, target: second)
+            codex: FakeCodex(
+                recorder: recorder,
+                original: first,
+                target: second,
+                configuration: providerConfiguration
+            ),
+            configuration: providerConfiguration
         )
         try await switcher.switchAccount(to: second.id)
         let recordedStages = await recorder.snapshot()
         try require(recordedStages == SwitchStage.allCases, "switch stage order")
+
+        let failureRecorder = Recorder()
+        let failureConfiguration = FakeProviderConfiguration(
+            providerID: "azure",
+            recorder: failureRecorder
+        )
+        let failureStore = FakeStore(recorder: failureRecorder, original: first, target: second)
+        let failureSwitcher = SwitchService(
+            desktop: FakeDesktop(recorder: failureRecorder),
+            store: failureStore,
+            codex: FakeCodex(
+                recorder: failureRecorder,
+                original: first,
+                target: second,
+                configuration: failureConfiguration,
+                failsTargetIdentity: true
+            ),
+            configuration: failureConfiguration
+        )
+        do {
+            try await failureSwitcher.switchAccount(to: second.id)
+            throw CheckFailure.failed("target identity failure must stop the switch")
+        } catch let error as OperationError {
+            try require(error.stage == .verifyTargetIdentity, "target identity failure stage")
+        }
+        let failureStages = await failureRecorder.snapshot()
+        try require(failureStages.last == .reopenDesktop, "post-close switch failure reopens Desktop")
+        let restoredProviderID = await failureConfiguration.activeProviderID()
+        try require(restoredProviderID == "azure", "post-close switch failure restores provider")
+
+        let providerSwitcher = ProviderSwitchService(
+            desktop: FakeDesktop(recorder: recorder),
+            store: FakeStore(recorder: recorder, original: first, target: second),
+            codex: switcher.codex, configuration: providerConfiguration
+        )
+        try await providerSwitcher.switchProvider(to: "azure")
+        let providerSwitchStages = Array((await recorder.snapshot()).suffix(3))
+        try require(
+            providerSwitchStages == [.closeDesktop, .activateTargetProvider, .reopenDesktop],
+            "provider switch stage order"
+        )
 
         let fakeCodex = root.appending(path: "fake-codex")
         try createExecutable(at: fakeCodex, body: """
@@ -308,10 +408,85 @@ struct CoreChecks {
         let identity = try await client.readIdentity(profileHome: root)
         try require(identity.accountID == "acct-123", "JSONL account handshake")
 
+        let providerMarker = root.appending(path: "provider-selected")
+        let providerCodex = root.appending(path: "provider-codex")
+        try createExecutable(at: providerCodex, body: """
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\\n' '{"id":0,"result":{}}' ;;
+            *config*read*)
+              if test -f '\(providerMarker.path)'; then
+                printf '%s\\n' '{"id":1,"result":{"config":{"model_provider":"openai","model_providers":{"azure":{"name":"Azure OpenAI"}}},"origins":{}}}'
+              else
+                printf '%s\\n' '{"id":1,"result":{"config":{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI"},"local_proxy":{}}},"origins":{}}}'
+              fi
+              ;;
+            *config*value*write*)
+              : > '\(providerMarker.path)'
+              printf '%s\\n' '{"id":1,"result":{"filePath":"/tmp/config.toml","status":"ok","version":"1"}}'
+              ;;
+          esac
+        done
+        """)
+        let providerClient = CodexConfigurationClient(
+            codex: CodexClient(
+                locator: CodexExecutableLocator(explicitURL: providerCodex),
+                requestTimeout: .seconds(3)
+            )
+        )
+        let providerSnapshot = try await providerClient.readConfiguration(codexHome: root)
+        try require(providerSnapshot.activeProviderID == "azure", "active provider discovery")
+        try require(
+            providerSnapshot.providers.map(\.displayName) == ["Azure OpenAI", "Local Proxy"],
+            "configured provider discovery and display names"
+        )
+        try await providerClient.activateProvider(id: "openai", codexHome: root)
+        let updatedProviderSnapshot = try await providerClient.readConfiguration(codexHome: root)
+        try require(updatedProviderSnapshot.activeProviderID == "openai", "provider activation")
+
+        let returnHome = root.appending(path: "return-active")
+        try fileManager.createDirectory(at: returnHome, withIntermediateDirectories: true)
+        try Data("return-fixture".utf8).write(to: returnHome.appending(path: "auth.json"))
+        let returnStore = AccountStore(baseURL: root.appending(path: "return-store"), activeHomeURL: returnHome)
+        let returnProfile = AccountProfile(id: UUID(), displayName: "Return fixture",
+            email: "user@example.com", accountID: "acct-123", createdAt: Date())
+        try await returnStore.importCurrentProfile(returnProfile)
+        let returnConfiguration = FakeProviderConfiguration(providerID: "azure")
+        let returnRecorder = Recorder()
+        let returnModel = AppModel(
+            store: returnStore, codex: client, configuration: returnConfiguration,
+            switchService: SwitchService(
+                desktop: FakeDesktop(recorder: returnRecorder), store: returnStore,
+                codex: client, configuration: returnConfiguration),
+            providerSwitchService: ProviderSwitchService(
+                desktop: FakeDesktop(recorder: returnRecorder), store: returnStore,
+                codex: client, configuration: returnConfiguration)
+        )
+        await returnModel.start()
+        try require(returnModel.activeIdentityConfirmed, "custom provider does not trigger a false account mismatch")
+        try require(returnModel.activeRemainingPercent == nil, "provider does not show ChatGPT quota as active")
+        try require(returnModel.snapshot.activeAccountID == nil, "Windows snapshot does not mark a ChatGPT account active under a provider")
+        try require(!returnModel.isAccountActive(returnProfile), "saved account is not active under a provider")
+        await returnModel.switchAccount(to: returnProfile.id)
+        try require(returnModel.isAccountActive(returnProfile), "return to the same saved account is not skipped")
+        try require(returnModel.visibleError == nil, "return to saved account succeeds")
+        let returnStages = await returnRecorder.snapshot()
+        try require(returnStages == [.closeDesktop, .reopenDesktop], "same-account return restarts Desktop")
+        await returnModel.setEnablesProviderSwitching(true)
+        await returnModel.switchProvider(to: ProviderProfile(id: "azure", displayName: "Azure"))
+        try require(returnModel.activeProviderID == "azure", "account-to-provider selection updates the shared controller")
+        await returnModel.setEnablesProviderSwitching(false)
+        let hiddenProviderID = await returnConfiguration.activeProviderID()
+        try require(hiddenProviderID == "azure", "disabling provider UI does not change the active provider")
+
+        let gatedProviderService = FakeProviderSwitchService()
         let appModel = AppModel(
             store: store,
             codex: client,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: gatedProviderService
         )
         var modelChangeCount = 0
         let modelObservation = appModel.objectWillChange.sink { modelChangeCount += 1 }
@@ -345,8 +520,8 @@ struct CoreChecks {
             "hidden five-hour usage is still normalized"
         )
         try require(
-            appModel.activeRemainingPercent == 42,
-            "menu-bar percentage remains weekly"
+            appModel.activeRemainingPercent == nil,
+            "an unconfirmed account does not present its old quota as active"
         )
         let refreshedCache = try await store.loadUsageCache()
         try require(
@@ -383,7 +558,9 @@ struct CoreChecks {
         let countingModel = AppModel(
             store: store,
             codex: countingClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await countingModel.start()
         try require(countingModel.accounts.count == 3, "counting model loaded all profiles")
@@ -433,7 +610,9 @@ struct CoreChecks {
         let scheduledModel = AppModel(
             store: store,
             codex: scheduledClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await scheduledModel.startBackgroundUsageRefresh(every: .seconds(3))
         try await waitForLineCount(at: scheduledRequestCountURL, atLeast: 2)
@@ -522,7 +701,9 @@ struct CoreChecks {
         let failureModel = AppModel(
             store: store,
             codex: failingClient,
-            switchService: ReopenFailureSwitchService(store: store)
+            configuration: FakeProviderConfiguration(),
+            switchService: ReopenFailureSwitchService(store: store),
+            providerSwitchService: FakeProviderSwitchService()
         )
         await failureModel.start()
         failureModel.refreshWeeklyUsage()
@@ -557,6 +738,20 @@ struct CoreChecks {
             // Expected: the first deadline stops the request without retrying.
         }
 
+        let provider = ProviderProfile(id: "azure", displayName: "Azure OpenAI")
+        await appModel.setEnablesProviderSwitching(false)
+        await appModel.switchProvider(to: provider)
+        let disabledCalls = await gatedProviderService.calls
+        try require(disabledCalls == 0, "disabled providers cannot trigger a switch")
+        await appModel.setEnablesProviderSwitching(true)
+        await appModel.switchProvider(to: provider)
+        let enabledCalls = await gatedProviderService.calls
+        try require(enabledCalls == 1, "enabled provider selection reaches the switching service")
+        await appModel.setEnablesProviderSwitching(false)
+        let savedAdvancedSettings = try await store.loadSettings()
+        try require(!savedAdvancedSettings.enablesProviderSwitching, "provider opt-out persists")
+
+        try await NativeAPIChecks.run()
         print("Core checks passed")
     }
 }

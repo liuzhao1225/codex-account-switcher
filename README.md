@@ -87,8 +87,11 @@ Launch the app, add accounts through browser sign-in, then select and confirm a 
 1. **Download for your platform:** install the macOS DMG or run the portable Windows EXE.
 2. **Add each account once:** complete the familiar browser sign-in; the app derives the account name from the login identity.
 3. **Choose and continue:** select an account in the app, confirm, and let the app reopen Codex Desktop.
+4. **Optional providers on macOS:** after configuring and testing a provider in Codex, enable **Settings → Advanced → Enable provider switching**. You can switch from a saved account to a configured provider and back.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
+
+Codex binds each conversation to the provider it was created with. A provider switch applies to new conversations; continuing an older conversation with another provider requires creating or forking a conversation in Codex.
 
 ## Feedback wanted
 
@@ -104,12 +107,13 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.
 - Both platforms use file-backed credential storage; macOS does not store profile credentials in Keychain.
 - The product runs without its own account proxy, traffic router, or cloud account service.
+- Provider discovery and selection use the installed Codex app-server. `config/read` can return inline provider credentials into process memory; the switcher retains only provider IDs/names for the UI and does not display, log, or persist custom-provider values returned by configuration reads. It does not independently read provider environment-variable values or invoke provider authentication commands, and changes only `model_provider` in Codex configuration. Native OpenAI API login snapshots are saved separately from ChatGPT profiles when switching authentication.
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
 - Persisted 5-hour and weekly usage remains visible while fresh data loads; the 5-hour row appears only when enabled and the service provides an exact 300-minute window.
 - Every switch stops immediately on the first reported error.
-- If target verification or the registry commit fails after credential activation, the app restores the just-saved original profile credential while preserving the original error. A restoration error is reported alongside it.
+- When returning from a custom provider to a saved ChatGPT account, the app activates `openai` before reading either account identity. A failure after Desktop closes restores the relevant provider and credential state, attempts to reopen Desktop, and preserves the original error. Restoration or reopening failures are reported alongside it.
 - General rollback state machines, retries, credential backup files, recovery journals, startup recovery, and policy-based routing stay outside the product scope.
 
 ## Release status
@@ -200,6 +204,20 @@ No. Install the app, add each account through a normal browser sign-in, then cho
 ### How do I switch accounts?
 
 Add each authorized account once. Finish or stop active Desktop tasks, then select the account in the app and confirm. If Desktop displays its quit dialog, complete it. The app waits up to 30 seconds for normal exit, completes the handoff, verifies the selected account, and reopens Desktop. If Desktop cannot exit, switching stops before the account changes.
+
+### How do I switch model providers?
+
+On macOS, configure the provider, its authentication, and a working model in Codex first. Verify a successful request in Desktop, then enable **Settings → Advanced → Enable provider switching**. Selecting a custom provider changes only `model_provider` and restarts Desktop. Native OpenAI API selection also restores the separately saved API login. The switcher does not select a model, discover deployments, validate compatibility, or manage model catalogs. If the retained model ID is unsupported, requests can fail. Select a compatible model in Desktop if available, otherwise configure it in Codex. Returning to a saved ChatGPT account restores `openai` but does not restore a previous OpenAI model or catalog. Existing conversations are not migrated.
+
+The stock Desktop round trip with different model IDs remains an acceptance requirement, not a verified feature. See [provider compatibility and validation](docs/provider-compatibility.md).
+
+### Can I enter an API key in the switcher?
+
+Enter an OpenAI API key in Codex itself. The switcher then shows **OpenAI API** alongside configured providers. When you confirm a switch back to ChatGPT, the API login is saved separately in `openai-api/auth.json` under the switcher's protected application-data directory, allowing you to return without entering the key again. This requires file-backed Codex credentials. Custom-provider credentials remain in their existing configuration. Keys are never displayed or logged by the switcher.
+
+### Why can I select the same saved account after signing out?
+
+The active login is checked again, even when the saved account ID has not changed. Selecting it restores the saved ChatGPT credential after an API login or logout. If that saved credential is expired or revoked, complete a new Codex sign-in.
 
 ### Does it switch accounts automatically?
 

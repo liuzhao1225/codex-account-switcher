@@ -75,8 +75,13 @@ private final class Host {
                 }
                 try await platform("openBrowser", url: url)
             })
-            let model = AccountController(store: store, codex: codex,
-                switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: codex))
+            let configuration = CodexConfigurationClient(codex: codex)
+            let desktop = DesktopAdapter(host: self)
+            let model = AccountController(store: store, codex: codex, configuration: configuration,
+                switchService: SwitchService(desktop: desktop, store: store, codex: codex,
+                                             configuration: configuration),
+                providerSwitchService: ProviderSwitchService(desktop: desktop, store: store,
+                                                             codex: codex, configuration: configuration))
             controller = model
             model.onChange = { [weak self] in self?.sendSnapshot() }
             await model.startBackgroundUsageRefresh()

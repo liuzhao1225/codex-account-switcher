@@ -12,7 +12,7 @@ struct AccountControllerTests {
         let home = try await fixture.store.createProfileDirectory(id: id)
         try Data("saved-fixture".utf8).write(to: home.appendingPathComponent("auth.json"))
         try await fixture.store.addProfile(profile)
-        let service = SwitchService(desktop: FixtureDesktop(), store: fixture.store, codex: fixture.client)
+        let service = SwitchService(desktop: FixtureDesktop(), store: fixture.store, codex: fixture.client, configuration: fixture.configuration)
         try await service.switchAccount(to: id)
         #expect(try await fixture.store.loadRegistry().activeAccountID == id)
         #expect(try String(contentsOf: fixture.active.appendingPathComponent("auth.json"), encoding: .utf8) == "saved-fixture")
@@ -26,7 +26,7 @@ struct AccountControllerTests {
         let home = try await fixture.store.createProfileDirectory(id: id)
         try Data("saved-other-fixture".utf8).write(to: home.appendingPathComponent("auth.json"))
         try await fixture.store.addProfile(profile)
-        let service = SwitchService(desktop: FixtureDesktop(), store: fixture.store, codex: fixture.client)
+        let service = SwitchService(desktop: FixtureDesktop(), store: fixture.store, codex: fixture.client, configuration: fixture.configuration)
         do { try await service.switchAccount(to: id); Issue.record("Identity mismatch should fail.") }
         catch { #expect((error as? OperationError)?.stage == .verifyTargetIdentity) }
         #expect(try await fixture.store.loadRegistry().activeAccountID == nil)
@@ -44,7 +44,7 @@ struct AccountControllerTests {
         try await fixture.store.addProfile(profile)
         let active = fixture.active
         let desktop = CredentialCreatingDesktop(active: active)
-        let service = SwitchService(desktop: desktop, store: fixture.store, codex: fixture.client)
+        let service = SwitchService(desktop: desktop, store: fixture.store, codex: fixture.client, configuration: fixture.configuration)
         do { try await service.switchAccount(to: id); Issue.record("An unexpected active login should stop switching.") }
         catch { #expect((error as? OperationError)?.stage == .saveCurrentCredential) }
         #expect(try String(contentsOf: active.appendingPathComponent("auth.json"), encoding: .utf8) == "unexpected-fixture")
@@ -140,6 +140,7 @@ private struct ControllerFixture {
     let active: URL
     let store: AccountStore
     let client: FixtureClient
+    let configuration = ControllerConfigurationFixture()
     let model: AccountController
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("switcher-core-test-\(UUID())")
@@ -147,8 +148,11 @@ private struct ControllerFixture {
         try FileManager.default.createDirectory(at: active, withIntermediateDirectories: true)
         store = AccountStore(baseURL: root.appendingPathComponent("store"), activeHomeURL: active)
         client = FixtureClient()
-        model = AccountController(store: store, codex: client,
-            switchService: SwitchService(desktop: FixtureDesktop(), store: store, codex: client))
+        model = AccountController(store: store, codex: client, configuration: configuration,
+            switchService: SwitchService(desktop: FixtureDesktop(), store: store, codex: client,
+                                         configuration: configuration),
+            providerSwitchService: ProviderSwitchService(desktop: FixtureDesktop(), store: store,
+                                                         codex: client, configuration: configuration))
     }
     func writeActiveCredential() throws {
         try Data("fixture-secret-token".utf8).write(to: active.appendingPathComponent("auth.json"))
@@ -159,6 +163,10 @@ private struct ControllerFixture {
 private actor FixtureClient: AccountClient {
     private var usageFails = false
     func failUsage() { usageFails = true }
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        guard FileManager.default.fileExists(atPath: profileHome.appending(path: "auth.json").path) else { return .signedOut }
+        return .chatGPT(try await readIdentity(profileHome: profileHome))
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         AccountIdentity(accountID: "demo-account", email: "demo@example.test")
     }

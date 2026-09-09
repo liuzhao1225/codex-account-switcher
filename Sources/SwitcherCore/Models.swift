@@ -47,6 +47,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var language: AppLanguage
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
+    public var enablesProviderSwitching: Bool
 
     public static let `default` = AppSettings(
         language: .system,
@@ -57,11 +58,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public init(
         language: AppLanguage,
         showsMenuBarPercentage: Bool = true,
-        showsFiveHourUsage: Bool = false
+        showsFiveHourUsage: Bool = false,
+        enablesProviderSwitching: Bool = false
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
+        self.enablesProviderSwitching = enablesProviderSwitching
     }
 
     public init(from decoder: any Decoder) throws {
@@ -74,6 +77,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showsFiveHourUsage = try container.decodeIfPresent(
             Bool.self,
             forKey: .showsFiveHourUsage
+        ) ?? false
+        enablesProviderSwitching = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .enablesProviderSwitching
         ) ?? false
     }
 }
@@ -162,6 +169,7 @@ public struct AccountIdentity: Equatable, Sendable {
 
 public enum SwitchStage: String, CaseIterable, Sendable {
     case closeDesktop
+    case activateTargetProvider
     case saveCurrentCredential
     case activateTargetCredential
     case verifyTargetIdentity

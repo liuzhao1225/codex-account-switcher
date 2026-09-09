@@ -10,6 +10,9 @@ public protocol AccountStoring: Sendable {
     func loadRegistry() async throws -> AccountRegistry
     func profile(id: UUID) async throws -> AccountProfile
     func activeCredentialExists() async -> Bool
+    func hasOpenAIAPICredential() async -> Bool
+    func saveOpenAIAPICredential() async throws
+    func activateOpenAIAPICredential() async throws
     func clearActiveCredential() async throws
     func activeCodexHome() async -> URL
     func saveCurrentCredential() async throws
@@ -240,7 +243,46 @@ public actor AccountStore: AccountStoring {
 
     public func clearActiveCredential() throws {
         try checkPath(activeHomeURL.appending(path: "auth.json"))
-        try fileManager.removeItem(at: activeHomeURL.appending(path: "auth.json"))
+        let credential = activeHomeURL.appending(path: "auth.json")
+        if fileManager.fileExists(atPath: credential.path) { try fileManager.removeItem(at: credential) }
+    }
+
+    private var openAIAPICredentialURL: URL {
+        baseURL.appending(path: "openai-api", directoryHint: .isDirectory).appending(path: "auth.json")
+    }
+
+    public func hasOpenAIAPICredential() -> Bool {
+        fileManager.fileExists(atPath: openAIAPICredentialURL.path)
+    }
+
+    public func saveOpenAIAPICredential() throws {
+        let bytes = try readOpenAIAPICredential(activeHomeURL.appending(path: "auth.json"))
+        try prepareDirectories()
+        let directory = openAIAPICredentialURL.deletingLastPathComponent()
+        try checkPath(directory)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        try restrictPermissions(directory, directory: true)
+        try secureAtomicWrite(bytes, to: openAIAPICredentialURL)
+    }
+
+    public func activateOpenAIAPICredential() throws {
+        let bytes = try readOpenAIAPICredential(openAIAPICredentialURL)
+        try checkPath(activeHomeURL)
+        try fileManager.createDirectory(at: activeHomeURL, withIntermediateDirectories: true)
+        try secureAtomicWrite(bytes, to: activeHomeURL.appending(path: "auth.json"))
+    }
+
+    private func readOpenAIAPICredential(_ url: URL) throws -> Data {
+        guard fileManager.fileExists(atPath: url.path) else {
+            throw NativeAPIAuthenticationError.savedLoginUnavailable
+        }
+        let bytes = try readChecked(url)
+        guard let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+              let key = object["OPENAI_API_KEY"] as? String, !key.isEmpty,
+              object["auth_mode"] == nil || object["auth_mode"] as? String == "apikey" else {
+            throw NativeAPIAuthenticationError.savedLoginUnavailable
+        }
+        return bytes
     }
 
     public func restoreActiveCredential(id: UUID) throws {
