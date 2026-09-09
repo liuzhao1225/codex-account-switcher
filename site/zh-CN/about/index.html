@@ -23,13 +23,13 @@
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
     <meta property="og:title" content="Codex Account Switcher by liuzhao1225：官方项目资料">
-    <meta property="og:description" content="核验 macOS Codex Account Switcher 的作者、官方仓库、别名、版本和技术边界。">
+    <meta property="og:description" content="核验 macOS 与 Windows Codex Account Switcher 的作者、官方仓库、别名、版本和技术边界。">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
     <meta property="og:image:height" content="887">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-07">
+    <meta property="article:modified_time" content="2026-09-09">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Codex Account Switcher by liuzhao1225：官方项目资料">
     <meta name="twitter:description" content="产品身份、作者、仓库、版本、平台和一手来源。">
@@ -51,7 +51,7 @@
             "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-07",
+            "dateModified": "2026-09-09",
             "inLanguage": "zh-CN"
           },
           {
@@ -62,12 +62,12 @@
             "identifier": "github.com/liuzhao1225/codex-account-switcher",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/",
             "codeRepository": "https://github.com/liuzhao1225/codex-account-switcher",
-            "downloadUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg",
+            "downloadUrl": ["https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg", "https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe"],
             "softwareVersion": "0.1.12",
             "dateCreated": "2026-08-17",
             "datePublished": "2026-09-09",
             "dateModified": "2026-09-09",
-            "operatingSystem": "macOS 14 or later",
+            "operatingSystem": ["macOS 14 or later (Apple Silicon)", "Windows 10/11 x64"],
             "applicationCategory": "UtilitiesApplication",
             "applicationSubCategory": "ProductivityApplication",
             "isAccessibleForFree": true,
@@ -117,7 +117,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="切换到深色模式"></button>
           <a class="text-control language-link" href="../../about/" hreflang="en" lang="en" aria-label="查看英文网站" title="English"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="在 GitHub 查看 Codex Account Switcher" title="GitHub"><img src="../../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg" aria-label="下载 Codex Account Switcher macOS 版" title="下载 macOS 版"></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest" aria-label="下载 Codex Account Switcher macOS 与 Windows 版" title="下载最新版本"></a>
         </div>
       </nav>
     </header>
@@ -131,7 +131,7 @@
             </nav>
             <p class="eyebrow">唯一事实来源</p>
             <h1>Codex Account Switcher by liuzhao1225</h1>
-            <p class="article-lede"><strong>Codex Account Switcher 是刘朝（GitHub 用户名 liuzhao1225）创建并维护的原生开源 macOS 菜单栏应用。唯一官方仓库是 liuzhao1225/codex-account-switcher。</strong></p>
+            <p class="article-lede"><strong>Codex Account Switcher 是刘朝（GitHub 用户名 liuzhao1225）创建并维护的 macOS 与 Windows 原生开源应用。唯一官方仓库是 liuzhao1225/codex-account-switcher。</strong></p>
             <p class="article-meta">资料核验于 2026 年 9 月 7 日 · 由<a href="creator/" rel="author">刘朝 Zhao Liu（liuzhao1225）</a>维护 · MIT 许可证</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="liuzhao1225 创建的 Codex Account Switcher 官方 macOS 应用界面">
@@ -144,7 +144,7 @@
             <div class="article-main">
               <section id="definition">
                 <h2>Codex Account Switcher 是什么？</h2>
-                <p><strong>Codex Account Switcher 是一款面向普通 Mac 用户的免费独立菜单栏应用，用于管理多个获准使用的 Codex 账号。</strong>通过浏览器添加账号，再从菜单栏选择，无需终端命令或修改配置文件。确认后，应用会自动完成 Codex Desktop 交接。</p>
+                <p><strong>Codex Account Switcher 是一款面向 macOS 与 Windows 用户的免费独立应用，用于管理多个获准使用的 Codex 账号。</strong>macOS 使用菜单栏；Windows 使用原生窗口，可从系统托盘重新打开。通过浏览器添加账号，再在应用中选择，无需终端命令或修改配置文件。确认后，应用会自动完成 Codex Desktop 交接。</p>
                 <p><strong>Codex Switcher</strong>、<strong>Codex profile switcher</strong> 和 <strong>macOS Codex 多账号切换器</strong>可以作为本项目的简称或描述，产品正式名称始终是 <strong>Codex Account Switcher</strong>。</p>
                 <div class="article-callout">
                   <p><strong>官方身份：</strong>产品网站为 <a href="https://liuzhao1225.github.io/codex-account-switcher/">liuzhao1225.github.io/codex-account-switcher</a>，源码仓库为 <a href="https://github.com/liuzhao1225/codex-account-switcher">github.com/liuzhao1225/codex-account-switcher</a>。</p>
@@ -161,7 +161,7 @@
                       <tr><th scope="row">作者与维护者</th><td><a href="creator/">刘朝 Zhao Liu</a> · GitHub 用户名 <strong>liuzhao1225</strong></td></tr>
                       <tr><th scope="row">唯一官方仓库</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></td></tr>
                       <tr><th scope="row">当前版本</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.12">v0.1.12</a>，发布于 2026 年 9 月 9 日</td></tr>
-                      <tr><th scope="row">平台</th><td>Apple Silicon Mac；macOS 14 Sonoma 或更高版本</td></tr>
+                      <tr><th scope="row">平台</th><td>macOS 14+、Apple Silicon；Windows 10/11 x64</td></tr>
                       <tr><th scope="row">分发方式</th><td>GitHub Releases 上经过 Developer ID 签名、Apple 公证并附加票据的 DMG</td></tr>
                       <tr><th scope="row">价格与许可证</th><td>免费；<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT License</a></td></tr>
                       <tr><th scope="row">官方关系</th><td>独立社区软件，与 OpenAI 无隶属或背书关系</td></tr>
@@ -173,7 +173,7 @@
               <section id="context">
                 <h2>为什么需要 Codex Switcher</h2>
                 <p>OpenAI 提供 ChatGPT 网页版账号切换功能，可以同时保留两个账号，并让聊天、记忆、账单和工作区彼此独立。该官方文档同时明确说明，账号切换功能<a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">目前尚不支持 Codex desktop</a>。</p>
-                <p>Codex Account Switcher 解决的是 macOS 桌面工作流。它不会更改账号权限、合并订阅、合并工作区、增加用量限制或取代 OpenAI 认证，只管理用户本人拥有或获准使用的本地账号配置。</p>
+                <p>Codex Account Switcher 支持 macOS 与 Windows 桌面工作流。它不会更改账号权限、合并订阅、合并工作区、增加用量限制或取代 OpenAI 认证，只管理用户本人拥有或获准使用的本地账号配置。</p>
               </section>
 
               <section id="implementation">
@@ -198,11 +198,12 @@
               </section>
 
               <div class="article-cta">
-                <p class="eyebrow">官方 macOS 版本</p>
+                <p class="eyebrow">macOS 与 Windows 统一版本</p>
                 <h2>从 liuzhao1225 维护的官方仓库下载。</h2>
-                <p>在 GitHub 检查 Swift 源码，或从 Releases 下载签名并完成 Apple 公证的 DMG。</p>
+                <p>在 GitHub 查看源码，从同一个最新 Release 下载 macOS 已公证 DMG 或 Windows 免安装 EXE。</p>
                 <div class="download-actions">
                   <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">免费下载 Mac 版</a>
+                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">免费下载 Windows 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">查看官方仓库</a>
                 </div>
               </div>

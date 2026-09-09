@@ -1,8 +1,8 @@
 # Codex Account Switcher for Windows
 
-Windows is an additional native WPF window application in this repository. Both macOS and Windows use the **same Swift `SwitcherCore`** for accounts, login, switching, settings, usage, cache and recovery. The C# project contains presentation DTOs, a private stdio transport and Windows system adapters; it does not implement account policy. See [shared-core design](../docs/shared-core.md).
+Windows is the native WPF window application in this repository, released alongside macOS under one version. Both macOS and Windows use the **same Swift `SwitcherCore`** for accounts, login, switching, settings, usage, cache and recovery. The C# project contains presentation DTOs, a private stdio transport and Windows system adapters; it does not implement account policy. See [shared-core design](../docs/shared-core.md).
 
-The shared-core Windows application is a development preview. It keeps the macOS account flow and uses Microsoft WPF Fluent controls with a Windows command bar, selected-list indicator, native checkboxes and standard dialog buttons.
+The Windows application keeps the macOS account flow and uses Microsoft WPF Fluent controls with a Windows command bar, selected-list indicator, native checkboxes and standard dialog buttons.
 
 ## Interface
 
@@ -55,10 +55,10 @@ The native integration checks use a fresh temporary active home and storage dire
 
 Build with `./scripts/package-windows.ps1`. The downloadable artifact is a portable, self-contained `Codex-Account-Switcher-windows-x64.exe`, including .NET and the Swift host/runtime. End users do not need either SDK. A private toolchain's runtime directory can be supplied with `-SwiftRuntimeDirectory`; a private .NET SDK can be supplied with `-Dotnet`.
 
-The EXE's `--self-test` mode validates its bundled host against an isolated temporary Codex home. CI runs it with SDK/runtime paths removed. The preview EXE is unsigned and is not an installer.
+The EXE's `--self-test` mode validates its bundled host against an isolated temporary Codex home. CI runs it with SDK/runtime paths removed. The EXE is unsigned and is not an installer.
 
 Windows versions come from `windows/Directory.Build.props` and must match the macOS version sources. A single `v<major>.<minor>.<patch>` tag tests and builds both platforms, then publishes their packages together. See [release management](../docs/platform-releases.md). Windows 0.1.11 preview requires one manual upgrade to enter the unified update channel.
 
-Windows preview releases remain `--prerelease --latest=false`. No release is published just by building locally. Real browser sign-in, a complete handoff in a disposable user session, macOS runner validation, and final bundled-runtime checks are required before claiming production readiness.
+Each release rebuilds and tests both platforms from the same tag, then publishes one Latest release containing the DMG, EXE, and checksums. The MVP does not reuse previous packages or build caches across runs. Local packaging alone does not publish a release.
 
 Icon resources can be regenerated from the existing artwork with `python scripts/generate-windows-icons.py` (Pillow required). Application artwork and transparent tray artwork are packaged separately.

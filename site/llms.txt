@@ -1,8 +1,8 @@
 # Codex Account Switcher
 
-> Codex Account Switcher is a free, open-source macOS menu-bar app for ordinary Mac users who need to switch between personal, work, or authorized client Codex accounts. It is created and maintained by Zhao Liu (GitHub: liuzhao1225).
+> Codex Account Switcher is a free, open-source native app for macOS and Windows users who need to switch between personal, work, or authorized client Codex accounts. It is created and maintained by Zhao Liu (GitHub: liuzhao1225).
 
-The app is designed for Apple Silicon Macs running macOS 14 or later. Users add each authorized account through browser sign-in, then choose and confirm an account from the menu bar. The app handles the Codex Desktop handoff without requiring Terminal commands or config-file editing. It stores account profiles locally, does not proxy Codex traffic, and does not rotate accounts automatically. Codex Account Switcher is independent community software and is not affiliated with OpenAI.
+The app supports macOS 14+ on Apple Silicon and Windows 10/11 x64. macOS uses a menu-bar popover; Windows uses a native window with a taskbar entry and system-tray icon. Users add each authorized account through browser sign-in, then choose and confirm an account in the app. The app handles the Codex Desktop handoff without requiring Terminal commands or config-file editing. It stores account profiles locally, does not proxy Codex traffic, and does not rotate accounts automatically. Codex Account Switcher is independent community software and is not affiliated with OpenAI.
 
 The current release is v0.1.12, dated September 9, 2026, with the unified tag v0.1.12. Each release includes the macOS Apple Silicon DMG, Windows x64 EXE, and SHA-256 checksums. The project has one official product identity across its English and Simplified Chinese pages: Codex Account Switcher, created and maintained by Zhao Liu (刘朝), GitHub username liuzhao1225.
 
@@ -12,7 +12,7 @@ Account switching restarts Codex Desktop and keeps shared local Codex history an
 
 - [Product homepage](https://liuzhao1225.github.io/codex-account-switcher/): Product overview, screenshots, requirements, frequently asked questions, and download link.
 - [Official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/): Canonical product name, creator, release, platform, license, technical scope, and primary sources.
-- [Latest GitHub release](https://github.com/liuzhao1225/codex-account-switcher/releases/latest): Signed and Apple-notarized macOS download.
+- [Latest GitHub release](https://github.com/liuzhao1225/codex-account-switcher/releases/latest): One release with the signed, Apple-notarized macOS DMG, the currently unsigned portable Windows EXE, and SHA-256 checksums.
 
 ## Guides
 
@@ -28,13 +28,13 @@ Account switching restarts Codex Desktop and keeps shared local Codex history an
 
 ## Source and development
 
-- [Official source repository](https://github.com/liuzhao1225/codex-account-switcher): Swift source, documentation, release history, issues, and discussions.
+- [Official source repository](https://github.com/liuzhao1225/codex-account-switcher): Shared Swift core, native SwiftUI and WPF interfaces, documentation, release history, issues, and discussions.
 - [Citation metadata](https://github.com/liuzhao1225/codex-account-switcher/blob/main/CITATION.cff): Machine-readable software and creator citation record.
 - [System design](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md): Local storage, switching sequence, usage cache, permissions, and failure behavior.
 
 ## 简体中文
 
-- [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 原生 Mac 菜单栏 Codex 账号切换器，适用于 Apple Silicon 和 macOS 14+。
+- [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 原生 macOS 与 Windows Codex 账号切换器，提供双平台系统要求与下载入口。
 - [中文项目资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/): 产品名称、作者、版本、官方仓库与实现来源。
 - [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): 登记当前登录账号、添加账号、确认切换，以及本地历史记录和 CLI 进程的行为。
 - [Codex Account 是什么](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/): 账号、工作区、本地配置与会话的区别。
@@ -46,3 +46,5 @@ Account switching restarts Codex Desktop and keeps shared local Codex history an
 ## Optional
 
 - [OpenAI account switching documentation](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching): Official context for ChatGPT account switching and the current Codex desktop limitation.
+
+Each release rebuilds and tests both platforms from the same tag, then publishes once both pass. The MVP does not reuse previous packages or build caches across runs. macOS installs updates through Sparkle. Windows checks for updates and opens the unified release download page for manual EXE replacement. Windows 0.1.11 preview users need one manual upgrade to 0.1.12.

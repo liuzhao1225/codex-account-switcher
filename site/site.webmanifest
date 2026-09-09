@@ -1,7 +1,7 @@
 {
   "name": "Codex Account Switcher",
   "short_name": "Account Switcher",
-  "description": "Native macOS menu bar app for switching multiple Codex accounts and comparing weekly usage.",
+  "description": "Native macOS and Windows app for switching Codex accounts and comparing usage.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

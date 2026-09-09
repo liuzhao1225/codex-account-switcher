@@ -8,19 +8,21 @@
 <h1 align="center">Codex Account Switcher</h1>
 
 <p align="center">
-  <strong>从 Mac 菜单栏切换 Codex 账号。</strong><br>
+  <strong>在 macOS 和 Windows 上轻松切换 Codex 账号。</strong><br>
   账号添加一次，之后随时选择。无需终端命令，无需修改配置文件。
 </p>
 
 <p align="center">
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?include_prereleases&sort=semver&label=release&color=2563eb"></a>
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?sort=semver&label=release&color=2563eb"></a>
   <img alt="macOS 14 或更高版本" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
+  <img alt="Windows 10/11 x64" src="https://img.shields.io/badge/Windows-10%2F11%20x64-171513">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-171513"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg"><b>免费下载 Mac 版</b></a> ·
+  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe"><b>免费下载 Windows 版</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"><b>网站</b></a> ·
   <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>讨论区</b></a>
 </p>
@@ -40,77 +42,67 @@
 
 <p align="center">创建与维护：<a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/">刘朝 Zhao Liu（GitHub：liuzhao1225）</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili 黑纹白斑马</a></p>
 
-Codex Account Switcher 是一款免费、原生的 Mac 应用，适合使用多个获准 Codex 账号的普通用户。个人、工作或客户账号通过浏览器添加一次，之后从菜单栏选择即可。日常使用无需代码知识、终端命令、复制令牌或修改配置文件。
+Codex Account Switcher 是一款免费、开源的 macOS 与 Windows 原生应用，适合使用多个获准 Codex 账号的普通用户。个人、工作或客户账号通过浏览器添加一次，之后在应用中选择即可。日常使用无需代码知识、终端命令、复制令牌或修改配置文件。
 
-选择账号并确认后，应用会关闭 Codex Desktop、完成账号交接、校验所选身份，再重新打开 Desktop。已保存的账号数据留在这台 Mac，应用不依赖自己的代理、流量转发、云端账号服务或自动账号轮换。
+选择账号并确认后，应用会关闭 Codex Desktop、完成账号交接、校验所选身份，再重新打开 Desktop。已保存的账号数据留在本机，应用不依赖自己的代理、流量转发、云端账号服务或自动账号轮换。
 
 ## 官方项目身份
 
 **Codex Account Switcher** 由 **刘朝（Zhao Liu）** 创建并维护，GitHub 用户名为 **liuzhao1225**；**Codex Switcher** 是同一项目的简称。唯一官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)。[官方项目资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)、[作者资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/)和[项目身份记录](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/project-identity.md)共同记录产品、作者、别名、版本与一手来源。
 
-OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未支持 Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching)。Codex Account Switcher 是面向这一桌面工作流的独立本地 macOS 工具。OpenAI Codex 上游源码在[认证存储实现](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)中记录了活动 `CODEX_HOME` 与文件型 `auth.json` 的行为。
+OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未支持 Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching)。Codex Account Switcher 是面向这一桌面工作流的独立本地 macOS 与 Windows 工具。OpenAI Codex 上游源码在[认证存储实现](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)中记录了活动 `CODEX_HOME` 与文件型 `auth.json` 的行为。
 
 ## 适用人群
 
-- **同时使用个人和工作账号的人：** 两种身份都保存在一台 Mac，打开 Codex Desktop 前看清当前账号。
+- **同时使用个人和工作账号的人：** 两种身份都保存在一台电脑，打开 Codex Desktop 前看清当前账号。
 - **自由职业者与顾问：** 集中管理获准使用的客户账号，开始工作前选择正确身份。
-- **偏好清晰可见操作的 Mac 用户：** 使用菜单栏选择与确认，避开脚本和后台静默轮换。
+- **偏好清晰可见操作的桌面用户：** 在 macOS 菜单栏或 Windows 原生窗口中选择并确认，避开脚本和后台静默轮换。
 
 ## 下载
 
-当前公开版本面向 **Apple Silicon**，要求 **macOS 14 或更高版本**。
+[最新版本 v0.1.12](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 同时提供 macOS 和 Windows 安装包及 SHA-256 校验文件。
 
-1. [下载最新版 Codex Account Switcher Mac 版](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)。
-2. 打开 DMG，将 **Codex Account Switcher.app** 移入“应用程序”文件夹。
-3. 启动应用，在 macOS 菜单栏中找到账号切换器。
-4. 通过浏览器添加每个账号一次，之后选择需要的账号。
+| 平台 | 系统要求 | 下载与安装 |
+| --- | --- | --- |
+| macOS | macOS 14+，Apple Silicon（arm64） | [下载 DMG](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)，打开后将应用拖入“应用程序” |
+| Windows | Windows 10/11，x64 | [下载 EXE](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe)，直接运行，无需另装 .NET 或 Swift SDK |
 
-> [!NOTE]
-> 当前 DMG 和应用均已使用 Developer ID Application 证书签名、完成 Apple 公证并附加离线票据。将应用复制到“应用程序”后，即可按 macOS 正常启动流程打开。
+macOS 使用菜单栏界面，应用与 DMG 均已签名并通过 Apple 公证。Windows 使用原生窗口和系统托盘入口，EXE 当前尚未签名；关闭窗口后可从托盘重新打开。
 
-### 系统要求
-
-| 要求 | 当前支持情况 |
-| --- | --- |
-| macOS | 14 Sonoma 或更高版本 |
-| 处理器 | Apple Silicon（`arm64`） |
-| Codex 运行时 | 系统 `codex` 命令或共享的 `CODEX_CLI_PATH` 设置 |
-| 分发形式 | GitHub Releases DMG |
-| 下载体积 | 约 3.2 MB（[最新版本](https://github.com/liuzhao1225/codex-account-switcher/releases/latest)） |
-| 主要用途 | 切换 Codex Desktop 账号 |
+启动后，通过浏览器添加账号，再选择并确认切换。两端都需要可用的 Codex 运行时，与 Codex Desktop 使用同一个活动 Codex 目录。
 
 ## 功能
 
 | 功能 | 作用 |
 | --- | --- |
 | **无需代码的设置流程** | 通过普通浏览器登录添加账号，无需终端命令或配置文件。 |
-| **菜单栏选择账号** | 把个人、工作和客户账号清晰标记在一个 Mac 菜单中。 |
+| **原生账号界面** | macOS 使用菜单栏；Windows 使用原生窗口，可从系统托盘重新打开。 |
 | **完整 Desktop 交接** | 选择并确认后，由应用关闭、切换、校验并重新打开 Codex Desktop。 |
-| **本地账号存储** | 账号数据留在这台 Mac，不依赖应用自建的代理或云端账号服务。 |
+| **本地账号存储** | 账号数据留在本机，不依赖应用自建的代理或云端账号服务。 |
 | **快速查看用量** | 默认查看每周用量，也可在设置中开启服务端提供的精确 300 分钟（5 小时）窗口与重置时间；该用量行默认关闭。 |
-| **体积小的原生 Mac 应用** | 安装已完成 Apple 公证的 DMG，使用英文或简体中文 SwiftUI 界面。 |
+| **双平台原生应用** | macOS 使用 SwiftUI，Windows 使用 WPF；均提供英文与简体中文界面。 |
 
 ## 工作原理
 
-1. **下载 Mac 应用：** 打开已完成 Apple 公证的 DMG，把应用拖入“应用程序”。
+1. **下载对应平台版本：** macOS 安装 DMG；Windows 直接运行免安装 EXE。
 2. **每个账号添加一次：** 完成熟悉的浏览器登录，应用根据登录身份生成账号名称。
-3. **选择后继续使用：** 从菜单栏选择账号并确认，由应用重新打开 Codex Desktop。
+3. **选择后继续使用：** 在应用中选择账号并确认，由应用重新打开 Codex Desktop。
 
 已经运行的终端进程会保留原有运行状态。启动新的 Codex CLI 进程即可使用刚刚选择的账号。
 
 ## 征集反馈
 
-产品正在围绕普通 Mac 用户持续调整。欢迎参与公开讨论：[“Codex 账号切换器的哪个环节仍然显得太技术化？”](https://github.com/liuzhao1225/codex-account-switcher/discussions/2)，告诉我们问题出在下载应用、添加账号、识别当前账号，还是理解切换确认。
+产品正在围绕普通桌面用户持续调整。欢迎参与公开讨论：[“Codex 账号切换器的哪个环节仍然显得太技术化？”](https://github.com/liuzhao1225/codex-account-switcher/discussions/2)，告诉我们问题出在下载应用、添加账号、识别当前账号，还是理解切换确认。
 
 也欢迎分享其他账号切换器的真实使用体验。请描述实际工作流和产生阻力的步骤，不要公开凭证、账号文件、电子邮箱或私人截图。
 
 ## 隐私与范围
 
-- 已保存的账号数据位于 Mac 上仅当前用户可访问的本地目录。
-- 每个已保存 profile 都包含一份完整且可复用的 `auth.json` 凭证快照。应用将 profile 目录权限设为 `0700`、凭证文件权限设为 `0600`，并通过同目录临时文件与重命名实现凭证文件的原子替换。
+- 已保存的账号数据位于 本机仅当前用户可访问的本地目录。
+- 每个已保存 profile 都包含一份完整且可复用的 `auth.json` 凭证快照。macOS 将 profile 目录权限设为 `0700`、凭证文件权限设为 `0600`；Windows 使用当前用户 ACL。两端都以原子替换方式写入凭证文件。
 - 本地文件权限构成当前安全边界。用户备份、文件系统快照、云备份工具、终端安全软件，以及其他有权访问用户文件的进程都可能复制这些凭证快照。
 - 移除账号执行普通文件系统删除。应用不承诺从 SSD、APFS 快照或备份中安全擦除相关数据。
-- 当前版本使用文件型凭证存储，profile 凭证未存入 macOS 钥匙串。
+- 两端使用文件型凭证存储；macOS 的 profile 凭证未存入钥匙串。
 - 产品不使用自己的账号代理、流量转发或云端账号服务。
 - 每个账号都由用户选择并确认；应用不会自动轮换账号。
 - 本项目是独立开源软件，与 OpenAI 没有关联，也未获得 OpenAI 背书。
@@ -122,26 +114,20 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 ## 发布状态
 
-| 项目 | 状态 |
-| --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.12](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.12) 提供 |
-| 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `v*` tag 后统一发布通过验证的两端安装包 |
-| 代码签名 | Developer ID Application |
-| Apple 公证 | 应用和 DMG 均已公证并附加票据 |
-| 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.12 提供 |
+macOS 与 Windows 使用统一版本号和 **`v<版本号>`** tag。每次从同一提交重新编译、测试并打包两端，全部通过后统一发布。当前 MVP 不复用上版安装包，不启用跨次构建缓存。
 
-## Windows 预览版
+| 平台 | 安装包 | 更新方式 |
+| --- | --- | --- |
+| macOS | 已签名、公证的 DMG 与 SHA-256 校验文件 | Sparkle 检查、下载并安装更新 |
+| Windows | 免安装 EXE 与 SHA-256 校验文件，EXE 尚未签名 | 检查新版本并打开下载页，手动替换 EXE |
 
-项目保留 macOS 原生界面，并在 [`windows/`](windows/README.md) 新增紧凑的 Windows 托盘界面。两端调用同一份 Swift 账号核心，共享登录、切换、额度、缓存和设置逻辑。免安装的 `Codex-Account-Switcher-windows-x64.exe` 包含 .NET 与 Swift 核心运行时，用户无需另装 SDK。已发布构建见 [Windows 发布列表](https://github.com/liuzhao1225/codex-account-switcher/releases/latest)，本地构建步骤见 [Windows 开发文档](windows/README.md)。预览版尚未签名；支持检查 Windows 更新并打开下载页，暂不自动替换程序。
-
-后续使用统一的 **`v<版本号>`** tag，同一个 Release 提供 macOS 和 Windows 安装包。详见[统一版本与发布管理](docs/platform-releases.md)。
+每个 Release 都提供完整的双平台下载，标题直接显示版本号，说明只记录本次改动。详见[发布管理](docs/platform-releases.md)与 [Windows 开发文档](windows/README.md)。
 
 ## 开发
 
 <a href="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml"><img alt="Release workflow" src="https://github.com/liuzhao1225/codex-account-switcher/actions/workflows/release.yml/badge.svg"></a>
 
-项目使用 Swift 6.2 构建，是面向 macOS 14 及更高版本的原生 SwiftUI 应用。
+两端共享 Swift 6.2 账号核心，分别使用 macOS SwiftUI 和 Windows WPF 原生界面。以下为 macOS 构建步骤；Windows 步骤见 [Windows 开发文档](windows/README.md)。
 
 ```bash
 git clone https://github.com/liuzhao1225/codex-account-switcher.git
@@ -151,7 +137,7 @@ swift test
 ./scripts/run-core-checks.sh
 ```
 
-创建本地应用包：
+创建本地 macOS 应用包：
 
 ```bash
 ./scripts/package-local-app.sh
@@ -209,38 +195,38 @@ swift test
 
 ### 需要使用终端或懂代码吗？
 
-不需要。安装应用，通过普通浏览器登录添加每个账号，之后从菜单栏选择即可。整个流程没有终端命令，也不用编辑配置文件。
+不需要。安装应用，通过普通浏览器登录添加每个账号，之后在应用中选择即可。整个流程没有终端命令，也不用编辑配置文件。
 
 ### 如何切换账号？
 
-每个获准使用的账号添加一次。先完成或停止正在运行的 Desktop 任务，再从菜单栏选择并确认。如 Desktop 显示退出提示，请处理该提示。应用最多等待 30 秒正常退出，随后完成交接、校验所选账号并重新打开 Desktop；无法正常退出时会停止切换，账号保持不变。
+每个获准使用的账号添加一次。先完成或停止正在运行的 Desktop 任务，再在应用中选择并确认。如 Desktop 显示退出提示，请处理该提示。应用最多等待 30 秒正常退出，随后完成交接、校验所选账号并重新打开 Desktop；无法正常退出时会停止切换，账号保持不变。
 
 ### 应用会自动切换账号吗？
 
 每个账号都由你选择并确认，随后应用会自动完成 Codex Desktop 交接。应用不会在后台轮换账号，也不会根据用量阈值切换。
 
-### 账号数据会离开我的 Mac 吗？
+### 账号数据会离开本机吗？
 
-已保存的账号数据位于 `~/Library/Application Support/Codex Account Switcher/` 下仅当前用户可访问的本地文件夹。应用没有账号代理、流量转发或云端配置服务。
+macOS 数据位于 `~/Library/Application Support/Codex Account Switcher/`，Windows 数据位于 `%LOCALAPPDATA%\Codex Account Switcher\`，均使用仅当前用户可访问的本地存储。应用没有账号代理、流量转发或云端配置服务。
 
-### 需要什么 Mac？
+### 支持哪些系统？
 
-当前版本支持运行 macOS 14 Sonoma 或更高版本的 Apple Silicon Mac。下载文件是已签名并完成 Apple 公证的 DMG。
+支持 macOS 14+ 的 Apple Silicon Mac，以及 Windows 10/11 x64。两端安装包都在同一个最新 Release 中。
 
 ### Codex Account Switcher 是 OpenAI 官方产品吗？
 
-不是。它是一个采用 MIT 许可证的独立 macOS 开源项目。
+不是。它是一个采用 MIT 许可证的独立 macOS 与 Windows 开源项目。
 
 ## 许可证
 
 Codex Account Switcher 基于 [MIT License](LICENSE) 发布。
 
-## 0.1.12 自动更新
+## 更新方式
 
-0.1.12 通过 Sparkle 每小时检查更新。菜单栏蓝点和主页底部工具栏上方的更新行提示新版本；点击更新后，由框架下载、安装并重启 Switcher。设置页提供手动检查和自动检查开关。账号操作进行中会延后最终重启。
+macOS 通过 Sparkle 每小时检查更新。菜单栏蓝点和主页底部工具栏上方的更新行提示新版本；点击更新后，由框架下载、安装并重启 Switcher。设置页提供手动检查和自动检查开关。账号操作进行中会延后最终重启。
 
 发布前需要配置仓库 `SPARKLE_PRIVATE_KEY`，并上传带签名的 `appcast.xml`。已安装的 0.1.6 没有更新器，需要先手动升级一次。发布流程将带签名的更新源与公证 DMG 一同上传。
 
 保留机制、修复及仍存在的设计缺口见[全项目消融报告](docs/project-ablation-2026-09-05.md)。
 
-Windows 0.1.11 预览版用户需手动升级一次到 0.1.12，之后使用统一更新通道。
+Windows 支持检查统一 Release 中的新版本，并打开下载页，由用户下载和替换 EXE。Windows 0.1.11 预览版用户需先手动升级一次到 0.1.12。

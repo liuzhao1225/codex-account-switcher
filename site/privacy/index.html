@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Privacy | Codex Account Switcher for Mac</title>
+    <title>Privacy | Codex Account Switcher</title>
     <meta name="description" content="How Codex Account Switcher stores local account profiles, settings, and usage data, what network activity occurs, and how to remove local data safely.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="Zhao Liu (liuzhao1225)">
@@ -28,7 +28,7 @@
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Privacy | Codex Account Switcher">
-    <meta name="twitter:description" content="What the Mac app stores locally and how to remove it.">
+    <meta name="twitter:description" content="What the macOS and Windows apps store locally and how to remove it.">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../styles.css?v=20260828-geo">
@@ -44,7 +44,7 @@
             "description": "How Codex Account Switcher stores local profiles, settings, and usage data, what network activity occurs, and how users remove local data.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/privacy/",
             "datePublished": "2026-08-28",
-            "dateModified": "2026-09-05",
+            "dateModified": "2026-09-09",
             "inLanguage": "en",
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "about": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"},
@@ -78,7 +78,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
           <a class="text-control language-link" href="../zh-CN/privacy/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg" aria-label="Download Codex Account Switcher for macOS" title="Download for macOS"></a>
+          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest" aria-label="Download Codex Account Switcher for macOS and Windows" title="Download latest release"></a>
         </div>
       </nav>
     </header>
@@ -90,8 +90,8 @@
             <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../">Codex Account Switcher</a><span>/</span><span>Privacy</span></nav>
             <p class="eyebrow">Plain-language privacy record</p>
             <h1>Privacy for Codex Account Switcher</h1>
-            <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your Mac.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
-            <p class="article-meta">Updated September 5, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.10</p>
+            <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your computer.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
+            <p class="article-meta">Updated September 9, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.12</p>
           </div>
         </header>
 
@@ -104,7 +104,7 @@
               </section>
 
               <section id="stored-data">
-                <h2>What data is stored on the Mac?</h2>
+                <h2>What data is stored on the computer?</h2>
                 <div class="fact-table-wrap">
                   <table class="fact-table">
                     <thead><tr><th scope="col">Local file</th><th scope="col">What it contains</th><th scope="col">Why it exists</th></tr></thead>
@@ -116,13 +116,13 @@
                     </tbody>
                   </table>
                 </div>
-                <p>These files live under <code>~/Library/Application Support/Codex Account Switcher/</code>. Saved profile directories use mode <code>0700</code>; credential and registry files use mode <code>0600</code>. The active Codex credential remains under the active <code>CODEX_HOME</code>, normally <code>~/.codex/auth.json</code>.</p>
+                <p>On macOS, these files live under <code>~/Library/Application Support/Codex Account Switcher/</code>; profile directories use mode <code>0700</code> and credential and registry files use mode <code>0600</code>. On Windows, they live under <code>%LOCALAPPDATA%\Codex Account Switcher\</code> with current-user ACLs. The active credential remains in <code>CODEX_HOME</code>, normally <code>~/.codex/auth.json</code> on macOS or <code>%USERPROFILE%\.codex\auth.json</code> on Windows.</p>
               </section>
 
               <section id="network">
                 <h2>What network activity occurs?</h2>
                 <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification and usage refreshes launch Codex app-server for the relevant local profile, which may communicate with OpenAI. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
-                <p>Version 0.1.10 uses Sparkle to check the GitHub Releases update feed hourly and download updates when requested. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
+                <p>macOS uses Sparkle to check the signed update feed hourly and install updates when requested. Windows checks GitHub Releases hourly when enabled and opens the unified download page for manual EXE replacement. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
                 <p>This website is a static GitHub Pages site with no project-added analytics script, advertising tracker, account system, or contact form. GitHub may process normal hosting request data under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
               </section>
 
@@ -130,14 +130,14 @@
                 <h2>How can local data be removed?</h2>
                 <ul>
                   <li>Remove an inactive account in Manage Accounts to delete its switcher profile, metadata entry, and cached usage entry.</li>
-                  <li>Quit and uninstall the app, then remove <code>~/Library/Application Support/Codex Account Switcher/</code> to delete all switcher-managed local data.</li>
-                  <li>Manage the active <code>~/.codex/auth.json</code> and server-side sessions through Codex and your OpenAI account. Removing switcher data alone does not revoke every OpenAI session.</li>
+                  <li>Quit and uninstall the app, then remove its data directory: <code>~/Library/Application Support/Codex Account Switcher/</code> on macOS or <code>%LOCALAPPDATA%\Codex Account Switcher\</code> on Windows. Windows also keeps extracted bundled runtimes under <code>%LOCALAPPDATA%\Codex Account Switcher Runtime\</code>, which can be removed after quitting.</li>
+                  <li>Manage the active <code>CODEX_HOME</code> credential and server-side sessions through Codex and your OpenAI account. Removing switcher data alone does not revoke every OpenAI session.</li>
                 </ul>
               </section>
 
               <section id="support-safety">
                 <h2>What should never be posted in a support request?</h2>
-                <p>Keep real <code>auth.json</code> files, access tokens, account names, email addresses, API credentials, private screenshots, and private project details out of GitHub Issues, Discussions, commits, and test fixtures. A useful bug report can include the app version, macOS version, the visible error stage, and sanitized reproduction steps.</p>
+                <p>Keep real <code>auth.json</code> files, access tokens, account names, email addresses, API credentials, private screenshots, and private project details out of GitHub Issues, Discussions, commits, and test fixtures. A useful bug report can include the app version, operating system version, the visible error stage, and sanitized reproduction steps.</p>
               </section>
 
               <section id="sources">
