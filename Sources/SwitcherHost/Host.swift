@@ -69,7 +69,7 @@ private final class Host {
             guard controller == nil else { throw HostError.message("Already initialized.") }
             let environment = ProcessInfo.processInfo.environment
             let store = AccountStore(baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) })
-            let codex = CodexClient(clientVersion: request.version ?? "0.1.11", openBrowser: { [self] url in
+            let codex = CodexClient(clientVersion: request.version ?? "0.1.12", openBrowser: { [self] url in
                 guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
                     throw HostError.message("Unsupported sign-in URL.")
                 }

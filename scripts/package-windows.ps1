@@ -48,6 +48,9 @@ try {
     $filename = 'Codex-Account-Switcher-windows-x64.exe'
     $builtExe = Join-Path $staging $filename
     if (-not (Test-Path -LiteralPath $builtExe -PathType Leaf)) { throw 'Published EXE is missing.' }
+    $expectedVersion = ([xml](Get-Content -Raw (Join-Path $windowsRoot 'Directory.Build.props'))).Project.PropertyGroup.Version
+    $packageVersion = ([Version](Get-Item -LiteralPath $builtExe).VersionInfo.FileVersion).ToString(3)
+    if ($packageVersion -ne $expectedVersion) { throw "EXE version $packageVersion does not match $expectedVersion." }
     $unexpectedFiles = @(Get-ChildItem -LiteralPath $staging -File | Where-Object { $_.Name -ne $filename })
     if ($unexpectedFiles.Count -ne 0) { throw 'Single-file publish left unexpected runtime files.' }
     $artifact = Join-Path $artifactRoot $filename

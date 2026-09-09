@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.1.11</Version>
+    <Version>0.1.12</Version>
     <Authors>Zhao Liu</Authors>
     <Copyright>Copyright (c) 2026 liuzhao1225</Copyright>
     <RepositoryUrl>https://github.com/liuzhao1225/codex-account-switcher</RepositoryUrl>

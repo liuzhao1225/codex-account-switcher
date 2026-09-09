@@ -13,7 +13,7 @@ public sealed class NativeSettings
 {
     private const string Key = @"Software\CodexAccountSwitcher";
     private const string Run = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    public string Version => typeof(NativeSettings).Assembly.GetName().Version?.ToString(3) ?? "0.1.11";
+    public string Version => typeof(NativeSettings).Assembly.GetName().Version?.ToString(3) ?? "0.1.12";
     public bool LaunchAtLogin {
         get { using var key = Registry.CurrentUser.OpenSubKey(Run); return key?.GetValue("CodexAccountSwitcher") is string; }
         set { using var key = Registry.CurrentUser.CreateSubKey(Run);
@@ -44,18 +44,19 @@ public sealed class NativeSettings
                 if (document.RootElement.GetArrayLength() < 100) break;
             }
             UpdatePage = latest != null && latest > new Version(Version)
-                ? new Uri("https://github.com/liuzhao1225/codex-account-switcher/releases/tag/windows-v" + latest.ToString(3)) : null;
+                ? new Uri("https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v" + latest.ToString(3)) : null;
         } catch (Exception) { UpdateError = "update_check_failed"; }
         finally { IsChecking = false; Changed?.Invoke(); }
     }
-    // Windows preview releases are eligible; drafts and other platforms never are.
+    // Stable unified releases must include a Windows executable.
     public static Version? LatestWindowsVersion(JsonElement releases) => releases.EnumerateArray()
-        .Where(release => !release.GetProperty("draft").GetBoolean())
+        .Where(release => !release.GetProperty("draft").GetBoolean() &&
+            (!release.TryGetProperty("prerelease", out var preview) || !preview.GetBoolean()))
         .Where(release => release.GetProperty("assets").EnumerateArray().Any(asset =>
             asset.GetProperty("name").GetString() == "Codex-Account-Switcher-windows-x64.exe"))
         .Select(release => release.GetProperty("tag_name").GetString())
-        .Where(tag => tag != null && Regex.IsMatch(tag, @"\Awindows-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z"))
-        .Select(tag => System.Version.TryParse(tag![9..], out var version) ? version : null)
+        .Where(tag => tag != null && Regex.IsMatch(tag, @"\Av(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z"))
+        .Select(tag => System.Version.TryParse(tag![1..], out var version) ? version : null)
         .Where(version => version != null).OrderDescending().FirstOrDefault();
     public void OpenUpdate() { if (UpdatePage != null) Process.Start(new ProcessStartInfo(UpdatePage.AbsoluteUri) { UseShellExecute = true })?.Dispose(); }
 }

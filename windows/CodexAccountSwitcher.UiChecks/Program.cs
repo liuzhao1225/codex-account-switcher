@@ -21,20 +21,21 @@ internal static class Program
             using var releases = System.Text.Json.JsonDocument.Parse("""
                 [
                   {"tag_name":"macos-v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"windows-v9.0.0","draft":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"windows-v8.0.0","draft":false,"assets":[]},
-                  {"tag_name":"windows-v07.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"windows-v0.1.9","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"windows-v0.1.10","draft":false,"prerelease":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]}
+                  {"tag_name":"windows-v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
+                  {"tag_name":"v9.0.0","draft":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
+                  {"tag_name":"v8.0.0","draft":false,"prerelease":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
+                  {"tag_name":"v7.0.0","draft":false,"assets":[]},
+                  {"tag_name":"v06.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
+                  {"tag_name":"v0.1.9","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
+                  {"tag_name":"v0.1.12","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]}
                 ]
                 """);
-            Assert(NativeSettings.LatestWindowsVersion(releases.RootElement) == new Version(0, 1, 10),
-                "Updates must select only valid published Windows EXEs, ordered by Windows version.");
+            Assert(NativeSettings.LatestWindowsVersion(releases.RootElement) == new Version(0, 1, 12),
+                "Updates must select stable unified releases with a Windows EXE, ordered by version.");
             using var macOnly = System.Text.Json.JsonDocument.Parse("""
-                [{"tag_name":"macos-v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-macos-arm64.dmg"}]}]
+                [{"tag_name":"v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-macos-arm64.dmg"}]}]
                 """);
-            Assert(NativeSettings.LatestWindowsVersion(macOnly.RootElement) == null, "A Mac release must never prompt a Windows update.");
+            Assert(NativeSettings.LatestWindowsVersion(macOnly.RootElement) == null, "A release without a Windows EXE must never prompt a Windows update.");
             Directory.CreateDirectory(output);
             var app = new App(false); app.InitializeComponent();
             var client = new FixtureClient();

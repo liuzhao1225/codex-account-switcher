@@ -6,7 +6,7 @@ const dmg = 'Codex-Account-Switcher-macos-arm64.dmg';
 
 export function latestMacRelease(releases) {
   return releases.filter(release => {
-    // Historical v* releases were macOS-only. Keep that upgrade path intact.
+    // Unified v* releases and historical macos-v* releases carry a signed Mac feed.
     return !release.draft && !release.prerelease &&
       /^(macos-)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(release.tag_name) &&
       release.assets.some(asset => asset.name === 'appcast.xml') &&
@@ -15,14 +15,14 @@ export function latestMacRelease(releases) {
     const av = a.tag_name.replace(/^(macos-)?v/, '').split('.').map(BigInt);
     const bv = b.tag_name.replace(/^(macos-)?v/, '').split('.').map(BigInt);
     for (let i = 0; i < 3; i++) if (av[i] !== bv[i]) return av[i] > bv[i] ? -1 : 1;
-    return a.tag_name.startsWith('macos-') ? -1 : 1;
+    return Number(b.tag_name.startsWith('v')) - Number(a.tag_name.startsWith('v'));
   })[0];
 }
 
 export function validateMacFeed(xml, tag) {
   const expected = `https://github.com/${repository}/releases/download/${tag}/${dmg}`;
   const enclosures = [...xml.matchAll(/<enclosure\b[^>]*>/g)].map(match => match[0]);
-  if (!xml.includes('<rss') || enclosures.length !== 1 ||
+  if (!/^(macos-)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag) || !xml.includes('<rss') || enclosures.length !== 1 ||
       !enclosures[0].includes(`url="${expected}"`) ||
       !/sparkle:edSignature="[^"]+"/.test(enclosures[0])) {
     throw new Error('The macOS feed must contain exactly its signed macOS DMG.');

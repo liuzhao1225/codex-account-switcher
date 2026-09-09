@@ -41,3 +41,9 @@ test('site deployment searches beyond 100 Windows releases and copies the Mac fe
     assert.equal(await fs.readFile(output, 'utf8'), feed('macos-v1.0.0'));
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+test('unified releases win equal-version ties over historical platform releases', () => {
+  assert.equal(latestMacRelease([mac('macos-v0.1.11'), mac('v0.1.11')]).tag_name, 'v0.1.11');
+  assert.equal(latestMacRelease([mac('v0.1.12'), mac('macos-v0.1.11')]).tag_name, 'v0.1.12');
+  validateMacFeed(feed('v0.1.12'), 'v0.1.12');
+});

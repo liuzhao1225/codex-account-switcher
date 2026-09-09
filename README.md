@@ -124,18 +124,18 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 
 | Area | Status |
 | --- | --- |
-| Apple Silicon build | Available in [v0.1.11](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/macos-v0.1.11) |
-| Automation | PR and `main` CI run tests; pushing a matching `macos-v*` tag publishes the signed Mac release |
+| Apple Silicon build | Available in [v0.1.12](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.12) |
+| Automation | PR and `main` CI run tests; pushing a matching `v*` tag publishes both verified platform packages |
 | Code signing | Developer ID Application |
 | Apple notarization | App and DMG notarized and stapled |
 | Distribution container | DMG with SHA-256 checksum |
-| DMG release | Available in v0.1.11 |
+| DMG release | Available in v0.1.12 |
 
 ## Windows preview
 
-A native Windows application lives alongside the macOS app in [`windows/`](windows/README.md). Both clients use the same Swift account core; Windows supplies a compact native tray interface and system adapters. The portable `Codex-Account-Switcher-windows-x64.exe` includes .NET and the Swift host/runtime, so neither SDK is required to run it. See [Windows releases](https://github.com/liuzhao1225/codex-account-switcher/releases?q=windows-v) and [development instructions](windows/README.md). The unsigned preview can check for Windows updates and open their download page; it does not replace itself automatically.
+A native Windows application lives alongside the macOS app in [`windows/`](windows/README.md). Both clients use the same Swift account core; Windows supplies a compact native tray interface and system adapters. The portable `Codex-Account-Switcher-windows-x64.exe` includes .NET and the Swift host/runtime, so neither SDK is required to run it. See [Windows releases](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) and [development instructions](windows/README.md). The unsigned preview can check for Windows updates and open their download page; it does not replace itself automatically.
 
-New releases use **`macos-v<version>`** and **`windows-v<version>`**, with independent versions and pipelines. Historical `v*` tags remain unchanged. See [platform release management](docs/platform-releases.md).
+New releases use one **`v<version>`** tag and include both macOS and Windows packages. See [release management](docs/platform-releases.md).
 
 ## Development
 
@@ -161,9 +161,9 @@ The bundle is written to `.build/release/Codex Account Switcher.app`.
 
 ### Automated releases
 
-The macOS release workflow starts only when an existing `macos-v*` tag is pushed. Ordinary pushes to `main` continue to run CI and never start a release or create a tag. A maintainer first updates `CITATION.cff`, the package default, and the Codex app-server client to the same semantic version, merges those changes, then creates and pushes the matching tag from the current `origin/main` commit.
+Push a matching `v*` tag from a tested main commit to publish. The version in `CITATION.cff`, the Mac packaging default, the Codex client, and `windows/Directory.Build.props` must agree. Ordinary main pushes run CI only.
 
-The tag workflow verifies the tag name and all three version sources, and requires the tag commit and checked-out commit to equal current `origin/main`. If a GitHub Release already exists for that tag, the run succeeds without rebuilding or publishing. Otherwise the GitHub runner executes the tests, Developer ID signing, Apple notarization and stapling, DMG packaging, SHA-256 generation, and `gh release create --latest --verify-tag`. Each macOS release uploads `Codex-Account-Switcher-macos-arm64.dmg` and its SHA-256 file. Existing Mac `releases/latest/download/...` links remain supported during Windows preview; see the platform release guide before making a Windows release Latest. A mismatched tag or commit fails with the conflicting values visible in the log.
+GitHub Actions tests and packages both platforms from the same tag. The publish job waits for both, verifies checksums and the signed Mac feed, uploads the DMG and EXE to a draft, then publishes one Latest release. macOS retains Developer ID signing, Apple notarization and Sparkle updates. Release notes list only changes. See [release management](docs/platform-releases.md).
 
 ### Project map
 
@@ -235,12 +235,12 @@ No. It is an independent MIT-licensed open-source project for macOS.
 
 Codex Account Switcher is released under the [MIT License](LICENSE).
 
-## Automatic updates in 0.1.11
+## Automatic updates in 0.1.12
 
-Version 0.1.11 checks hourly through Sparkle. A blue menu-bar dot and an update row above the popover footer indicate a new version; clicking Update starts the framework’s download, installation, and Switcher relaunch flow. Settings provides a manual check and automatic-check toggle. Account operations defer the final relaunch.
+Version 0.1.12 checks hourly through Sparkle. A blue menu-bar dot and an update row above the popover footer indicate a new version; clicking Update starts the framework’s download, installation, and Switcher relaunch flow. Settings provides a manual check and automatic-check toggle. Account operations defer the final relaunch.
 
 Publishing requires the `SPARKLE_PRIVATE_KEY` repository secret and a signed `appcast.xml` release asset. The installed 0.1.6 has no updater and needs one manual upgrade. The release workflow publishes the signed update feed alongside the notarized DMG.
 
 See the [whole-project ablation report](docs/project-ablation-2026-09-05.md) for retained mechanisms, repairs, and open design gaps.
 
-The first Windows preview is **0.1.11**, released as `windows-v0.1.11`. macOS 0.1.11 uses the independent `macos-v0.1.11` tag after shared-core build and runtime validation.
+Windows 0.1.11 preview users need one manual upgrade to 0.1.12 to enter the unified update channel.

@@ -1,27 +1,36 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { validateReleaseTag } from '../validate-release-tag.mjs';
 
-test('each platform validates against its own version source', () => {
-  const mac = fs.readFileSync('CITATION.cff', 'utf8').match(/^version:\s*(\S+)/m)[1];
-  const win = fs.readFileSync('windows/Directory.Build.props', 'utf8').match(/<Version>([^<]+)<\/Version>/)[1];
-  assert.equal(validateReleaseTag('macos', `macos-v${mac}`), mac);
-  assert.equal(validateReleaseTag('windows', `windows-v${win}`), win);
-  assert.throws(() => validateReleaseTag('macos', `windows-v${win}`));
-  assert.throws(() => validateReleaseTag('windows', `macos-v${mac}`));
-});
-test('legacy, malformed and mismatched tags cannot start a new platform release', () => {
-  for (const tag of ['v0.1.0', 'windows-v01.1.0', 'windows-v0.1', 'windows-v0.1.0-malicious', 'windows-v999.0.0']) {
-    assert.throws(() => validateReleaseTag('windows', tag));
+test('one tag must match both platform versions and all package metadata', () => {
+  const version = fs.readFileSync('CITATION.cff', 'utf8').match(/^version:\s*(\S+)/m)[1];
+  assert.equal(validateReleaseTag(`v${version}`), version);
+  for (const tag of [`macos-v${version}`, `windows-v${version}`, 'v01.1.0', 'v0.1', 'v0.1.0-rc1', 'v999.0.0']) {
+    assert.throws(() => validateReleaseTag(tag));
   }
-  assert.throws(() => validateReleaseTag('linux', 'linux-v0.1.0'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'switcher-version-'));
+  try {
+    for (const file of ['CITATION.cff', 'scripts/package-local-app.sh', 'Sources/SwitcherCore/CodexClient.swift', 'windows/Directory.Build.props']) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.copyFileSync(file, path.join(root, file));
+    }
+    const props = path.join(root, 'windows/Directory.Build.props');
+    fs.writeFileSync(props, fs.readFileSync(props, 'utf8').replace(`<Version>${version}</Version>`, '<Version>999.0.0</Version>'));
+    assert.throws(() => validateReleaseTag(`v${version}`, root), /unified version sources/);
+  } finally { fs.rmSync(root, { recursive: true }); }
 });
-test('release workflows listen only to their own tag namespace', () => {
-  const mac = fs.readFileSync('.github/workflows/release.yml', 'utf8');
-  const win = fs.readFileSync('.github/workflows/windows.yml', 'utf8');
-  assert.match(mac, /tags:\s*\n\s*- "macos-v\*"/);
-  assert.match(win, /tags:\s*\n\s*- "windows-v\*"/);
-  assert.doesNotMatch(mac, /- "v\*"/);
-  assert.match(win, /--prerelease --latest=false/);
+
+test('publication waits for both builds and only the unified workflow publishes', () => {
+  const release = fs.readFileSync('.github/workflows/release.yml', 'utf8');
+  const windows = fs.readFileSync('.github/workflows/windows.yml', 'utf8');
+  assert.match(release, /tags:\s*\n\s*- "v\*"/);
+  assert.match(release, /needs: \[validate, macos, windows\]/);
+  assert.match(release, /verify-release-artifacts\.mjs/);
+  assert.match(release, /--draft --verify-tag/);
+  assert.match(release, /--draft=false --latest/);
+  assert.match(windows, /workflow_call:/);
+  assert.doesNotMatch(windows, /gh release create|tags:/);
 });

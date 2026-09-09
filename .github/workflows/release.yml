@@ -1,111 +1,73 @@
-name: Release macOS app
+name: Release
 
 on:
   push:
     tags:
-      - "macos-v*"
+      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-macos-${{ github.repository }}
+  group: release-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: macos-26
-    env:
-      SWIFT_BUILD_ARCH: arm64
-
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-
-      - name: Validate release tag and resolve action
+      - name: Validate the unified version and tagged commit
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          git fetch --force --tags origin \
-            refs/heads/main:refs/remotes/origin/main
-
-          release_version=$(sed -n 's/^version:[[:space:]]*\([^[:space:]]*\)$/\1/p' CITATION.cff)
-          package_version=$(sed -n 's/^APP_VERSION=${RELEASE_VERSION:-\([^}]*\)}$/\1/p' scripts/package-local-app.sh)
-          client_version=$(sed -n 's/^[[:space:]]*clientVersion: String = "\([^"]*\)",$/\1/p' Sources/SwitcherCore/CodexClient.swift)
-
-          if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "CITATION.cff has an invalid release version: '$release_version'" >&2
+          version=$(node scripts/validate-release-tag.mjs "$GITHUB_REF_NAME")
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse $GITHUB_REF_NAME^{commit})"
+          git merge-base --is-ancestor HEAD origin/main
+          tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
+          if grep -Fxq "$GITHUB_REF_NAME" <<< "$tags"; then
+            echo "Release $GITHUB_REF_NAME already exists; refusing to replace it." >&2
             exit 1
           fi
-          if [[ "$package_version" != "$release_version" ]]; then
-            echo "Package default version '$package_version' does not match CITATION.cff '$release_version'" >&2
-            exit 1
-          fi
-          if [[ "$client_version" != "$release_version" ]]; then
-            echo "CodexClient version '$client_version' does not match CITATION.cff '$release_version'" >&2
-            exit 1
-          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Check release routing and site metadata
+        run: |
+          node --test scripts/tests/*.test.mjs
+          node scripts/check-site-geo.mjs
 
-          release_tag="macos-v${release_version}"
-          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
-            echo "Unsupported release ref '$GITHUB_REF'; only macos-v* tag pushes may publish a release" >&2
-            exit 1
-          fi
+  windows:
+    needs: validate
+    uses: ./.github/workflows/windows.yml
 
-          event_tag=${GITHUB_REF#refs/tags/}
-          if [[ "$event_tag" != "$release_tag" ]]; then
-            echo "Tag event '$event_tag' does not match repository version '$release_tag'" >&2
-            exit 1
-          fi
-          if ! git show-ref --verify --quiet "refs/tags/${release_tag}"; then
-            echo "Tag event ref 'refs/tags/${release_tag}' was not fetched" >&2
-            exit 1
-          fi
-
-          head_sha=$(git rev-parse HEAD^{commit})
-          tag_commit=$(git rev-parse "refs/tags/${release_tag}^{commit}")
-          main_sha=$(git rev-parse origin/main^{commit})
-          if [[ "$head_sha" != "$main_sha" || "$tag_commit" != "$main_sha" ]]; then
-            echo "Tag '$release_tag' commit $tag_commit and workflow commit $head_sha must both equal origin/main $main_sha" >&2
-            exit 1
-          fi
-
-          {
-            echo "RELEASE_VERSION=$release_version"
-            echo "RELEASE_TAG=$release_tag"
-          } >> "$GITHUB_ENV"
-
-          release_tags=$(gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq '.[].tag_name')
-          if grep -Fxq "$release_tag" <<< "$release_tags"; then
-            echo "SHOULD_RELEASE=false" >> "$GITHUB_ENV"
-            echo "GitHub Release '$release_tag' already exists; publishing steps are skipped." | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          echo "SHOULD_RELEASE=true" >> "$GITHUB_ENV"
-          echo "Publishing existing tag '$release_tag' from current origin/main $main_sha in this workflow run." | tee -a "$GITHUB_STEP_SUMMARY"
-
+  macos:
+    needs: validate
+    runs-on: macos-26
+    env:
+      SWIFT_BUILD_ARCH: arm64
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate release toolchain
-        if: env.SHOULD_RELEASE == 'true'
         run: |
           set -euo pipefail
           test "$(uname -m)" = "arm64"
           swift --version
 
       - name: Run release tests
-        if: env.SHOULD_RELEASE == 'true'
         run: |
           set -euo pipefail
           swift test
           ./scripts/run-core-checks.sh
 
       - name: Package, notarize, and staple Developer ID signed DMG
-        if: env.SHOULD_RELEASE == 'true'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -244,7 +206,6 @@ jobs:
           cat "$artifact.sha256"
 
       - name: Sign the Sparkle update feed
-        if: env.SHOULD_RELEASE == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -263,18 +224,40 @@ jobs:
             .build/artifacts
           test -s .build/artifacts/appcast.xml
 
-      - name: Create GitHub Release
-        if: env.SHOULD_RELEASE == 'true'
+      - name: Upload verified macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Account-Switcher-macos-arm64
+          path: |
+            .build/artifacts/Codex-Account-Switcher-macos-arm64.dmg
+            .build/artifacts/Codex-Account-Switcher-macos-arm64.dmg.sha256
+            .build/artifacts/appcast.xml
+          if-no-files-found: error
+
+  publish:
+    needs: [validate, macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Codex-Account-Switcher-*
+          path: dist
+          merge-multiple: true
+      - name: Verify both platform packages and publish together
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag_commit=$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")
-          main_commit=$(git rev-parse origin/main^{commit})
-          test "$tag_commit" = "$main_commit"
-          artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
-          gh release create "$RELEASE_TAG" "$artifact" "$artifact.sha256" .build/artifacts/appcast.xml \
-            --title "macOS · v${RELEASE_VERSION}" \
-            --notes-file .github/release-notes.md \
-            --latest \
-            --verify-tag
+          node scripts/verify-release-artifacts.mjs dist "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" \
+            dist/Codex-Account-Switcher-macos-arm64.dmg \
+            dist/Codex-Account-Switcher-macos-arm64.dmg.sha256 \
+            dist/Codex-Account-Switcher-windows-x64.exe \
+            dist/Codex-Account-Switcher-windows-x64.exe.sha256 \
+            dist/appcast.xml \
+            --title "$GITHUB_REF_NAME" --notes-file .github/release-notes.md \
+            --draft --verify-tag
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest

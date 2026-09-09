@@ -57,7 +57,7 @@ Build with `./scripts/package-windows.ps1`. The downloadable artifact is a porta
 
 The EXE's `--self-test` mode validates its bundled host against an isolated temporary Codex home. CI runs it with SDK/runtime paths removed. The preview EXE is unsigned and is not an installer.
 
-Windows versions come from `windows/Directory.Build.props`. Tags are `windows-v<major>.<minor>.<patch>`; macOS uses `macos-v<major>.<minor>.<patch>`. Versions advance independently. A shared-core source change runs both CI jobs, while a platform release tag publishes only that platform. See [release management](../docs/platform-releases.md) for legacy Mac update compatibility.
+Windows versions come from `windows/Directory.Build.props` and must match the macOS version sources. A single `v<major>.<minor>.<patch>` tag tests and builds both platforms, then publishes their packages together. See [release management](../docs/platform-releases.md). Windows 0.1.11 preview requires one manual upgrade to enter the unified update channel.
 
 Windows preview releases remain `--prerelease --latest=false`. No release is published just by building locally. Real browser sign-in, a complete handoff in a disposable user session, macOS runner validation, and final bundled-runtime checks are required before claiming production readiness.
 

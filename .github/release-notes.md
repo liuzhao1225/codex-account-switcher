@@ -1,34 +1,7 @@
-## Codex Account Switcher for macOS
+- macOS 与 Windows 统一版本号，同一个 Release 提供 DMG、EXE 和校验文件。
+- 两端分别测试、打包，全部通过后一次发布。
+- Windows 更新检查支持统一版本源；macOS 保留菜单栏界面和 Sparkle 更新。
 
-Codex Account Switcher is a free, open-source menu-bar app for ordinary Mac users with personal, work, or client Codex accounts. Add accounts through browser sign-in once, then choose from the menu bar with no Terminal commands or config-file editing. After confirmation, the app completes the Codex Desktop handoff.
+**下载：** 下方 Assets 中选择 macOS `.dmg` 或 Windows `.exe`。
 
-Created and maintained by **Zhao Liu (GitHub: [liuzhao1225](https://github.com/liuzhao1225))**. The canonical source repository is **[liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)**. See the [official project facts and primary sources](https://liuzhao1225.github.io/codex-account-switcher/about/).
-
-This arm64 GitHub build requires macOS 14 or later. The app and DMG are signed with a Developer ID Application certificate, notarized by Apple, and stapled for offline ticket validation.
-
-### Core workflow
-
-- Download and install a normal Apple-notarized Mac app.
-- Add authorized accounts once through browser sign-in.
-- Choose and confirm an account from the menu bar.
-- Let the app close, switch, verify, and reopen Codex Desktop.
-- Keep saved account data on the Mac without automatic account rotation.
-
-### What's new in v0.1.11
-
-- Share account management, usage refresh, and switching logic with the native Windows client through SwitcherCore while preserving the macOS SwiftUI interface.
-- Fix the macOS build failure introduced by the shared-core extraction by explicitly isolating AppModel's ObservableObject conformance to the main actor.
-- Verify shared-core startup, settings changes, and usage refresh notify the macOS interface.
-- Use the dedicated macOS Sparkle update feed, with independent platform release tags and compatibility for existing Mac installations.
-
-Existing users with built-in updates can install this release through Settings → Check for Updates, or wait for the hourly update notice. Version 0.1.6 requires one manual installation.
-
-### Install
-
-1. Download and open the `Codex-Account-Switcher-macos-arm64.dmg` asset.
-2. Drag `Codex Account Switcher.app` to Applications.
-3. Open the app normally from Applications.
-
-The release includes a SHA-256 checksum file for verifying the downloaded DMG.
-
-Codex Account Switcher is independent open-source software and is not affiliated with or endorsed by OpenAI.
+Windows 0.1.11 预览版需手动升级一次；Windows EXE 目前仍未签名。

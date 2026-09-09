@@ -1,55 +1,31 @@
-# Platform versions and releases
+# Unified versions and releases
 
-Both platforms belong to Codex Account Switcher. They share the Swift business core and have native platform interfaces, independent version numbers and release workflows.
+macOS and Windows share one product version, one immutable `v<major>.<minor>.<patch>` tag, and one GitHub Release. Every new release contains both platform packages built from the same tagged commit. The release title equals the tag, so the version is visible directly in the release list.
 
-| | macOS | Windows |
-| --- | --- | --- |
-| Code | `Sources/`, `Tests/` | `windows/` |
-| Version source | Existing `CITATION.cff`, packaging default, Codex client version (validated together) | `windows/Directory.Build.props` |
-| New release tag | `macos-v<major>.<minor>.<patch>` | `windows-v<major>.<minor>.<patch>` |
-| Release title | `macOS · v<version>` | `Windows · v<version> Preview` during preview |
-| Artifact | `Codex-Account-Switcher-macos-arm64.dmg` | `Codex-Account-Switcher-windows-x64.exe` |
-| Release workflow | `.github/workflows/release.yml` | `.github/workflows/windows.yml` |
+## Test and publish
 
-Do not rename, delete or recreate historical `v*` tags. The new Mac tag prefix is a future publishing convention; it does not change the version string displayed in the app. Windows uses `0.1.11` for its first preview release. macOS uses `0.1.11` for its shared-core compatibility release, tagged `macos-v0.1.11` after separate Mac testing. Their version sources and tags remain independent.
-
-## Publishing procedure
-
-1. Update the platform's version source(s), release notes and relevant documentation.
-2. Run that platform's checks and packaging, and `node --test scripts/tests/*.test.mjs`.
-3. Merge the prepared changes to `main`.
-4. Create an annotated platform tag from the intended `origin/main` commit, and push that tag when ready to publish.
-
-For example, after the source version has actually been changed to the corresponding value:
+1. Push changes and run platform CI on GitHub: shared Swift tests on both systems, macOS CoreChecks, Windows transport/WPF checks and self-contained EXE checks. Interface or account-switch changes also need appropriate real-system validation.
+2. Set the same version in `CITATION.cff`, `scripts/package-local-app.sh`, `Sources/SwitcherCore/CodexClient.swift`, and `windows/Directory.Build.props`. Keep the host/client fallback versions in sync. Write only this release's changes in `.github/release-notes.md`.
+3. After CI succeeds, create and push an annotated `v*` tag from the intended main commit. Ordinary main pushes run CI without publishing.
+4. `.github/workflows/release.yml` validates all version sources and the tagged commit, then runs macOS and Windows builds in parallel. Windows uses the reusable `.github/workflows/windows.yml`; it never publishes independently.
+5. macOS tests, signs, notarizes, staples and checks the DMG. Windows tests, packages and runs the EXE without SDK/runtime paths. The publish job waits for both jobs, verifies both SHA-256 files and the macOS feed, uploads everything to a draft, then publishes it as Latest.
+6. Verify the public assets and the Pages update feed before announcing completion. A failed build prevents publication. Fix source errors with a new commit/tag; infrastructure failures can rerun the same immutable tag. An existing release is never silently replaced. Inspect and remove an incomplete draft before retrying its publishing step.
 
 ```sh
-git tag -a macos-v0.1.11 -m "macOS 0.1.11" origin/main
-git push origin macos-v0.1.11
-
-# Independent release, only after Windows version and validation are ready:
-git tag -a windows-v0.1.11 -m "Windows 0.1.11 Preview" origin/main
-git push origin windows-v0.1.11
+git tag -a v0.1.12 -m 'v0.1.12' origin/main
+git push origin v0.1.12
 ```
 
-Never run both just to publish one platform. Tag push filtering is independent from branch-path filtering: a `windows-v*` tag starts the Windows pipeline even if that commit also changes Mac files. Ordinary branch pushes run tests but cannot enter either tag-only publishing job. Existing releases are not overwritten on rerun. Failed release jobs may be rerun against the same immutable tag.
+## Assets and updates
 
-Both pipelines require the tagged commit to equal current `origin/main` when validated. If `main` advances before a delayed run starts, release validation fails explicitly. Resolve this by preparing a new version/tag from current main; do not move a published tag.
+Each release includes:
 
-Windows-only PRs/branch pushes run the Windows workflow. Changes to `SwitcherCore`, its tests, or the package manifest run both platforms' CI, including the same shared Swift tests. Release tags still trigger only their own platform's release pipeline. Existing macOS signing, notarization and Sparkle publishing stay in the macOS pipeline.
+- `Codex-Account-Switcher-macos-arm64.dmg` and `.sha256`
+- `Codex-Account-Switcher-windows-x64.exe` and `.sha256`
+- The signed macOS `appcast.xml`
 
-## Downloads and legacy Mac updates
+Both website download buttons use `/releases/latest/download/<asset>`. macOS uses the dedicated Pages feed; legacy Mac installations using `/releases/latest/download/appcast.xml` continue to work because every unified release includes that file. Pages refreshes after a successful unified release and preserves the signed feed contents.
 
-GitHub has **one repository-wide Latest release**, not one Latest per platform. A platform-specific download must use an explicit release tag, or a release-list filter. Do not send Windows users to the repository-wide `latest/download` route.
+Windows 0.1.12 and later select stable `v*` releases containing a Windows EXE. The initial Windows 0.1.11 preview only recognized `windows-v*`; it needs one manual upgrade to enter the unified channel. Windows opens the update download page and does not replace its running EXE automatically. The EXE remains unsigned.
 
-During Windows preview:
-
-- Mac releases retain `--latest`, preserving existing website links and the Sparkle feed used by installed Mac versions.
-- Windows releases use `--prerelease --latest=false` and their own EXE asset. This is a preview/compatibility choice, not a difference in product ownership or tag naming.
-- The Windows entry links to [Windows releases](https://github.com/liuzhao1225/codex-account-switcher/releases?q=windows-v). Before the first release, this list is intentionally empty; the source README supplies build instructions.
-- Direct Windows download URLs have the form `https://github.com/liuzhao1225/codex-account-switcher/releases/download/windows-v0.1.11/Codex-Account-Switcher-windows-x64.exe` **only after that release exists**.
-
-New Mac builds use `https://liuzhao1225.github.io/codex-account-switcher/updates/macos/appcast.xml`. The Pages build fetches releases with pagination, selects the highest published stable `macos-v*` version (also accepting historical Mac-only `v*` tags), requires a Mac DMG and appcast, and copies its signed feed unchanged. It rejects other-platform or unsigned enclosures. A successful Mac release workflow triggers a Pages deployment to refresh this feed; every ordinary site deployment regenerates it as well. Feed lookup or validation failure blocks deployment, preserving the previous published site. The new endpoint becomes available after the updated Pages workflow is deployed.
-
-Existing Mac installations still request `/releases/latest/download/appcast.xml`. Keep Mac releases marked Latest so those clients can upgrade to a build using the dedicated Mac channel. Do not let Windows take over that compatibility endpoint. Both platform update selectors are independent of repository Latest; keeping Latest on Mac is solely for installed legacy clients and existing download links.
-
-The Windows preview checks only `windows-v*` releases with a Windows EXE, including preview releases and excluding drafts, using pagination and its own installed version. It checks hourly when enabled and opens the release download page for updates. It does not replace its running EXE automatically and has no Authenticode signing. Do not describe the EXE as signed or as an installer. Adding a signed `Setup.exe` later is an independent packaging decision.
+The previous separate macOS/Windows release entries may be removed after verifying the unified replacement. Preserve their Git tags and commits. Old version-specific asset links stop working when their release entries are removed; current documentation and download buttons must point to the unified release.

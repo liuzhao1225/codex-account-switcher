@@ -10,7 +10,7 @@ on:
       - "scripts/prepare-macos-feed.mjs"
       - ".github/workflows/pages.yml"
   workflow_run:
-    workflows: ["Release macOS app"]
+    workflows: ["Release"]
     types: [completed]
   workflow_dispatch:
 

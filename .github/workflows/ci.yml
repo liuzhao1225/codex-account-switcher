@@ -7,7 +7,6 @@ on:
       - "scripts/package-windows.ps1"
       - "scripts/generate-windows-icons.py"
       - ".github/workflows/windows.yml"
-      - ".github/release-notes-windows.md"
   push:
     branches:
       - main
@@ -16,7 +15,6 @@ on:
       - "scripts/package-windows.ps1"
       - "scripts/generate-windows-icons.py"
       - ".github/workflows/windows.yml"
-      - ".github/release-notes-windows.md"
 
 permissions:
   contents: read
