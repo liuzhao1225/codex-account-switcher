@@ -30,7 +30,7 @@ enum LaunchAtLoginState: Equatable {
 }
 
 @MainActor
-final class AppModel: AccountController, ObservableObject {
+final class AppModel: AccountController, @MainActor ObservableObject {
     let objectWillChange = ObservableObjectPublisher()
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 

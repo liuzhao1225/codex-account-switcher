@@ -14,11 +14,12 @@ This arm64 GitHub build requires macOS 14 or later. The app and DMG are signed w
 - Let the app close, switch, verify, and reopen Codex Desktop.
 - Keep saved account data on the Mac without automatic account rotation.
 
-### What's new in v0.1.10
+### What's new in v0.1.11
 
-- Organize Settings into General and Software Update with matching typography and spacing.
-- Align all switches, the language menu, and update controls to a shared right edge with consistent native control sizing.
-- Use one layout for setting rows, separators, descriptions, and errors; simplify the automatic-update description.
+- Share account management, usage refresh, and switching logic with the native Windows client through SwitcherCore while preserving the macOS SwiftUI interface.
+- Fix the macOS build failure introduced by the shared-core extraction by explicitly isolating AppModel's ObservableObject conformance to the main actor.
+- Verify shared-core startup, settings changes, and usage refresh notify the macOS interface.
+- Use the dedicated macOS Sparkle update feed, with independent platform release tags and compatibility for existing Mac installations.
 
 Existing users with built-in updates can install this release through Settings → Check for Updates, or wait for the hourly update notice. Version 0.1.6 requires one manual installation.
 

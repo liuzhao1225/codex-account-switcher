@@ -13,6 +13,15 @@ It should test the documented verification/commit restoration and confirm that n
 
 Xcode and GitHub-hosted macOS runners use SwiftPM's normal `Testing` module discovery. Some standalone Command Line Tools distributions place `Testing.framework` and `lib_TestingInterop.dylib` outside SwiftPM's default search paths. For that CLT layout, `Package.swift` derives the selected toolchain root from `xcrun --find swift` and adds only the required framework and runtime search paths when both files exist. The repository contains no fixed developer-directory path.
 
+If `swift test` prints only `Build complete!`, the generated test entry point also needs the framework search path. On that CLT layout, run:
+
+```sh
+toolchain_root=$(dirname "$(dirname "$(dirname "$(xcrun --find swift)")")")
+swift test -Xswiftc -F -Xswiftc "$toolchain_root/Library/Developer/Frameworks"
+```
+
+Require the `Test run with ... tests ... passed` summary before treating the suite as executed. Run `./scripts/run-core-checks.sh` as well; it checks that shared-core startup, settings and usage changes reach the macOS Combine publisher.
+
 ## 2. Unit tests
 
 ### 2.1 Usage windows

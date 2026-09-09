@@ -11,7 +11,7 @@ Both platforms belong to Codex Account Switcher. They share the Swift business c
 | Artifact | `Codex-Account-Switcher-macos-arm64.dmg` | `Codex-Account-Switcher-windows-x64.exe` |
 | Release workflow | `.github/workflows/release.yml` | `.github/workflows/windows.yml` |
 
-Do not rename, delete or recreate historical `v*` tags. The new Mac tag prefix is a future publishing convention; it does not change the version string displayed in the app. Windows uses `0.1.11` for its first preview release. macOS remains at `0.1.10` until separate Mac testing and release preparation. Their version sources and tags remain independent.
+Do not rename, delete or recreate historical `v*` tags. The new Mac tag prefix is a future publishing convention; it does not change the version string displayed in the app. Windows uses `0.1.11` for its first preview release. macOS uses `0.1.11` for its shared-core compatibility release, tagged `macos-v0.1.11` after separate Mac testing. Their version sources and tags remain independent.
 
 ## Publishing procedure
 

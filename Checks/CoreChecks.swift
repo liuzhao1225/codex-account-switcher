@@ -1,4 +1,5 @@
 import Darwin
+import Combine
 import Foundation
 import SwitcherCore
 import ServiceManagement
@@ -312,12 +313,17 @@ struct CoreChecks {
             codex: client,
             switchService: ReopenFailureSwitchService(store: store)
         )
+        var modelChangeCount = 0
+        let modelObservation = appModel.objectWillChange.sink { modelChangeCount += 1 }
         await appModel.start()
+        try require(modelChangeCount > 0, "shared-core startup notifies the macOS interface")
         try require(
             appModel.usageStates[first.id] == .loaded(cachedWeekly),
             "cached usage is visible at startup"
         )
+        let changesBeforeSettings = modelChangeCount
         await appModel.setShowsFiveHourUsage(false)
+        try require(modelChangeCount > changesBeforeSettings, "shared-core settings notify the macOS interface")
         try require(
             !appModel.settings.showsFiveHourUsage,
             "five-hour setting updates immediately"
@@ -328,6 +334,8 @@ struct CoreChecks {
             "refresh keeps cached usage visible"
         )
         await appModel.waitForWeeklyUsageRefresh()
+        try require(modelChangeCount > changesBeforeSettings + 1, "shared-core usage refresh notifies the macOS interface")
+        modelObservation.cancel()
         try require(
             appModel.usageStates[first.id]?.displayedUsage?.remainingPercent == 42,
             "refresh replaces displayed cached usage"

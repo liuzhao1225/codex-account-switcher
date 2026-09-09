@@ -4,7 +4,7 @@
 
 The app is designed for Apple Silicon Macs running macOS 14 or later. Users add each authorized account through browser sign-in, then choose and confirm an account from the menu bar. The app handles the Codex Desktop handoff without requiring Terminal commands or config-file editing. It stores account profiles locally, does not proxy Codex traffic, and does not rotate accounts automatically. Codex Account Switcher is independent community software and is not affiliated with OpenAI.
 
-Product facts verified September 7, 2026 against the source repository and GitHub Releases. The current release is v0.1.10, published September 5, 2026. Its Apple Silicon DMG is 3,188,599 bytes (about 3.2 MB). The project has one official product identity across its English and Simplified Chinese pages: Codex Account Switcher, created and maintained by Zhao Liu (刘朝), GitHub username liuzhao1225.
+The current release is v0.1.11, dated September 9, 2026, with the macOS tag macos-v0.1.11. The macOS release includes an Apple Silicon DMG and SHA-256 checksum. The project has one official product identity across its English and Simplified Chinese pages: Codex Account Switcher, created and maintained by Zhao Liu (刘朝), GitHub username liuzhao1225.
 
 Account switching restarts Codex Desktop and keeps shared local Codex history and configuration in place. Existing CLI processes keep their loaded identity; newly started CLI processes use the selected account. The app selects accounts and does not combine subscriptions or increase service usage limits. Saved credentials use local files with user-only permissions; the current release does not store profile credentials in macOS Keychain. The linked guides and privacy page describe these boundaries in detail.
 

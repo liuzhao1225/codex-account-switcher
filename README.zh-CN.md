@@ -124,12 +124,12 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 | 项目 | 状态 |
 | --- | --- |
-| Apple Silicon 版本 | 已在 [v0.1.10](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.10) 提供 |
+| Apple Silicon 版本 | 已在 [v0.1.11](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/macos-v0.1.11) 提供 |
 | 自动化 | PR 和 `main` CI 运行检查；推送匹配的 `macos-v*` tag 后发布签名 Mac 版本 |
 | 代码签名 | Developer ID Application |
 | Apple 公证 | 应用和 DMG 均已公证并附加票据 |
 | 分发容器 | DMG 和 SHA-256 校验文件 |
-| DMG 发布 | 已在 v0.1.10 提供 |
+| DMG 发布 | 已在 v0.1.11 提供 |
 
 ## Windows 预览版
 
@@ -235,12 +235,12 @@ swift test
 
 Codex Account Switcher 基于 [MIT License](LICENSE) 发布。
 
-## 0.1.10 自动更新
+## 0.1.11 自动更新
 
-0.1.10 通过 Sparkle 每小时检查更新。菜单栏蓝点和主页底部工具栏上方的更新行提示新版本；点击更新后，由框架下载、安装并重启 Switcher。设置页提供手动检查和自动检查开关。账号操作进行中会延后最终重启。
+0.1.11 通过 Sparkle 每小时检查更新。菜单栏蓝点和主页底部工具栏上方的更新行提示新版本；点击更新后，由框架下载、安装并重启 Switcher。设置页提供手动检查和自动检查开关。账号操作进行中会延后最终重启。
 
 发布前需要配置仓库 `SPARKLE_PRIVATE_KEY`，并上传带签名的 `appcast.xml`。已安装的 0.1.6 没有更新器，需要先手动升级一次。发布流程将带签名的更新源与公证 DMG 一同上传。
 
 保留机制、修复及仍存在的设计缺口见[全项目消融报告](docs/project-ablation-2026-09-05.md)。
 
-Windows ?????? **0.1.11**??? `windows-v0.1.11` ?????macOS ???? 0.1.10???? Mac ??????????
+Windows 首个预览版为 **0.1.11**，使用 `windows-v0.1.11`。macOS 0.1.11 经共享内核编译与运行验证后，使用独立的 `macos-v0.1.11` 标签发布。
