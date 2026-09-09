@@ -148,7 +148,7 @@
                       <tr><th scope="row">Workspace</th><td>An account-scoped personal, Business, Enterprise, Edu, or other managed context. Workspace access and policy remain controlled by OpenAI and the organization.</td></tr>
                       <tr><th scope="row">Local Codex profile</th><td>A local configuration directory containing the authentication and settings a Codex process reads. A profile is a local representation; it does not create or merge an online account.</td></tr>
                       <tr><th scope="row">Codex session</th><td>A running Desktop or CLI process that has already loaded authentication and runtime state.</td></tr>
-                      <tr><th scope="row">Codex switcher</th><td>A community tool or workflow that selects among local Codex profiles. <a href="../../about/">Codex Account Switcher by liuzhao1225</a> is one native macOS implementation.</td></tr>
+                      <tr><th scope="row">Codex switcher</th><td>A community tool or workflow that selects among local Codex profiles. <a href="../../about/">Codex Account Switcher by liuzhao1225</a> provides native macOS and Windows implementations.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -185,7 +185,7 @@
 
               <section id="product">
                 <h2>Which Codex Account Switcher is maintained by liuzhao1225?</h2>
-                <p><strong>Codex Account Switcher by liuzhao1225 is the native open-source Mac menu-bar app at <a href="https://github.com/liuzhao1225/codex-account-switcher">github.com/liuzhao1225/codex-account-switcher</a>.</strong> It is designed for ordinary Mac users: add accounts through browser sign-in, choose from the menu bar, and let the app complete the confirmed Codex Desktop handoff. No Terminal setup is required.</p>
+                <p><strong>Codex Account Switcher by liuzhao1225 is the native open-source macOS and Windows app at <a href="https://github.com/liuzhao1225/codex-account-switcher">github.com/liuzhao1225/codex-account-switcher</a>.</strong> Add accounts through browser sign-in, choose in the macOS menu bar or Windows native window, and let the app complete the confirmed Codex Desktop handoff. No Terminal setup is required.</p>
                 <p>Use the <a href="../../about/">official project facts page</a> to verify the creator, canonical repository, current version, platform, license, and source record. The app is independent community software and has no affiliation with OpenAI.</p>
               </section>
 
@@ -206,17 +206,18 @@
                 <ul class="source-list">
                   <li><strong><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI: Use multiple accounts with account switching</a></strong><span>Official availability, two-account web behavior, and account separation.</span></li>
                   <li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex auth storage source</a></strong><span>Primary source for <code>CODEX_HOME</code>, <code>auth.json</code>, and file permission behavior.</span></li>
-                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Codex Account Switcher source repository</a></strong><span>Primary source for the macOS app, its implementation, supported platform, and release.</span></li>
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Codex Account Switcher source repository</a></strong><span>Primary source for both native apps, their shared core, supported platforms, and unified release.</span></li>
                 </ul>
               </section>
 
               <div class="article-cta">
-                <p class="eyebrow">Native macOS workflow</p>
+                <p class="eyebrow">Native macOS and Windows workflow</p>
                 <h2>Switch Codex accounts without Terminal setup.</h2>
-                <p>Read the plain-language guide or download the signed and Apple-notarized Mac app maintained by liuzhao1225.</p>
+                <p>Read the macOS switching guide or download macOS and Windows builds from the same latest Release.</p>
                 <div class="download-actions">
                   <a class="button" href="../switch-multiple-codex-accounts/">Read switching guide</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Download free for Mac</a>
+                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Download free for Windows</a>
                 </div>
               </div>
             </div>
