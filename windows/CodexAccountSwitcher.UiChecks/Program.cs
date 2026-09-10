@@ -121,7 +121,8 @@ internal static class Program
             window.Navigate("accounts");
             var saved = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "Personal");
             saved.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert(All<TextBlock>(window).Any(text => text.Text == "API 登录将单独保存在本机。模型设置将保留。"),
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.PendingSwitch!.Message
+                && text.Text.Contains(client.State.Text("native_api_storage_notice"))),
                 "API retention and model notices must come from the shared prepared action.");
             Render(window, Path.Combine(output, "api-return-zh.png"));
             var confirm = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "切换账号");
@@ -150,6 +151,9 @@ internal static class Program
     }
     private static void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static IEnumerable<T> All<T>(DependencyObject parent) where T : DependencyObject {
+        // Snapshot notifications replace the view. Materialize its templates
+        // before the synchronous harness queries the next control.
+        if (parent is Window window) window.UpdateLayout();
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) {
             var child = VisualTreeHelper.GetChild(parent, i); if (child is T match) yield return match;
             foreach (var descendant in All<T>(child)) yield return descendant;
@@ -187,7 +191,10 @@ internal static class Program
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。",
                 ["advanced"] = "高级", ["enable_provider_switching"] = "启用提供商切换", ["providers"] = "已配置的提供商",
-                ["provider_setup_notice"] = "适用于已在 Codex 中配置的提供商。模型兼容性需要单独验证。", ["credential_in_use"] = "登录凭据使用中"
+                ["provider_setup_notice"] = "适用于已在 Codex 中配置的提供商。不会验证模型兼容性。每个提供商可能需要单独配置模型，切回 ChatGPT 时也一样。关闭此选项只隐藏提供商，不更改当前提供商。", ["credential_in_use"] = "登录凭据使用中",
+                ["switch_provider_body"] = "Codex Desktop 将使用此提供商重新启动。请先完成或停止正在运行的 Desktop 任务，并处理退出提示；无法正常退出时会停止切换。现有 CLI 会话保持运行。切换器不会选择模型或管理模型列表。请在 Desktop 中选择兼容模型；如果列表中没有，请先在 Codex 中配置。现有对话不会迁移。",
+                ["native_api_storage_notice"] = "OpenAI API 登录将单独保存在本机，便于以后切回。已保存的 ChatGPT 账号与其分开保存。模型设置会保留，必要时请选择兼容模型。",
+                ["return_account_model_notice"] = "模型设置将保留。如果自定义提供商使用了不同的模型 ID，请先在 Desktop 中选择 ChatGPT 支持的模型再发送消息。自定义模型目录也可能需要在 Codex 中更改。"
             }, [], "openai", "chatgpt", null);
         }
         public async Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null) {
@@ -197,9 +204,10 @@ internal static class Program
             if (command == "prepareAccountSwitch") {
                 var row = State.Accounts.Single(row => row.Profile.Id == accountID);
                 State = State with { PendingSwitch = row.IsActive ? null : new(accountID, null, "切换到 " + row.Profile.DisplayName + "？",
-                    State.AuthenticationKind == "apiKey" ? "API 登录将单独保存在本机。模型设置将保留。" : State.Text("switch_body"), "切换账号") };
+                    State.Text("switch_body") + (State.AuthenticationKind == "apiKey"
+                        ? "\n\n" + State.Text("return_account_model_notice") + "\n\n" + State.Text("native_api_storage_notice") : ""), "切换账号") };
             } else if (command == "prepareProviderSwitch") {
-                State = State with { PendingSwitch = new(null, providerID, "切换提供商？", "核心提供的重启与模型兼容提示。", "切换提供商") };
+                State = State with { PendingSwitch = new(null, providerID, "切换提供商？", State.Text("switch_provider_body"), "切换提供商") };
             } else if (command is "cancelSwitch" or "confirmSwitch") State = State with { PendingSwitch = null };
             Changed?.Invoke();
         }
