@@ -122,6 +122,41 @@ struct AccountControllerTests {
         #expect(fixture.model.visibleError != nil)
     }
 
+    @Test func pendingLoginCanBeCancelledAfterRefreshAndStartedAgain() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.model.cancelAddingAccount(); fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.model.start()
+        let originalIDs = fixture.model.accounts.map(\.id)
+        // A failed attempt must not leave its error over a later pending login.
+        fixture.model.addAccount()
+        for _ in 0..<100 where fixture.model.isAddingAccount { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(fixture.model.visibleError != nil)
+        await fixture.client.waitForLogin()
+        for attempt in 1...2 {
+            fixture.model.addAccount()
+            #expect(fixture.model.visibleError == nil)
+            fixture.model.addAccount() // Ignore duplicate clicks during the same attempt.
+            for _ in 0..<100 {
+                if await fixture.client.pendingHomes.count == attempt { break }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            let homes = await fixture.client.pendingHomes
+            #expect(homes.count == attempt)
+            let home = try #require(homes.last)
+            #expect(FileManager.default.fileExists(atPath: home.path))
+            await fixture.model.refresh() // The menu's reopen refresh must not finish or replace login.
+            #expect(fixture.model.isAddingAccount)
+            fixture.model.cancelAddingAccount()
+            for _ in 0..<100 where fixture.model.isAddingAccount { try await Task.sleep(for: .milliseconds(10)) }
+            #expect(!fixture.model.isAddingAccount)
+            #expect(fixture.model.visibleError == nil)
+            #expect(fixture.model.accounts.map(\.id) == originalIDs)
+            #expect(!FileManager.default.fileExists(atPath: home.path))
+        }
+        #expect(try String(contentsOf: fixture.active.appendingPathComponent("auth.json"), encoding: .utf8) == "fixture-secret-token")
+    }
+
     @Test func snapshotContainsPresentationButNoCredentialContents() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }
@@ -162,6 +197,9 @@ private struct ControllerFixture {
 
 private actor FixtureClient: AccountClient {
     private var usageFails = false
+    private var pendingLogin = false
+    private(set) var pendingHomes: [URL] = []
+    func waitForLogin() { pendingLogin = true }
     func failUsage() { usageFails = true }
     func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
         guard FileManager.default.fileExists(atPath: profileHome.appending(path: "auth.json").path) else { return .signedOut }
@@ -175,6 +213,7 @@ private actor FixtureClient: AccountClient {
         return WeeklyUsage(remainingPercent: 72, resetsAt: Date(timeIntervalSince1970: 2_000_000_000))
     }
     func login(profileHome: URL) async throws -> AccountIdentity {
+        if pendingLogin { pendingHomes.append(profileHome); try await Task.sleep(for: .seconds(60)) }
         throw CodexClientError.loginFailed("Fixture login is disabled.")
     }
 }

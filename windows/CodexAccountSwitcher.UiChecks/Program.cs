@@ -160,6 +160,18 @@ internal static class Program
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_save"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(!providerWindow.IsVisible && client.LastProviderCommand == "closeProviderEditor", "Save closes the independent provider window and clears its editor.");
+            window.Navigate("manage");
+            All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("add_account")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.State.IsAddingAccount, "Adding waits for browser authentication.");
+            window.Navigate("accounts");
+            Assert(All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("manage")).IsEnabled, "Management remains reachable while login is pending.");
+            window.Close(); window.OpenWindow();
+            Assert(window.CurrentPage == "manage", "Reopening a pending login returns to management.");
+            var cancelAdd = All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("cancel_add_account"));
+            Assert(cancelAdd.IsEnabled, "Pending login always has a usable cancel action.");
+            Render(window, Path.Combine(output, "pending-login-reopened-zh.png"));
+            cancelAdd.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(!client.State.IsAddingAccount && All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("add_account") && button.IsEnabled), "Cancelling restores the add action.");
             var closed = false; window.Closed += (_, _) => closed = true;
             var beforeClose = client.Commands.Count;
             window.Close();
@@ -213,6 +225,7 @@ internal static class Program
                 new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null, "loaded", false, false, true)
             ], id, new("simplifiedChinese"), false, false, true, null, new() {
                 ["usage"] = "用量", ["resets"] = "重置于", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
+                ["cancel_add_account"] = "取消添加账号", ["sign_in_pending_hint"] = "正在等待浏览器登录。关闭认证标签页不会取消添加；可在此取消后重新添加。",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
@@ -275,6 +288,8 @@ internal static class Program
         public async Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null) {
             Commands.Add(command + ":" + value);
             LastProviderID = providerID;
+            if (command == "add") State = State with { IsAddingAccount = true };
+            if (command == "cancelAdd") State = State with { IsAddingAccount = false };
             if (command == "cancelSwitch" && PendingCancellation != null) await PendingCancellation.Task;
             if (command == "prepareAccountSwitch") {
                 var row = State.Accounts.Single(row => row.Profile.Id == accountID);

@@ -252,6 +252,7 @@ open class AccountController {
 
     public func addAccount() {
         guard !isMutating, !isAddingAccount else { return }
+        visibleError = nil
         isAddingAccount = true
         addAccountTask = Task { [weak self] in
             guard let self else { return }

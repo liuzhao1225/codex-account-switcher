@@ -51,6 +51,7 @@ public sealed class MainWindow : Window
 
     public void OpenWindow()
     {
+        if (State.IsAddingAccount) { page = "manage"; Render(); }
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
