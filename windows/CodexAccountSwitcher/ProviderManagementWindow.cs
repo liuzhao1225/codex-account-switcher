@@ -71,7 +71,7 @@ public sealed class ProviderManagementWindow : Window
         sort.ItemsSource = new[] { T("provider_sort_custom"), "A → Z", "Z → A" }; sort.SelectedIndex = 0; sort.Width = 145; sort.Margin = new Thickness(12, 0, 0, 0);
         AutomationProperties.SetName(sort, T("provider_sort")); DockPanel.SetDock(sort, Dock.Right); searchRow.Children.Add(sort);
         query.MinHeight = 32; query.Padding = new Thickness(8, 4, 8, 4); query.ToolTip = T("provider_search"); AutomationProperties.SetName(query, T("provider_search"));
-        searchRow.Children.Add(query); body.Children.Add(searchRow);
+        searchRow.Children.Add(WithPlaceholder(query, T("provider_search"))); body.Children.Add(searchRow);
         body.Children.Add(new Border { BorderBrush = (Brush)FindResource("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
             Child = new ScrollViewer { Content = models, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
         var manual = new DockPanel { Margin = new Thickness(0, 10, 0, 16) };
@@ -80,7 +80,7 @@ public sealed class ProviderManagementWindow : Window
             manualID.Clear(); query.Clear();
         }); DockPanel.SetDock(addModel, Dock.Right); manual.Children.Add(addModel);
         manualID.Padding = new Thickness(8, 4, 8, 4); manualID.Margin = new Thickness(0, 0, 10, 0); manualID.ToolTip = T("provider_manual_id");
-        AutomationProperties.SetName(manualID, T("provider_manual_id")); manual.Children.Add(manualID); body.Children.Add(manual);
+        AutomationProperties.SetName(manualID, T("provider_manual_id")); manual.Children.Add(WithPlaceholder(manualID, T("provider_manual_id"))); body.Children.Add(manual);
         defaultModel.FontWeight = FontWeights.SemiBold; defaultModel.TextWrapping = TextWrapping.Wrap; defaultModel.Margin = new Thickness(0, 0, 0, 10); body.Children.Add(defaultModel);
         var reasoning = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var reasoningLabel = Label("Thinking / effort"); reasoningLabel.Width = 120; reasoning.Children.Add(reasoningLabel);
@@ -103,6 +103,14 @@ public sealed class ProviderManagementWindow : Window
 
     private ProviderConnectionInput Connection() => new(name.Text, baseURL.Text, format.SelectedIndex == 1 ? "anthropic" : "responses", string.IsNullOrEmpty(key.Password) ? null : key.Password);
     private TextBlock Label(string text, double size = 13) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private FrameworkElement WithPlaceholder(TextBox input, string placeholder) {
+        var grid = new Grid(); grid.Children.Add(input);
+        var prompt = Label(placeholder, 12); prompt.IsHitTestVisible = false;
+        prompt.Foreground = Brushes.Gray; prompt.Margin = new Thickness(9, 0, 12, 0);
+        grid.Children.Add(prompt);
+        void Update() => prompt.Visibility = string.IsNullOrEmpty(input.Text) ? Visibility.Visible : Visibility.Collapsed;
+        input.TextChanged += (_, _) => Update(); Update(); return grid;
+    }
     private Button Action(string title, Func<Task> action) {
         var button = new Button { Content = title, Padding = new Thickness(12, 6, 12, 6), MinHeight = 32 };
         AutomationProperties.SetName(button, title); button.Click += async (_, _) => await action(); return button;
@@ -129,6 +137,7 @@ public sealed class ProviderManagementWindow : Window
             sort.SelectedIndex = Array.IndexOf(new[] { "custom", "nameAscending", "nameDescending" }, state.Sort);
             foreach (var control in new Control[] { name, baseURL, key, format, fetch, addModel, addProvider, saved }) control.IsEnabled = !Busy;
             saved.IsEnabled &= client.State.ManagedProviders.Length > 0;
+            saved.Visibility = client.State.ManagedProviders.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             fetch.Content = T("provider_fetch") + (state.IsBusy ? "…" : "");
             var selected = state.Models.FirstOrDefault(row => row.Id == state.DefaultModelID);
             if (selectedModelID != state.DefaultModelID) { selectedModelID = state.DefaultModelID; effort.Text = selected?.ReasoningEffort ?? ""; }
@@ -137,6 +146,7 @@ public sealed class ProviderManagementWindow : Window
             var options = selected?.ReasoningOptions ?? [];
             advertisedEffort.ItemsSource = new[] { T("provider_effort_default") }.Concat(options).ToArray();
             advertisedEffort.Visibility = options.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+            advertisedEffort.SelectedItem = options.Contains(selected?.ReasoningEffort ?? "") ? selected!.ReasoningEffort : T("provider_effort_default");
             effortHint.Text = T(options.Length == 0 ? "provider_effort_manual_hint" : "provider_effort_advertised_hint");
             error.Text = localError ?? state.Error ?? "";
             UpdateConnectionHint(); RenderModels(state);

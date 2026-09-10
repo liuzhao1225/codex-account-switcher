@@ -134,6 +134,8 @@ internal static class Program
             client.ProviderCommandAsync("openProviderEditor").GetAwaiter().GetResult();
             var providerWindow = new ProviderManagementWindow(client);
             Render(providerWindow, Path.Combine(output, "provider-add-zh.png"));
+            Assert(All<TextBlock>(providerWindow).Any(text => text.Text == client.State.Text("provider_search") && text.IsVisible), "The empty model search has a visible prompt.");
+            Assert(All<ComboBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_saved")).Visibility == Visibility.Collapsed, "Do not show an empty saved-provider picker.");
             All<PasswordBox>(providerWindow).Single().Password = "synthetic-only";
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_fetch"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -146,6 +148,7 @@ internal static class Program
             makeDefault.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Thinking / effort").Text = "high";
             Assert(client.State.ProviderEditor?.Models.Single(row => row.Id == "gpt-5-mini").ReasoningEffort == "high", "Thinking changes go through the core.");
+            Assert(All<ComboBox>(providerWindow).Any(box => box.SelectedItem as string == "high"), "Advertised thinking options show the current effort.");
             Render(providerWindow, Path.Combine(output, "provider-fuzzy-default-zh.png"));
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_save"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
