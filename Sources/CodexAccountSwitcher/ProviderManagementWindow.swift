@@ -86,10 +86,10 @@ private struct ProviderEditorForm: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
                         GridRow { Text(t("provider_name")); TextField(t("provider_name_placeholder"), text: $name) }
-                        GridRow { Text("Base URL"); TextField("https://api.example.com/v1", text: $baseURL).textContentType(.URL) }
+                        GridRow { Text("Base URL"); TextField("https://api.example.com/v1", text: Binding(get: { baseURL }, set: { baseURL = $0.trimmingCharacters(in: .whitespacesAndNewlines) })).textContentType(.URL) }
                         GridRow {
                             Text("API Key")
-                            SecureField(t(state.hasStoredKey ? "provider_keep_key" : "provider_key_placeholder"), text: $apiKey)
+                            SecureField(t(state.hasStoredKey ? "provider_keep_key" : "provider_key_placeholder"), text: Binding(get: { apiKey }, set: { apiKey = $0.trimmingCharacters(in: .whitespacesAndNewlines) }))
                         }
                     }.textFieldStyle(.roundedBorder).disabled(busy)
                     Text(t("provider_responses_notice"))

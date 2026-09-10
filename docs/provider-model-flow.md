@@ -4,7 +4,7 @@ macOS and Windows expose a separate **Service providers** window from **Manage a
 
 ## Workflow
 
-1. Enter a name, API base URL and key. Use an HTTPS endpoint ending at the API base (usually `/v1`); localhost may use HTTP.
+1. Enter a name, API base URL and key. Both native forms automatically trim surrounding whitespace from Base URL and API key input, including pasted spaces, tabs and newlines. The shared core also normalizes these values before discovery, validation and saving. Use an HTTPS endpoint ending at the API base (usually `/v1`); localhost may use HTTP.
 2. The API format is fixed to **OpenAI Responses**. Official OpenAI and third-party Responses-compatible providers are supported. There is no format selector or native Anthropic Messages discovery. Chat Completions-only endpoints cannot be used.
 3. Click **Fetch models**. The key goes to the entered origin. Redirects are reported rather than followed with credentials. Failed discovery displays an error; a model ID can also be entered manually.
 4. Search by model ID or display name. Matching ignores case, punctuation, width and diacritics, and supports ordered abbreviations such as `g5m` for `gpt-5-mini`.

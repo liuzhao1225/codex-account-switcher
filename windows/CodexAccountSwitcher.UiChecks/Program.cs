@@ -139,7 +139,12 @@ internal static class Program
             Assert(All<TextBlock>(providerWindow).Any(text => text.Text == client.State.Text("provider_search") && text.IsVisible), "The empty model search has a visible prompt.");
             Assert(All<ComboBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_saved")).Visibility == Visibility.Collapsed, "Do not show an empty saved-provider picker.");
             Assert(!All<ComboBox>(providerWindow).Any(box => box.Items.Cast<object>().Any(item => item.ToString()?.Contains("Anthropic") == true)), "Codex setup has no Anthropic format selector.");
-            All<PasswordBox>(providerWindow).Single().Password = "synthetic-only";
+            var baseInput = All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Base URL");
+            baseInput.Text = " \t https://api.example.test/v1 \r\n";
+            Assert(baseInput.Text == "https://api.example.test/v1", "Base URL input trims pasted surrounding whitespace immediately.");
+            var keyInput = All<PasswordBox>(providerWindow).Single();
+            keyInput.Password = " \t synthetic-only \r\n";
+            Assert(keyInput.Password == "synthetic-only", "API key input trims pasted surrounding whitespace immediately.");
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_fetch"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Render(providerWindow, Path.Combine(output, "provider-models-zh.png"));

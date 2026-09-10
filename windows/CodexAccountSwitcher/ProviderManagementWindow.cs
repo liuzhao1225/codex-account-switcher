@@ -96,8 +96,24 @@ public sealed class ProviderManagementWindow : Window
         sort.SelectionChanged += async (_, _) => { if (!updating && sort.SelectedIndex >= 0) await Run("sortProviderModels", new(Sort: new[] { "custom", "nameAscending", "nameDescending" }[sort.SelectedIndex])); };
         effort.TextChanged += async (_, _) => { if (!updating) await Run("setProviderReasoning", new(Effort: effort.Text)); };
         advertisedEffort.SelectionChanged += (_, _) => { if (!updating && advertisedEffort.SelectedItem is string choice) effort.Text = choice == T("provider_effort_default") ? "" : choice; };
-        baseURL.TextChanged += async (_, _) => { if (!updating) await Run("invalidateProviderValidation"); };
-        key.PasswordChanged += async (_, _) => { if (!updating) await Run("invalidateProviderValidation"); };
+        baseURL.TextChanged += async (_, _) => {
+            if (updating) return;
+            var raw = baseURL.Text;
+            var trimmed = raw.Trim();
+            if (raw != trimmed) {
+                var caret = Math.Clamp(baseURL.CaretIndex - (raw.Length - raw.TrimStart().Length), 0, trimmed.Length);
+                baseURL.Text = trimmed;
+                baseURL.CaretIndex = caret;
+                return;
+            }
+            await Run("invalidateProviderValidation");
+        };
+        key.PasswordChanged += async (_, _) => {
+            if (updating) return;
+            var trimmed = key.Password.Trim();
+            if (key.Password != trimmed) { key.Password = trimmed; return; }
+            await Run("invalidateProviderValidation");
+        };
         saved.SelectionChanged += async (_, _) => { if (!updating && saved.SelectedItem is ManagedProvider provider) await Run("openProviderEditor", new(ProviderID: provider.Id)); };
         client.Changed += Refresh;
         Closing += (_, e) => { if (client.State.IsMutating) e.Cancel = true; };

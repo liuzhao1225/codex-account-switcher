@@ -57,6 +57,26 @@ struct ProviderManagementTests {
         #expect(await fixture.rpc.configuredKey() == "synthetic-secret")
     }
 
+    @Test @MainActor func pastedConnectionWhitespaceIsTrimmedForDiscoveryValidationAndSaving() async throws {
+        let fixture = try ProviderFixture(); defer { fixture.clean() }
+        let validator = ProviderValidationFixture()
+        let model = fixture.controller(validator: validator)
+        await model.start(); await model.openProviderEditor()
+        var input = fixture.input
+        input.baseURL = " \t\n" + input.baseURL + " \r\n"
+        input.apiKey = " \t synthetic-secret \r\n"
+        await model.fetchProviderModels(input)
+        #expect(model.providerEditor?.error == nil)
+        #expect(model.providerEditor?.baseURL == fixture.input.baseURL + "/")
+        model.chooseProviderDefaultModel(id: "gpt-5-mini")
+        await model.validateProviderConnection(input)
+        #expect(await validator.baseURL == fixture.input.baseURL + "/")
+        #expect(await validator.apiKey == "synthetic-secret")
+        await model.saveProvider(input)
+        #expect(model.providerEditor?.didSave == true)
+        #expect(await fixture.rpc.configuredKey() == "synthetic-secret")
+    }
+
     @Test @MainActor func manualModelsWorkWithoutAFetchAndChangedConnectionClearsOldSelection() async throws {
         let fixture = try ProviderFixture()
         defer { fixture.clean() }
@@ -236,12 +256,15 @@ private actor ProviderRPCFixture: CodexConfigurationRPC {
 
 private actor ProviderValidationFixture: ProviderConnectionValidating {
     var calls = 0
+    var baseURL: String?
+    var apiKey: String?
     var model: String?
     var effort: String?
     var shouldFail = false
     func fail() { shouldFail = true }
     func validateConnection(baseURL: String, apiKey: String, model: String, effort: String?) throws {
         calls += 1; self.model = model; self.effort = effort
+        self.baseURL = baseURL; self.apiKey = apiKey
         if shouldFail { throw ProviderSetupError.http(401) }
     }
 }
