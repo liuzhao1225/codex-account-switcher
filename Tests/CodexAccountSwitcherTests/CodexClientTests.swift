@@ -4,6 +4,27 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct CodexClientTests {
+    @Test func pendingBrowserLoginCancelsTheRealSubprocessSession() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
+            *account*login*start*) printf '%s\n' '{"id":1,"result":{"authUrl":"https://example.test/auth"}}' ;;
+          esac
+        done
+        """#)
+        defer { fixture.remove() }
+        let opened = PendingLoginSignal()
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2), openBrowser: { _ in await opened.mark() })
+        let login = Task { try await client.login(profileHome: fixture.root) }
+        for _ in 0..<100 { if await opened.value { break }; try await Task.sleep(for: .milliseconds(10)) }
+        #expect(await opened.value)
+        login.cancel()
+        do { _ = try await login.value; Issue.record("Cancelled login returned an identity") }
+        catch { #expect(error is CancellationError) }
+    }
+
     @Test func keepsCodexQuotaSeparateFromOtherMeteredBuckets() async throws {
         let fixture = try ScriptFixture(body: #"""
         while IFS= read -r line; do
@@ -252,3 +273,5 @@ private struct ScriptFixture {
 
     func remove() { try? FileManager.default.removeItem(at: root) }
 }
+
+private actor PendingLoginSignal { var value = false; func mark() { value = true } }

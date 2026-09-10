@@ -128,6 +128,22 @@ struct ManageAccountsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.isMutating || model.isAddingAccount)
+
+                Button {
+                    ProviderManagementWindow.shared.show(model: model)
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "plus.circle").frame(width: 14)
+                        Text(model.text("provider_new"))
+                        Spacer()
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .frame(height: 30)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating || model.isAddingAccount)
             }
             .padding(5)
         }
@@ -181,8 +197,8 @@ struct ManageAccountsView: View {
 
             Spacer(minLength: 5)
 
-            if account.id == model.activeAccountID {
-                Text(model.text("active"))
+            if model.isCredentialOwner(account) {
+                Text(model.text(model.isAccountActive(account) ? "active" : "credential_in_use"))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
             } else {
@@ -195,7 +211,7 @@ struct ManageAccountsView: View {
                 .buttonStyle(.plain)
                 .help(model.format("remove_title", account.displayName))
                 .accessibilityLabel(model.format("remove_title", account.displayName))
-                .disabled(model.isMutating)
+                .disabled(!model.canRemoveAccount(account))
             }
         }
         .padding(.horizontal, 8)

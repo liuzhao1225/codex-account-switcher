@@ -72,6 +72,7 @@ Implement `SwitchService` in the documented order:
 ```text
 preflight
 close Desktop
+activate OpenAI provider
 save current
 activate target
 verify target
@@ -143,7 +144,26 @@ Implement:
 - app icon and menu-bar icon;
 - local `.app` packaging script.
 
-## 9. Suggested first implementation order
+## 9. Milestone 8 — configured providers
+
+Implement:
+
+- provider discovery through `config/read`;
+- a separate **Configured Providers** section;
+- provider activation through `config/value/write`;
+- built-in OpenAI provider activation during account switching;
+- bounded provider restoration when activation cannot be verified;
+- clear messaging that existing conversations remain provider-bound.
+
+Exit criteria:
+
+- every configured custom provider appears by configured name or readable identifier;
+- custom-provider selection restarts Codex Desktop and changes only `model_provider`; native OpenAI API selection also restores its separately saved login;
+- account selection restores `openai` before identity verification;
+- full configuration, including inline credentials, may enter memory; custom-provider credentials are not displayed, logged, or persisted;
+- thread databases and rollout files are never edited.
+
+## 10. Suggested first implementation order
 
 ```text
 AccountProfile
@@ -153,11 +173,12 @@ AccountProfile
 → DesktopController
 → CodexClient identity and Usage
 → SwitchService
+→ CodexConfigurationClient and ProviderSwitchService
 → Manage Accounts
 → localization
 ```
 
-## 10. Code-review checklist
+## 11. Code-review checklist
 
 Before merging MVP code, verify:
 
@@ -176,4 +197,9 @@ Before merging MVP code, verify:
 - active account is a row highlight;
 - CLI processes are not enumerated or killed;
 - errors include the failed stage;
-- auth contents are never logged.
+- auth contents are never logged;
+- inline provider credentials may enter memory through `config/read`, but are not displayed, persisted, or logged;
+- provider switching uses Codex app-server configuration APIs;
+- existing conversations are not rewritten to another provider.
+
+Native API support additionally reads the authentication type with a read-only `openai` session override, preserves its file-backed credential separately on confirmed transitions, and refreshes login state before no-op decisions. This closes the native API-to-same-account and external-logout cases without changing models or catalogs.

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -65,6 +66,7 @@ internal static class Program
                 }
             }
             Render(window, Path.Combine(output, "accounts-zh.png"));
+            Assert(!All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")), "The switch screen has no provider creation action.");
             Assert(Math.Abs(window.ActualWidth - 420) < 2 && window.ActualHeight < 360,
                 $"Home must be a compact 420 DIP window (actual {window.ActualWidth} × {window.ActualHeight}).");
             Assert(window.ShowInTaskbar && !window.Topmost && window.WindowStyle == WindowStyle.SingleBorderWindow,
@@ -74,20 +76,29 @@ internal static class Program
             Assert(window.IsVisible, "Losing focus must not dismiss the account window.");
             var active = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Personal");
             active.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert(window.IsVisible && client.Commands.Count == 0, "Clicking the active account keeps the window open.");
+            Assert(window.IsVisible && client.Commands.Single() == "prepareAccountSwitch:",
+                "Even the highlighted row must refresh through the shared core before deciding it is active.");
+            client.Commands.Clear();
             Assert(!All<TextBlock>(window).Any(text => text.Text.Contains("@")), "Home must not display email addresses.");
             Assert(!All<TextBlock>(window).Any(text => text.Text == "当前"), "Home uses selection color, not active labels.");
             var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "Studio");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
-            Assert(client.Commands.Count == 0, "Selection must not switch before confirmation.");
+            Assert(client.Commands.Single() == "prepareAccountSwitch:", "Selection must only prepare, never execute the switch.");
             Render(window, Path.Combine(output, "switch-zh.png"));
-            window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
+            client.PendingCancellation = new TaskCompletionSource();
+            window.Navigate("manage");
+            Assert(window.CurrentPage == "switch", "Navigation waits for the shared core to cancel its pending confirmation.");
+            client.PendingCancellation.SetResult();
+            Render(window, Path.Combine(output, "manage-zh.png"));
+            Assert(window.CurrentPage == "manage", "Asynchronous cancellation must preserve the requested destination.");
+            client.PendingCancellation = null;
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
             Assert(!All<TextBox>(window).Any(), "Account management must not add a rename workflow.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
-            Assert(All<CheckBox>(window).Count() == 4, "Settings requires the four reference toggles.");
+            Assert(All<CheckBox>(window).Count() == 5, "Settings includes the opt-in provider switch.");
+            client.Commands.Clear();
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.Single() == "fiveHour:True", "Settings must save immediately.");
@@ -95,6 +106,77 @@ internal static class Program
             client.State = client.State with { Settings = client.State.Settings with { ShowsFiveHourUsage = true } };
             window.Navigate("accounts"); Render(window, Path.Combine(output, "accounts-five-hour-zh.png"));
             Assert(All<TextBlock>(window).Count(text => text.Text == "5 小时") == 2, "Five-hour view must be per account.");
+            client.State = client.State with {
+                Settings = client.State.Settings with { EnablesProviderSwitching = true },
+                AuthenticationKind = "apiKey", ActiveAccountID = null,
+                Accounts = client.State.Accounts.Select(row => row with { IsActive = false, IsCredentialOwner = false, CanRemove = true }).ToArray(),
+                Providers = [new(new("openai", "OpenAI API"), true, "API key 登录"),
+                    new(new("azure", "Azure OpenAI"), false, "已配置的提供商")]
+            };
+            window.Navigate("accounts"); Render(window, Path.Combine(output, "providers-zh.png"));
+            var azure = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "Azure OpenAI");
+            azure.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.LastProviderID == "azure" && window.CurrentPage == "switch", "Provider rows prepare through the host with a provider ID.");
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.PendingSwitch!.Message), "Display the core's provider confirmation verbatim.");
+            Render(window, Path.Combine(output, "provider-switch-zh.png"));
+            window.Navigate("accounts");
+            var saved = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "Personal");
+            saved.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.PendingSwitch!.Message
+                && text.Text.Contains(client.State.Text("native_api_storage_notice"))),
+                "API retention and model notices must come from the shared prepared action.");
+            Render(window, Path.Combine(output, "api-return-zh.png"));
+            var confirm = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "切换账号");
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.Commands.Last() == "confirmSwitch:", "Only confirmation executes a prepared switch.");
+            window.Navigate("manage");
+            Assert(All<Button>(window).Count(button => AutomationProperties.GetName(button) == "移除") == 2,
+                "API authentication must not mark an old ChatGPT account as protected.");
+            Assert(All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")), "Add provider belongs in account management.");
+            All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var providerWindow = Application.Current.Windows.OfType<ProviderManagementWindow>().Single();
+            Render(providerWindow, Path.Combine(output, "provider-add-zh.png"));
+            Assert(All<TextBlock>(providerWindow).Any(text => text.Text == client.State.Text("provider_search") && text.IsVisible), "The empty model search has a visible prompt.");
+            Assert(All<ComboBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_saved")).Visibility == Visibility.Collapsed, "Do not show an empty saved-provider picker.");
+            Assert(!All<ComboBox>(providerWindow).Any(box => box.Items.Cast<object>().Any(item => item.ToString()?.Contains("Anthropic") == true)), "Codex setup has no Anthropic format selector.");
+            var baseInput = All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Base URL");
+            baseInput.Text = " \t https://api.example.test/v1 \r\n";
+            Assert(baseInput.Text == "https://api.example.test/v1", "Base URL input trims pasted surrounding whitespace immediately.");
+            var keyInput = All<PasswordBox>(providerWindow).Single();
+            keyInput.Password = " \t synthetic-only \r\n";
+            Assert(keyInput.Password == "synthetic-only", "API key input trims pasted surrounding whitespace immediately.");
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_fetch"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Render(providerWindow, Path.Combine(output, "provider-models-zh.png"));
+            var search = All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_search"));
+            search.Text = "g5m";
+            Assert(client.LastProviderQuery == "g5m", "Fuzzy queries are sent to the shared core unchanged.");
+            Assert(All<CheckBox>(providerWindow).Count() == 1, "Render exactly the model IDs filtered by the shared core.");
+            var makeDefault = All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_set_default") + " gpt-5-mini");
+            makeDefault.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Thinking / effort").Text = "high";
+            Assert(client.State.ProviderEditor?.Models.Single(row => row.Id == "gpt-5-mini").ReasoningEffort == "high", "Thinking changes go through the core.");
+            Assert(All<ComboBox>(providerWindow).Any(box => box.SelectedItem as string == "high"), "Advertised thinking options show the current effort.");
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_validate")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.LastProviderCommand == "validateProviderConnection" && client.State.ProviderEditor?.ConnectionVerified == true, "Validation is a separate core command.");
+            Render(providerWindow, Path.Combine(output, "provider-fuzzy-default-zh.png"));
+            All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Base URL").AppendText("/");
+            Assert(client.State.ProviderEditor?.ConnectionVerified == false, "Changing the connection invalidates its displayed validation.");
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_save"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(!providerWindow.IsVisible && client.LastProviderCommand == "closeProviderEditor", "Save closes the independent provider window and clears its editor.");
+            window.Navigate("manage");
+            All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("add_account")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.State.IsAddingAccount, "Adding waits for browser authentication.");
+            window.Navigate("accounts");
+            Assert(All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("manage")).IsEnabled, "Management remains reachable while login is pending.");
+            window.Close(); window.OpenWindow();
+            Assert(window.CurrentPage == "manage", "Reopening a pending login returns to management.");
+            var cancelAdd = All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("cancel_add_account"));
+            Assert(cancelAdd.IsEnabled, "Pending login always has a usable cancel action.");
+            Render(window, Path.Combine(output, "pending-login-reopened-zh.png"));
+            cancelAdd.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(!client.State.IsAddingAccount && All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("add_account") && button.IsEnabled), "Cancelling restores the add action.");
             var closed = false; window.Closed += (_, _) => closed = true;
             var beforeClose = client.Commands.Count;
             window.Close();
@@ -115,6 +197,9 @@ internal static class Program
     }
     private static void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static IEnumerable<T> All<T>(DependencyObject parent) where T : DependencyObject {
+        // Snapshot notifications replace the view. Materialize its templates
+        // before the synchronous harness queries the next control.
+        if (parent is Window window) window.UpdateLayout();
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) {
             var child = VisualTreeHelper.GetChild(parent, i); if (child is T match) yield return match;
             foreach (var descendant in All<T>(child)) yield return descendant;
@@ -130,17 +215,22 @@ internal static class Program
         using var stream = File.Create(path); encoder.Save(stream);
     }
     private sealed class FixtureClient : IAccountClient {
-        public event Action? Changed { add {} remove {} }
+        public event Action? Changed;
         public List<string> Commands { get; } = [];
+        public string? LastProviderID { get; private set; }
+        public string? LastProviderCommand { get; private set; }
+        public string? LastProviderQuery { get; private set; }
+        public TaskCompletionSource? PendingCancellation { get; set; }
         public AccountSnapshot State { get; set; }
         public FixtureClient() {
             var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var time = new DateTimeOffset(2026, 9, 15, 9, 25, 0, TimeSpan.FromHours(8));
             State = new([
-                new(new(id, "Personal", "personal@example.test"), "P", new(83, time, 91, time.AddHours(-2)), null),
-                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null)
+                new(new(id, "Personal", "personal@example.test"), "P", new(83, time, 91, time.AddHours(-2)), null, "loaded", true, true, false),
+                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null, "loaded", false, false, true)
             ], id, new("simplifiedChinese"), false, false, true, null, new() {
                 ["usage"] = "用量", ["resets"] = "重置于", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
+                ["cancel_add_account"] = "取消添加账号", ["sign_in_pending_hint"] = "正在等待浏览器登录。关闭认证标签页不会取消添加；可在此取消后重新添加。",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
@@ -148,11 +238,99 @@ internal static class Program
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
-                ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
-            });
+                ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。",
+                ["advanced"] = "高级", ["enable_provider_switching"] = "启用提供商切换", ["providers"] = "已配置的提供商",
+                ["provider_setup_notice"] = "在管理账号中添加服务商、选择和排序模型。此开关控制账号列表是否显示服务商，关闭后不改变当前服务商。", ["credential_in_use"] = "登录凭据使用中",
+                ["switch_provider_body"] = "Codex Desktop 将使用此提供商重新启动。请先完成或停止正在运行的 Desktop 任务，并处理退出提示；无法正常退出时会停止切换。现有 CLI 会话保持运行。切换器不会选择模型或管理模型列表。请在 Desktop 中选择兼容模型；如果列表中没有，请先在 Codex 中配置。现有对话不会迁移。",
+                ["native_api_storage_notice"] = "OpenAI API 登录将单独保存在本机，便于以后切回。已保存的 ChatGPT 账号与其分开保存。模型设置会保留，必要时请选择兼容模型。",
+                ["return_account_model_notice"] = "模型设置将保留。如果自定义提供商使用了不同的模型 ID，请先在 Desktop 中选择 ChatGPT 支持的模型再发送消息。自定义模型目录也可能需要在 Codex 中更改。",
+                ["provider_validate"] = "验证连接",
+                ["provider_validation_hint"] = "使用所选模型和 thinking 发送简短请求（最多 512 输出 token），可能产生少量费用。",
+                ["provider_validation_success"] = "所选模型的 Responses 请求成功。流式输出和工具调用尚未验证。",
+                ["provider_validation_incomplete"] = "Responses 请求未完成。请检查模型权限和 thinking 设置；本次验证最多使用 512 输出 token。",
+                ["provider_management_unavailable"] = "当前运行时无法管理服务商。",
+                ["provider_manager_title"] = "服务商",
+                ["provider_new"] = "添加服务商",
+                ["provider_saved"] = "已保存的服务商",
+                ["provider_name"] = "名称",
+                ["provider_name_placeholder"] = "例如：我的 API 服务",
+                ["provider_key_placeholder"] = "输入 API Key",
+                ["provider_keep_key"] = "留空保留已保存的密钥",
+                ["provider_responses_notice"] = "服务商需支持 OpenAI Responses API（/responses），可以是第三方服务。获取模型成功不代表 Responses 调用可用。",
+                ["provider_models"] = "模型",
+                ["provider_fetch"] = "获取模型",
+                ["provider_search"] = "模糊搜索模型 ID 或名称",
+                ["provider_sort"] = "排序",
+                ["provider_sort_custom"] = "自定义顺序",
+                ["provider_manual_id"] = "或手动输入模型 ID",
+                ["provider_add_model"] = "添加模型",
+                ["provider_default_model"] = "默认模型",
+                ["provider_set_default"] = "设为默认模型",
+                ["provider_enable_model"] = "启用此模型",
+                ["provider_move_up"] = "上移",
+                ["provider_move_down"] = "下移",
+                ["provider_effort_default"] = "跟随模型默认值（留空）",
+                ["provider_effort_options"] = "服务商提供的选项",
+                ["provider_effort_manual_hint"] = "模型列表没有提供 effort 选项。留空使用模型默认值，也可填写服务商文档支持的 effort 值。",
+                ["provider_effort_advertised_hint"] = "选择服务商提供的选项，或留空使用模型默认值。",
+                ["provider_fetch_hint"] = "获取模型或手动添加 ID。勾选列表和排序用于本切换器。",
+                ["provider_no_match"] = "没有匹配的模型。",
+                ["provider_storage_notice"] = "API Key 保存到本机受文件权限保护的 Codex 配置。保存后添加服务商，准备好后再切换。",
+                ["provider_save"] = "保存服务商",
+                ["provider_invalid_url"] = "请输入 HTTPS API Base URL，不包含用户名、密码、查询参数或片段；本地地址可用 HTTP。",
+                ["provider_invalid_key"] = "请输入 API Key，或保留有效的已保存密钥。",
+                ["provider_empty_name"] = "请输入服务商名称。",
+                ["provider_no_models"] = "服务返回的模型列表为空，可以手动输入模型 ID。",
+                ["provider_select_default"] = "请启用一个模型并将其设为默认模型。",
+                ["provider_edit_active"] = "请先切换到其他账号或服务商，再编辑当前服务商。",
+                ["provider_invalid_response"] = "服务返回的模型或配置数据格式无效。",
+                ["provider_redirect_refused"] = "模型接口发生重定向。请填写最终 API Base URL，以确保密钥只发送到指定服务器。",
+                ["provider_pagination_failed"] = "模型分页未正常推进，列表未导入。",
+                ["provider_fetch_cancelled"] = "已取消获取模型。",
+                ["provider_switched_reopen_message"] = "所选提供商已经生效，但 Codex Desktop 未能重新打开。请手动打开 Codex 继续使用。"
+            }, [], "openai", "chatgpt", null, [], null);
         }
-        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null) {
-            Commands.Add(command + ":" + value); return Task.CompletedTask;
+        public async Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null) {
+            Commands.Add(command + ":" + value);
+            LastProviderID = providerID;
+            if (command == "add") State = State with { IsAddingAccount = true };
+            if (command == "cancelAdd") State = State with { IsAddingAccount = false };
+            if (command == "cancelSwitch" && PendingCancellation != null) await PendingCancellation.Task;
+            if (command == "prepareAccountSwitch") {
+                var row = State.Accounts.Single(row => row.Profile.Id == accountID);
+                State = State with { PendingSwitch = row.IsActive ? null : new(accountID, null, "切换到 " + row.Profile.DisplayName + "？",
+                    State.Text("switch_body") + (State.AuthenticationKind == "apiKey"
+                        ? "\n\n" + State.Text("return_account_model_notice") + "\n\n" + State.Text("native_api_storage_notice") : ""), "切换账号") };
+            } else if (command == "prepareProviderSwitch") {
+                State = State with { PendingSwitch = new(null, providerID, "切换提供商？", State.Text("switch_provider_body"), "切换提供商") };
+            } else if (command is "cancelSwitch" or "confirmSwitch") State = State with { PendingSwitch = null };
+            Changed?.Invoke();
+        }
+        public Task ProviderCommandAsync(string command, ProviderEditorCommand? editor = null) {
+            LastProviderCommand = command;
+            if (command == "openProviderEditor") {
+                State = State with { ProviderEditor = new("switcher_synthetic", "示例服务商", "https://api.example.test/v1", "responses", false,
+                    [], null, "", "custom", [], false, null, false) };
+            } else if (command == "closeProviderEditor") State = State with { ProviderEditor = null };
+            else if (State.ProviderEditor is { } current) {
+                if (command == "fetchProviderModels") current = current with {
+                    Models = [new("vendor-large", "Vendor Large", false, [], null), new("gpt-5-mini", "GPT 5 Mini", false, ["low", "high"], null)],
+                    VisibleModelIDs = ["vendor-large", "gpt-5-mini"] };
+                if (command == "searchProviderModels") {
+                    LastProviderQuery = editor?.Query;
+                    current = current with { Query = editor?.Query ?? "", VisibleModelIDs = editor?.Query == "g5m" ? ["gpt-5-mini"] : current.Models.Select(row => row.Id).ToArray() };
+                }
+                if (command == "chooseProviderDefaultModel") current = current with {
+                    DefaultModelID = editor?.ModelID, Models = current.Models.Select(row => row.Id == editor?.ModelID ? row with { IsEnabled = true } : row).ToArray() };
+                if (command == "setProviderReasoning") current = current with {
+                    Models = current.Models.Select(row => row.Id == current.DefaultModelID ? row with { ReasoningEffort = editor?.Effort } : row).ToArray() };
+                if (command == "validateProviderConnection") current = current with { ConnectionVerified = true };
+                if (command == "invalidateProviderValidation") current = current with { ConnectionVerified = false };
+                if (command == "saveProvider") current = current with { DidSave = true };
+                State = State with { ProviderEditor = current };
+            }
+            Changed?.Invoke();
+            return Task.CompletedTask;
         }
     }
 }

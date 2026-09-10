@@ -34,8 +34,14 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     let objectWillChange = ObservableObjectPublisher()
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 
-    override init(store: AccountStore, codex: any AccountClient, switchService: any SwitchServicing) {
-        super.init(store: store, codex: codex, switchService: switchService)
+    override init(store: AccountStore, codex: any AccountClient,
+                  configuration: any ProviderConfigurationServicing,
+                  switchService: any SwitchServicing,
+                  providerSwitchService: any ProviderSwitchServicing,
+                  modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery(),
+                  connectionValidator: any ProviderConnectionValidating = ProviderModelDiscovery()) {
+        super.init(store: store, codex: codex, configuration: configuration,
+                   switchService: switchService, providerSwitchService: providerSwitchService, modelDiscovery: modelDiscovery, connectionValidator: connectionValidator)
         onChange = { [weak self] in self?.objectWillChange.send() }
         refreshLaunchAtLoginStatus()
     }
@@ -43,8 +49,24 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     static func live() -> AppModel {
         let store = AccountStore()
         let codex = CodexClient()
-        return AppModel(store: store, codex: codex,
-                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: codex))
+        let configuration = ProviderManager(store: store, codex: codex)
+        let desktop = DesktopController()
+        return AppModel(
+            store: store,
+            codex: codex,
+            configuration: configuration,
+            switchService: SwitchService(
+                desktop: desktop,
+                store: store,
+                codex: codex,
+                configuration: configuration
+            ),
+            providerSwitchService: ProviderSwitchService(
+                desktop: desktop,
+                store: store,
+                codex: codex, configuration: configuration
+            )
+        )
     }
 
     var launchesAtLogin: Bool { launchAtLoginState.isOn }

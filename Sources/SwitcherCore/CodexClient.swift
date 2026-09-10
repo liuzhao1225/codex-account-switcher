@@ -3,13 +3,25 @@ import Foundation
 import AppKit
 #endif
 
-public enum JSONValue: Decodable, Sendable {
+public enum JSONValue: Codable, Equatable, Sendable {
     case object([String: JSONValue])
     case array([JSONValue])
     case string(String)
     case number(Double)
     case bool(Bool)
     case null
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .object(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        }
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -208,13 +220,15 @@ private actor JSONRPCSession {
     private var didTimeout = false
     private var pendingNotifications: [RPCEnvelope] = []
 
-    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
+    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String],
+                usesOpenAIProvider: Bool = false) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = executableURL
         process.arguments = ["app-server", "--stdio"]
+            + (usesOpenAIProvider ? ["-c", "model_provider=\"openai\""] : [])
         var environment = inheritedEnvironment
         environment["CODEX_HOME"] = profileHome.path
         process.environment = environment
@@ -453,7 +467,13 @@ public protocol AccountClient: CodexIdentityReading {
     func login(profileHome: URL) async throws -> AccountIdentity
 }
 
-public struct CodexClient: AccountClient {
+protocol CodexConfigurationRPC: Sendable {
+    func readConfiguration(profileHome: URL) async throws -> JSONValue
+    func writeConfiguration(edits: [(String, JSONValue)], profileHome: URL) async throws
+    func writeModelProvider(_ providerID: String, profileHome: URL) async throws
+}
+
+public struct CodexClient: AccountClient, CodexConfigurationRPC {
     public let locator: CodexExecutableLocator
     public let requestTimeout: Duration
     public let clientVersion: String
@@ -479,15 +499,25 @@ public struct CodexClient: AccountClient {
     }
 
     public func readIdentity(profileHome: URL) async throws -> AccountIdentity {
-        let result = try await withSession(profileHome: profileHome) { session in
-            try await session.request(
-                method: "account/read",
-                id: 1,
-                params: ["refreshToken": false],
-                timeout: requestTimeout
-            )
-        }
+        let result = try await readAccount(profileHome: profileHome)
         return try parseIdentity(result)
+    }
+
+    public func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        let result = try await readAccount(profileHome: profileHome)
+        guard let account = result["account"]?.objectValue else { return .signedOut }
+        switch account["type"]?.stringValue {
+        case "apiKey": return .apiKey
+        case "chatgpt": return .chatGPT(try parseIdentity(result))
+        default: throw CodexClientError.malformedResponse
+        }
+    }
+
+    private func readAccount(profileHome: URL) async throws -> JSONValue {
+        try await withSession(profileHome: profileHome, usesOpenAIProvider: true) { session in
+            try await session.request(method: "account/read", id: 1,
+                                      params: ["refreshToken": false], timeout: requestTimeout)
+        }
     }
 
     public func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
@@ -552,12 +582,54 @@ public struct CodexClient: AccountClient {
         }
     }
 
+    func readConfiguration(profileHome: URL) async throws -> JSONValue {
+        try await withSession(profileHome: profileHome) { session in
+            try await session.request(
+                method: "config/read",
+                id: 1,
+                params: ["includeLayers": false],
+                timeout: requestTimeout
+            )
+        }
+    }
+
+    func writeModelProvider(_ providerID: String, profileHome: URL) async throws {
+        _ = try await withSession(profileHome: profileHome) { session in
+            try await session.request(
+                method: "config/value/write",
+                id: 1,
+                params: [
+                    "keyPath": "model_provider",
+                    "value": providerID,
+                    "mergeStrategy": "replace",
+                ],
+                timeout: requestTimeout
+            )
+        }
+    }
+
+    func writeConfiguration(edits: [(String, JSONValue)], profileHome: URL) async throws {
+        let encoded = try JSONEncoder().encode(edits.map { ConfigEdit(keyPath: $0.0, value: $0.1) })
+        let result = try await withSession(profileHome: profileHome) { session in
+            try await session.request(method: "config/batchWrite", id: 1,
+                params: ["edits": try JSONSerialization.jsonObject(with: encoded)], timeout: requestTimeout)
+        }
+        guard result["status"]?.stringValue == "ok" else { throw ProviderConfigurationError.malformedConfiguration }
+    }
+
+    private struct ConfigEdit: Encodable {
+        let keyPath: String
+        let value: JSONValue
+        let mergeStrategy = "replace"
+    }
+
     private func withSession<T: Sendable>(
         profileHome: URL,
+        usesOpenAIProvider: Bool = false,
         operation: (JSONRPCSession) async throws -> T
     ) async throws -> T {
         let launch = try locator.launchConfiguration()
-        let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment)
+        let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment, usesOpenAIProvider: usesOpenAIProvider)
         do {
             try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
             let result = try await operation(session)

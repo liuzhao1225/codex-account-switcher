@@ -21,7 +21,7 @@ struct AccountStoreTests {
             guard Darwin.chflags(registry.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
         }
         defer { _ = Darwin.chflags(registry.path, 0) }
-        let service = SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+        let service = SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex(), configuration: StoreTestConfiguration())
         if outcome == "success" {
             try await service.switchAccount(to: profile.id)
             #expect(try await fixture.store.loadRegistry().activeAccountID == profile.id)
@@ -84,8 +84,13 @@ struct AccountStoreTests {
         printf '%s\n' 'malformed handshake'
         """#.utf8).write(to: executable)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let configuration = StoreTestConfiguration()
         let model = AppModel(store: fixture.store, codex: CodexClient(locator: .init(explicitURL: executable)),
-            switchService: SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex()))
+            configuration: configuration,
+            switchService: SwitchService(desktop: StoreTestDesktop(), store: fixture.store,
+                                         codex: StoreTestMatchingCodex(), configuration: configuration),
+            providerSwitchService: ProviderSwitchService(desktop: StoreTestDesktop(), store: fixture.store,
+                                                         codex: StoreTestMatchingCodex(), configuration: configuration))
         model.addAccount()
         for _ in 0..<200 where model.isAddingAccount { try await Task.sleep(for: .milliseconds(10)) }
         #expect(!model.isAddingAccount)
@@ -101,7 +106,7 @@ struct AccountStoreTests {
         let external = Data(#"{"accountId":"external","email":"external@example.com"}"#.utf8)
         try external.write(to: fixture.activeHome.appending(path: "auth.json"))
         do {
-            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex(), configuration: StoreTestConfiguration())
                 .switchAccount(to: profiles.target.id)
             Issue.record("An external login must not be saved under the original account")
         } catch let error as OperationError {
@@ -121,7 +126,7 @@ struct AccountStoreTests {
         try Data(#"{"accountId":"wrong","email":"wrong@example.com"}"#.utf8)
             .write(to: targetHome.appending(path: "auth.json"))
         do {
-            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex())
+            try await SwitchService(desktop: StoreTestDesktop(), store: fixture.store, codex: StoreTestMatchingCodex(), configuration: StoreTestConfiguration())
                 .switchAccount(to: profiles.target.id)
             Issue.record("A successful RPC with the wrong identity must not commit the target")
         } catch let error as OperationError {
@@ -138,7 +143,7 @@ struct AccountStoreTests {
         let registry = fixture.support.appending(path: "accounts.json")
         guard Darwin.chflags(registry.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
         defer { _ = Darwin.chflags(registry.path, 0) }
-        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: profiles.original.accountID, email: profiles.original.email))) }
         let home = await fixture.store.profileHome(id: profiles.target.id)
         #expect(FileManager.default.fileExists(atPath: home.appending(path: "auth.json").path))
         #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
@@ -151,7 +156,7 @@ struct AccountStoreTests {
         let auth = await fixture.store.profileHome(id: profiles.target.id).appending(path: "auth.json")
         guard Darwin.chflags(auth.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
         defer { _ = Darwin.chflags(auth.path, 0) }
-        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: profiles.original.accountID, email: profiles.original.email))) }
         #expect(FileManager.default.fileExists(atPath: auth.path))
         #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
     }
@@ -173,7 +178,7 @@ struct AccountStoreTests {
         for target in [profiles.target, profiles.original] {
             try await SwitchService(
                 desktop: StoreTestDesktop(), store: fixture.store,
-                codex: StoreTestMatchingCodex()
+                codex: StoreTestMatchingCodex(), configuration: StoreTestConfiguration()
             ).switchAccount(to: target.id)
             for path in paths {
                 #expect(try Data(contentsOf: fixture.activeHome.appending(path: path)) == Data("unchanged:\(path)".utf8))
@@ -195,7 +200,7 @@ struct AccountStoreTests {
         #expect(registry.accounts == [first])
 
         do {
-            try await store.removeAccount(id: first.id)
+            try await store.removeAccount(id: first.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: first.accountID, email: first.email)))
             Issue.record("The active account should not be removable")
         } catch let error as AccountStoreError {
             #expect(error == .cannotRemoveActiveAccount)
@@ -208,7 +213,7 @@ struct AccountStoreTests {
         let secondHome = try await store.createProfileDirectory(id: second.id)
         try Data("second-auth".utf8).write(to: secondHome.appending(path: "auth.json"))
         try await store.addProfile(second)
-        try await store.removeAccount(id: second.id)
+        try await store.removeAccount(id: second.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: first.accountID, email: first.email)))
         registry = try await store.loadRegistry()
         #expect(registry.accounts.count == 1)
         #expect(!FileManager.default.fileExists(atPath: secondHome.path))
@@ -268,7 +273,8 @@ struct AccountStoreTests {
         let service = SwitchService(
             desktop: StoreTestDesktop(),
             store: fixture.store,
-            codex: StoreTestFailingCodex()
+            codex: StoreTestFailingCodex(),
+            configuration: StoreTestConfiguration()
         )
 
         for _ in 0..<2 {
@@ -302,7 +308,8 @@ struct AccountStoreTests {
         let service = SwitchService(
             desktop: StoreTestDesktop(),
             store: fixture.store,
-            codex: StoreTestMatchingCodex()
+            codex: StoreTestMatchingCodex(),
+            configuration: StoreTestConfiguration()
         )
 
         do {
@@ -458,6 +465,10 @@ private struct StoreTestDesktop: DesktopControlling {
 }
 
 private struct StoreTestFailingCodex: CodexIdentityReading {
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        guard FileManager.default.fileExists(atPath: profileHome.appending(path: "auth.json").path) else { return .signedOut }
+        return .chatGPT(try await readIdentity(profileHome: profileHome))
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         let identity = try await StoreTestMatchingCodex().readIdentity(profileHome: profileHome)
         if identity.accountID == "target-id" { throw CodexClientError.identityUnavailable }
@@ -466,10 +477,22 @@ private struct StoreTestFailingCodex: CodexIdentityReading {
 }
 
 private struct StoreTestMatchingCodex: CodexIdentityReading {
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        guard FileManager.default.fileExists(atPath: profileHome.appending(path: "auth.json").path) else { return .signedOut }
+        return .chatGPT(try await readIdentity(profileHome: profileHome))
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         let fields = try JSONSerialization.jsonObject(with: Data(contentsOf: profileHome.appending(path: "auth.json"))) as! [String: String]
         return AccountIdentity(accountID: fields["accountId"], email: fields["email"])
     }
+}
+
+private struct StoreTestConfiguration: ProviderConfigurationServicing {
+    func readConfiguration(codexHome: URL) -> ProviderConfigurationSnapshot {
+        ProviderConfigurationSnapshot(activeProviderID: "openai", providers: [])
+    }
+
+    func activateProvider(id: String, codexHome: URL) {}
 }
 
 private struct StoreFixture {

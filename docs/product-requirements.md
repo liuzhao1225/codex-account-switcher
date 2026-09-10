@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Allow an ordinary Mac user with multiple authorized ChatGPT accounts to add them through browser sign-in and choose which account Codex Desktop uses from the menu bar, without Terminal commands or config-file editing.
+Allow an ordinary Mac user to choose a saved ChatGPT account from the menu bar. Advanced users may opt into provider selection after configuring providers and compatible models in Codex; model changes may require manual configuration.
 
 The user should understand the product after opening the menu once. The main path should require no configuration.
 
@@ -14,7 +14,9 @@ The user should understand the product after opening the menu once. The main pat
 - saved local account profiles;
 - one weekly Usage value and an optional exact 5-hour Usage value per account;
 - reset times for available Usage windows;
-- account switching;
+- account switching, including restoring a saved account after native API login or logout;
+- native OpenAI API login discovery and separate file-backed credential preservation;
+- discovery and selection of custom providers from Codex's effective `model_providers` configuration;
 - add account;
 - remove inactive account;
 - English and Simplified Chinese UI.
@@ -29,8 +31,10 @@ The user should understand the product after opening the menu once. The main pat
 - automatic switching when Usage is low;
 - general rollback and recovery state machines;
 - server-side session revocation;
-- Windows and Linux releases;
-- syncing profiles between Macs.
+- native API selection UI for Windows and Linux;
+- syncing profiles between Macs;
+- entering, copying, or storing custom-provider API keys;
+- changing the provider of an existing Codex conversation.
 
 ## 3. Primary user stories
 
@@ -40,7 +44,7 @@ As a user, I can open the menu-bar popover and immediately see saved accounts, w
 
 ### US-2: Switch accounts
 
-As a user, I can select a different account, read the normal consequences, confirm once, and have Codex Desktop reopen under that account.
+As a user, I can select a saved account, including the last selected account after logging out or using an API key, read the normal consequences, confirm once, and have Codex Desktop reopen under that account.
 
 ### US-3: Add an account
 
@@ -53,6 +57,10 @@ As a user, I can remove an inactive local profile from Manage Accounts.
 ### US-5: Change language
 
 As a user, I can choose System Default, English, or Simplified Chinese.
+
+### US-6: Switch configured provider
+
+As a user, I can see custom model providers already configured in Codex, select one, and have Codex Desktop reopen with that provider active. The switcher receives full configuration in memory, potentially including inline credentials, but retains only provider IDs/names for the UI and does not display, log, or persist custom-provider credentials.
 
 ## 4. Menu-bar trigger
 
@@ -140,6 +148,10 @@ If it is absent:
 Reset unknown
 ```
 
+### 5.5 Provider row
+
+When advanced provider switching is enabled (off by default), custom providers returned by Codex appear below the account list under **Configured Providers**. Each row shows the provider's configured display name, falls back to a human-readable form of its identifier, exposes selected state, and does not show ChatGPT Usage.
+
 ## 6. Main-menu footer
 
 The footer contains exactly three equal-width actions:
@@ -175,9 +187,10 @@ Cancel returns to the account list without closing the popover or starting the s
 
 ### 7.3 Progress
 
-After confirmation, disable additional account actions while the six-stage operation runs:
+After confirmation, disable additional actions while the seven-stage account operation runs:
 
 - `Closing Codex Desktop…`
+- `Activating OpenAI provider…`
 - `Saving current account…` (read and match the active identity before saving its credential)
 - `Activating selected account…`
 - `Verifying selected account…`
@@ -199,16 +212,30 @@ On success:
 
 ### 7.5 Failure
 
-On failure:
+On failure before Desktop closes:
 
 - stop immediately;
 - do not continue to later stages;
 - show the failed stage and the underlying error;
 - keep the error visible until the user dismisses it.
 
-If target activation completed and target verification or registry persistence fails, restore the active `auth.json` from the validated original profile saved earlier in the attempt. Keep the original failure visible. If restoration fails, show both the original and restoration errors. Do not restore after an activation failure that did not replace the credential, and keep the target account active when Desktop reopening fails after a successful registry commit.
+After Desktop closes, activate `openai` before reading the current ChatGPT identity. If provider activation or current-credential validation fails, restore the original provider and attempt to reopen Desktop. From target-credential activation through registry persistence, restore the active `auth.json` from the validated original profile, restore the original provider, and attempt to reopen Desktop. Keep the original failure visible; include any restoration or reopening failure in the same report. Keep the target account active when Desktop reopening fails after a successful registry commit.
 
 This bounded repair does not add a general rollback state machine, credential backup file, retry, journal, or startup recovery.
+
+### 7.6 Selecting a configured provider
+
+Provider switching is a separate three-stage operation:
+
+```text
+close Codex Desktop
+→ set model_provider through config/value/write
+→ reopen Codex Desktop
+```
+
+For custom providers, the app reads definitions through `config/read` and writes only `model_provider`; it does not read environment-variable values or store custom-provider credentials. Selecting a saved ChatGPT account restores the built-in `openai` provider before identity verification. If provider activation fails after Desktop closes, the previous provider is restored and Desktop is reopened before the failure is reported.
+
+Codex persists a provider on each conversation. Switching providers therefore affects new conversations, while an existing conversation remains on the provider it was created with and must be created again or forked in Codex to change providers.
 
 ## 8. Manage Accounts
 
@@ -321,7 +348,7 @@ The MVP is accepted when:
 9. every popover opening starts on the account list;
 10. canceling switch or removal performs no mutation and keeps the popover open;
 11. Quit and Command-Q terminate the application and remain available during mutations;
-12. account switching follows the documented six-stage sequence;
+12. account switching follows the documented seven-stage sequence and selects the built-in OpenAI provider;
 13. a failure at any switch stage stops and is shown directly;
 14. verification and registry-commit failures restore the validated original credential, with no general rollback state machine, backup file, journal, retry, or startup-recovery path;
 15. existing CLI processes are not terminated;
@@ -330,7 +357,9 @@ The MVP is accepted when:
 18. closing the popover does not stop the pending five-minute background cache refresh;
 19. inactive accounts can be added and removed; active accounts cannot be removed;
 20. launch-at-login registration reflects the current macOS Login Item status and exposes approval requirements directly;
-21. only `main` is required for the repository's steady state.
+21. configured custom providers appear in a separate section and can be selected without exposing their credentials;
+22. provider switching writes only `model_provider`, restarts Codex Desktop, and does not claim to migrate existing conversations;
+23. only `main` is required for the repository's steady state.
 
 ## 13. Switcher updates (September 5 development candidate)
 
@@ -343,3 +372,7 @@ The tag workflow publishes the signed feed. See the ablation reports and release
 With no registered active account and no active auth.json, selecting a saved account activates it directly after Desktop exits normally. Verification or registry persistence failure removes the newly installed active credential and leaves the app signed out. Existing unregistered credentials are never overwritten by this path.
 
 Manage Accounts provides Register Current Account below Add Account. It reads the current shared login identity, updates that same identity’s saved credential or imports a new profile, and records it as active. A mismatch during switching links to Manage Accounts. Other profiles remain unchanged.
+
+## Native OpenAI API acceptance
+
+OpenAI API appears when `account/read` reports `apiKey` or its separately saved credential exists. Startup performs read-only discovery. Confirming a switch that replaces the API login saves it separately from ChatGPT profiles; selecting OpenAI API restores it. The UI explains local credential retention. The same saved account remains selectable after API login or logout, and unsuccessful transitions restore the actual previous login rather than the registry's last ChatGPT account. Tests must verify on-disk credential preservation and private permissions. This does not add model/catalog management or keychain-only credential import.
