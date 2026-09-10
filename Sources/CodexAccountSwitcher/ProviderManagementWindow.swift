@@ -75,6 +75,7 @@ private struct ProviderEditorForm: View {
         _name = State(initialValue: initial.displayName)
         _baseURL = State(initialValue: initial.baseURL)
         _format = State(initialValue: initial.apiFormat)
+        _query = State(initialValue: initial.query)
         _effort = State(initialValue: initial.models.first { $0.id == initial.defaultModelID }?.reasoningEffort ?? "")
     }
     private var busy: Bool { state.isBusy || model.isMutating }
