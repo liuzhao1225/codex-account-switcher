@@ -1,6 +1,6 @@
 # Advanced provider selection: behavior and acceptance
 
-The feature extends saved ChatGPT account switching with account → configured API provider → saved account transitions. Account switching remains the default experience. Provider selection currently requires explicit opt-in in macOS Settings; Windows retains its account UI and shares the account-recovery implementation. A configured provider is not evidence of a usable model or successful authentication.
+The feature extends saved ChatGPT account switching with account → configured API provider → saved account transitions. Account switching remains the default experience. Provider selection requires explicit opt-in in Settings on both macOS and Windows. Both clients use the same authentication refresh, selection, confirmation and recovery logic. A configured provider is not evidence of a usable model or successful authentication.
 
 ## Setup and authentication
 
@@ -34,7 +34,7 @@ After an external logout, selecting the same saved ChatGPT account restores its 
 
 ## Validation scope
 
-The standalone core checks exercise provider selection, native API discovery, API → ChatGPT → API credential restoration, returning to the same saved account after external logout, authentication indicators, and recovery after failed switches. They use isolated fixture credentials and do not make provider inference requests.
+The shared Swift tests and standalone macOS core checks exercise provider selection, native API discovery, API → ChatGPT → API credential restoration, returning to the same saved account after external logout, authentication indicators, and recovery after failed switches. They use isolated fixture credentials and do not make provider inference requests.
 
 Manual reports cover successful use of Azure with Astra, saved ChatGPT accounts with Astra and Sol, and native OpenAI API sign-in. Exact picker inventories, retained model IDs across each restart, and a destination that rejects the previous model ID have not been recorded. These reports support the use case but do not establish seamless model compatibility across providers.
 
@@ -60,3 +60,5 @@ If seamless switching between different model IDs is required, agree on provider
 `config/read` returns the full effective configuration, including inline credentials when present. Those values can enter process memory. The UI retains provider IDs/names, and the switcher does not display, log, or persist custom-provider credentials. Disabling advanced provider UI is not a promise that configuration is never read: account switching also reads it. Codex owns provider authentication; the switcher does not independently invoke its authentication commands.
 
 Native OpenAI API credentials are an explicit exception to custom-provider secret handling: the switcher retains a separate local credential snapshot for later selection. It never includes that key in UI models, logs, errors, screenshots, or PR evidence.
+
+The proposed fetch/select/default-model/reasoning workflow is documented in [Provider model setup](provider-model-flow.md). It remains separate from the implemented cross-platform selection and recovery fixes.

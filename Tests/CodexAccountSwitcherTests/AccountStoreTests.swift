@@ -143,7 +143,7 @@ struct AccountStoreTests {
         let registry = fixture.support.appending(path: "accounts.json")
         guard Darwin.chflags(registry.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
         defer { _ = Darwin.chflags(registry.path, 0) }
-        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: profiles.original.accountID, email: profiles.original.email))) }
         let home = await fixture.store.profileHome(id: profiles.target.id)
         #expect(FileManager.default.fileExists(atPath: home.appending(path: "auth.json").path))
         #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
@@ -156,7 +156,7 @@ struct AccountStoreTests {
         let auth = await fixture.store.profileHome(id: profiles.target.id).appending(path: "auth.json")
         guard Darwin.chflags(auth.path, UInt32(UF_IMMUTABLE)) == 0 else { throw POSIXError(.EIO) }
         defer { _ = Darwin.chflags(auth.path, 0) }
-        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id) }
+        await #expect(throws: (any Error).self) { try await fixture.store.removeAccount(id: profiles.target.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: profiles.original.accountID, email: profiles.original.email))) }
         #expect(FileManager.default.fileExists(atPath: auth.path))
         #expect(try await fixture.store.loadRegistry().accounts.contains(profiles.target))
     }
@@ -200,7 +200,7 @@ struct AccountStoreTests {
         #expect(registry.accounts == [first])
 
         do {
-            try await store.removeAccount(id: first.id)
+            try await store.removeAccount(id: first.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: first.accountID, email: first.email)))
             Issue.record("The active account should not be removable")
         } catch let error as AccountStoreError {
             #expect(error == .cannotRemoveActiveAccount)
@@ -213,7 +213,7 @@ struct AccountStoreTests {
         let secondHome = try await store.createProfileDirectory(id: second.id)
         try Data("second-auth".utf8).write(to: secondHome.appending(path: "auth.json"))
         try await store.addProfile(second)
-        try await store.removeAccount(id: second.id)
+        try await store.removeAccount(id: second.id, activeAuthentication: .chatGPT(AccountIdentity(accountID: first.accountID, email: first.email)))
         registry = try await store.loadRegistry()
         #expect(registry.accounts.count == 1)
         #expect(!FileManager.default.fileExists(atPath: secondHome.path))

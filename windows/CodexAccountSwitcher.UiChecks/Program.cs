@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -74,20 +75,29 @@ internal static class Program
             Assert(window.IsVisible, "Losing focus must not dismiss the account window.");
             var active = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Personal");
             active.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert(window.IsVisible && client.Commands.Count == 0, "Clicking the active account keeps the window open.");
+            Assert(window.IsVisible && client.Commands.Single() == "prepareAccountSwitch:",
+                "Even the highlighted row must refresh through the shared core before deciding it is active.");
+            client.Commands.Clear();
             Assert(!All<TextBlock>(window).Any(text => text.Text.Contains("@")), "Home must not display email addresses.");
             Assert(!All<TextBlock>(window).Any(text => text.Text == "当前"), "Home uses selection color, not active labels.");
             var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "Studio");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
-            Assert(client.Commands.Count == 0, "Selection must not switch before confirmation.");
+            Assert(client.Commands.Single() == "prepareAccountSwitch:", "Selection must only prepare, never execute the switch.");
             Render(window, Path.Combine(output, "switch-zh.png"));
-            window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
+            client.PendingCancellation = new TaskCompletionSource();
+            window.Navigate("manage");
+            Assert(window.CurrentPage == "switch", "Navigation waits for the shared core to cancel its pending confirmation.");
+            client.PendingCancellation.SetResult();
+            Render(window, Path.Combine(output, "manage-zh.png"));
+            Assert(window.CurrentPage == "manage", "Asynchronous cancellation must preserve the requested destination.");
+            client.PendingCancellation = null;
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
             Assert(!All<TextBox>(window).Any(), "Account management must not add a rename workflow.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
-            Assert(All<CheckBox>(window).Count() == 4, "Settings requires the four reference toggles.");
+            Assert(All<CheckBox>(window).Count() == 5, "Settings includes the opt-in provider switch.");
+            client.Commands.Clear();
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.Single() == "fiveHour:True", "Settings must save immediately.");
@@ -95,6 +105,31 @@ internal static class Program
             client.State = client.State with { Settings = client.State.Settings with { ShowsFiveHourUsage = true } };
             window.Navigate("accounts"); Render(window, Path.Combine(output, "accounts-five-hour-zh.png"));
             Assert(All<TextBlock>(window).Count(text => text.Text == "5 小时") == 2, "Five-hour view must be per account.");
+            client.State = client.State with {
+                Settings = client.State.Settings with { EnablesProviderSwitching = true },
+                AuthenticationKind = "apiKey", ActiveAccountID = null,
+                Accounts = client.State.Accounts.Select(row => row with { IsActive = false, IsCredentialOwner = false, CanRemove = true }).ToArray(),
+                Providers = [new(new("openai", "OpenAI API"), true, "API key 登录"),
+                    new(new("azure", "Azure OpenAI"), false, "已配置的提供商")]
+            };
+            window.Navigate("accounts"); Render(window, Path.Combine(output, "providers-zh.png"));
+            var azure = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "Azure OpenAI");
+            azure.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.LastProviderID == "azure" && window.CurrentPage == "switch", "Provider rows prepare through the host with a provider ID.");
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.PendingSwitch!.Message), "Display the core's provider confirmation verbatim.");
+            Render(window, Path.Combine(output, "provider-switch-zh.png"));
+            window.Navigate("accounts");
+            var saved = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "Personal");
+            saved.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(All<TextBlock>(window).Any(text => text.Text == "API 登录将单独保存在本机。模型设置将保留。"),
+                "API retention and model notices must come from the shared prepared action.");
+            Render(window, Path.Combine(output, "api-return-zh.png"));
+            var confirm = All<Button>(window).Single(button => AutomationProperties.GetName(button) == "切换账号");
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.Commands.Last() == "confirmSwitch:", "Only confirmation executes a prepared switch.");
+            window.Navigate("manage");
+            Assert(All<Button>(window).Count(button => AutomationProperties.GetName(button) == "移除") == 2,
+                "API authentication must not mark an old ChatGPT account as protected.");
             var closed = false; window.Closed += (_, _) => closed = true;
             var beforeClose = client.Commands.Count;
             window.Close();
@@ -130,15 +165,17 @@ internal static class Program
         using var stream = File.Create(path); encoder.Save(stream);
     }
     private sealed class FixtureClient : IAccountClient {
-        public event Action? Changed { add {} remove {} }
+        public event Action? Changed;
         public List<string> Commands { get; } = [];
+        public string? LastProviderID { get; private set; }
+        public TaskCompletionSource? PendingCancellation { get; set; }
         public AccountSnapshot State { get; set; }
         public FixtureClient() {
             var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var time = new DateTimeOffset(2026, 9, 15, 9, 25, 0, TimeSpan.FromHours(8));
             State = new([
-                new(new(id, "Personal", "personal@example.test"), "P", new(83, time, 91, time.AddHours(-2)), null),
-                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null)
+                new(new(id, "Personal", "personal@example.test"), "P", new(83, time, 91, time.AddHours(-2)), null, "loaded", true, true, false),
+                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null, "loaded", false, false, true)
             ], id, new("simplifiedChinese"), false, false, true, null, new() {
                 ["usage"] = "用量", ["resets"] = "重置于", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
@@ -148,11 +185,23 @@ internal static class Program
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
-                ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
-            });
+                ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。",
+                ["advanced"] = "高级", ["enable_provider_switching"] = "启用提供商切换", ["providers"] = "已配置的提供商",
+                ["provider_setup_notice"] = "适用于已在 Codex 中配置的提供商。模型兼容性需要单独验证。", ["credential_in_use"] = "登录凭据使用中"
+            }, [], "openai", "chatgpt", null);
         }
-        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null) {
-            Commands.Add(command + ":" + value); return Task.CompletedTask;
+        public async Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null) {
+            Commands.Add(command + ":" + value);
+            LastProviderID = providerID;
+            if (command == "cancelSwitch" && PendingCancellation != null) await PendingCancellation.Task;
+            if (command == "prepareAccountSwitch") {
+                var row = State.Accounts.Single(row => row.Profile.Id == accountID);
+                State = State with { PendingSwitch = row.IsActive ? null : new(accountID, null, "切换到 " + row.Profile.DisplayName + "？",
+                    State.AuthenticationKind == "apiKey" ? "API 登录将单独保存在本机。模型设置将保留。" : State.Text("switch_body"), "切换账号") };
+            } else if (command == "prepareProviderSwitch") {
+                State = State with { PendingSwitch = new(null, providerID, "切换提供商？", "核心提供的重启与模型兼容提示。", "切换提供商") };
+            } else if (command is "cancelSwitch" or "confirmSwitch") State = State with { PendingSwitch = null };
+            Changed?.Invoke();
         }
     }
 }

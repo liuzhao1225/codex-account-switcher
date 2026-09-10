@@ -19,6 +19,7 @@ open class AccountController {
     public private(set) var isAddingAccount = false { didSet { onChange?() } }
     public var visibleError: OperationError? { didSet { onChange?() } }
     public private(set) var activeIdentityConfirmed = true { didSet { onChange?() } }
+    public private(set) var pendingSwitch: SwitchConfirmation? { didSet { onChange?() } }
 
     private let store: AccountStore
     private let codex: any AccountClient
@@ -65,6 +66,7 @@ open class AccountController {
     }
 
     public func start() async {
+        guard !isMutating else { return }
         if hasStarted {
             await refreshProviderConfiguration()
             await confirmActiveIdentity()
@@ -101,6 +103,11 @@ open class AccountController {
         } catch {
             showError(error)
         }
+    }
+
+    public func refresh() async {
+        await start()
+        refreshWeeklyUsage()
     }
 
     public func refreshWeeklyUsage() {
@@ -294,13 +301,16 @@ open class AccountController {
     }
 
     public func removeAccount(id: UUID) async {
-        guard !isMutating else { return }
+        guard !isMutating, !isAddingAccount else { return }
         isMutating = true
         defer { isMutating = false }
+        guard await refreshProviderConfiguration(), let authentication = activeAuthentication else { return }
         do {
-            try await store.removeAccount(id: id)
+            try await store.removeAccount(id: id, activeAuthentication: authentication)
             apply(try await store.loadRegistry())
             usageStates[id] = nil
+            await confirmActiveIdentity()
+            visibleError = nil
         } catch {
             showError(error)
         }
@@ -351,6 +361,10 @@ open class AccountController {
     }
 
     private func confirmActiveIdentity() async {
+        guard activeAuthentication != nil else {
+            activeIdentityConfirmed = false
+            return
+        }
         if activeProviderID != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey {
             activeIdentityConfirmed = true
             return
@@ -385,6 +399,88 @@ open class AccountController {
             && (provider.id != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey)
     }
 
+    public func isCredentialOwner(_ account: AccountProfile) -> Bool {
+        activeAuthentication?.identity?.matches(account) == true
+    }
+
+    public func canRemoveAccount(_ account: AccountProfile) -> Bool {
+        !isMutating && !isAddingAccount && activeAuthentication != nil && !isCredentialOwner(account)
+    }
+
+    public func prepareAccountSwitch(to id: UUID) async {
+        guard !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        pendingSwitch = nil
+        guard await refreshProviderConfiguration() else { return }
+        await confirmActiveIdentity()
+        guard let account = accounts.first(where: { $0.id == id }) else {
+            showError(AccountStoreError.profileNotFound)
+            return
+        }
+        guard !isAccountActive(account) else { return }
+        pendingSwitch = accountConfirmation(account)
+    }
+
+    public func prepareProviderSwitch(to id: String) async {
+        guard settings.enablesProviderSwitching, !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        pendingSwitch = nil
+        guard await refreshProviderConfiguration() else { return }
+        guard let provider = providers.first(where: { $0.id == id }) else {
+            showError(ProviderConfigurationError.providerNotConfigured(id))
+            return
+        }
+        guard !isProviderActive(provider) else { return }
+        pendingSwitch = providerConfirmation(provider)
+    }
+
+    public func cancelSwitch() {
+        guard !isMutating else { return }
+        pendingSwitch = nil
+    }
+
+    public func confirmSwitch() async {
+        guard !isMutating, !isAddingAccount, let confirmed = pendingSwitch else { return }
+        // Refresh the prepared action before accepting it: an external login can
+        // change the credential-retention notice while the confirmation is open.
+        if let id = confirmed.accountID {
+            await prepareAccountSwitch(to: id)
+            guard pendingSwitch == confirmed else { return }
+            pendingSwitch = nil
+            await switchAccount(to: id)
+        } else if let id = confirmed.providerID {
+            await prepareProviderSwitch(to: id)
+            guard pendingSwitch == confirmed,
+                  settings.enablesProviderSwitching,
+                  let provider = providers.first(where: { $0.id == id }) else { return }
+            pendingSwitch = nil
+            await switchProvider(to: provider)
+        }
+    }
+
+    private func accountConfirmation(_ account: AccountProfile) -> SwitchConfirmation {
+        var paragraphs = [text("switch_body")]
+        if activeProviderID != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey {
+            paragraphs.append(text("return_account_model_notice"))
+        }
+        if activeAuthentication == .apiKey { paragraphs.append(text("native_api_storage_notice")) }
+        return SwitchConfirmation(accountID: account.id, providerID: nil,
+            title: format("switch_title", account.displayName), message: paragraphs.joined(separator: "\n\n"),
+            confirmTitle: text("switch_account"))
+    }
+
+    private func providerConfirmation(_ provider: ProviderProfile) -> SwitchConfirmation {
+        var paragraphs = [text("switch_provider_body")]
+        if provider.id == CodexConfigurationClient.openAIProviderID {
+            paragraphs.append(text("native_api_storage_notice"))
+        }
+        return SwitchConfirmation(accountID: nil, providerID: provider.id,
+            title: format("switch_provider_title", provider.displayName), message: paragraphs.joined(separator: "\n\n"),
+            confirmTitle: text("switch_provider"))
+    }
+
     public func switchProvider(to provider: ProviderProfile) async {
         guard settings.enablesProviderSwitching, !isMutating, !isAddingAccount else { return }
         isMutating = true
@@ -416,11 +512,13 @@ open class AccountController {
     }
 
     public func setEnablesProviderSwitching(_ enabled: Bool) async {
+        guard !isMutating, !isAddingAccount else { return }
         var updated = settings
         updated.enablesProviderSwitching = enabled
         do {
             try await store.saveSettings(updated)
             settings = updated
+            if !enabled, pendingSwitch?.providerID != nil { pendingSwitch = nil }
         } catch {
             showError(error)
         }
@@ -449,6 +547,7 @@ open class AccountController {
             return true
         } catch {
             activeAuthentication = nil
+            activeIdentityConfirmed = false
             showError(error)
             return false
         }

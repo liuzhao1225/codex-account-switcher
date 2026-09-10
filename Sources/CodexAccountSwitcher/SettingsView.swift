@@ -69,7 +69,7 @@ struct SettingsView: View {
                     get: { model.settings.enablesProviderSwitching },
                     set: { enabled in Task { await model.setEnablesProviderSwitching(enabled) } }
                 ))
-                .disabled(model.isMutating || updater.isInstalling)
+                .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
             }
             Text(model.text("provider_setup_notice"))
                 .foregroundStyle(.secondary)

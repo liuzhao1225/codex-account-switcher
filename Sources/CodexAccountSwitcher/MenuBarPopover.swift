@@ -20,55 +20,26 @@ struct MenuBarPopover: View {
             }
 
             Group {
-                switch page {
-                case .accounts:
-                    accountPage
-                case .manageAccounts:
-                    ManageAccountsView(model: model) {
-                        page = .accounts
-                    }
-                    .disabled(updater.isInstalling)
-                case .settings:
-                    SettingsView(model: model, updater: updater) {
-                        page = .accounts
-                    }
-                case let .confirmAccountSwitch(account):
+                if let confirmation = model.pendingSwitch {
                     SwitchConfirmationPage(
-                        title: model.format("switch_title", account.displayName),
-                        message: model.text("switch_body") + (
-                            model.activeProviderID != CodexConfigurationClient.openAIProviderID || model.activeAuthentication == .apiKey
-                                ? "\n\n" + model.text("return_account_model_notice") : ""
-                        ) + (model.activeAuthentication == .apiKey
-                            ? "\n\n" + model.text("native_api_storage_notice") : ""),
+                        title: confirmation.title,
+                        message: confirmation.message,
                         cancelTitle: model.text("cancel"),
-                        confirmTitle: model.text("switch_account"),
-                        onCancel: {
-                            page = .accounts
-                        },
-                        onConfirm: {
-                            page = .accounts
-                            Task { await model.switchAccount(to: account.id) }
-                        }
+                        confirmTitle: confirmation.confirmTitle,
+                        onCancel: model.cancelSwitch,
+                        onConfirm: { Task { await model.confirmSwitch() } }
                     )
-                    .disabled(updater.isInstalling)
-                case let .confirmProviderSwitch(provider):
-                    SwitchConfirmationPage(
-                        title: model.format("switch_provider_title", provider.displayName),
-                        message: model.text("switch_provider_body") + (
-                            provider.id == CodexConfigurationClient.openAIProviderID
-                                ? "\n\n" + model.text("native_api_storage_notice") : ""
-                        ),
-                        cancelTitle: model.text("cancel"),
-                        confirmTitle: model.text("switch_provider"),
-                        onCancel: {
-                            page = .accounts
-                        },
-                        onConfirm: {
-                            page = .accounts
-                            Task { await model.switchProvider(to: provider) }
-                        }
-                    )
-                    .disabled(updater.isInstalling)
+                    .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
+                } else {
+                    switch page {
+                    case .accounts:
+                        accountPage
+                    case .manageAccounts:
+                        ManageAccountsView(model: model) { page = .accounts }
+                            .disabled(updater.isInstalling)
+                    case .settings:
+                        SettingsView(model: model, updater: updater) { page = .accounts }
+                    }
                 }
             }
         }
@@ -77,8 +48,7 @@ struct MenuBarPopover: View {
             page = .accounts
         }
         .task {
-            await model.start()
-            model.refreshWeeklyUsage()
+            await model.refresh()
         }
     }
 
@@ -111,11 +81,9 @@ struct MenuBarPopover: View {
                         ForEach(model.accounts) { account in
                             Button {
                                 Task {
-                                    await model.start()
-                                    if model.isAccountActive(account) {
+                                    await model.prepareAccountSwitch(to: account.id)
+                                    if model.pendingSwitch == nil && model.visibleError == nil && model.isAccountActive(account) {
                                         NSApp.keyWindow?.close()
-                                    } else {
-                                        page = .confirmAccountSwitch(account)
                                     }
                                 }
                             } label: {
@@ -128,7 +96,7 @@ struct MenuBarPopover: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(model.isMutating || updater.isInstalling)
+                            .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
                         }
                     }
 
@@ -137,11 +105,9 @@ struct MenuBarPopover: View {
                         ForEach(model.providers) { provider in
                             Button {
                                 Task {
-                                    await model.start()
-                                    if model.isProviderActive(provider) {
+                                    await model.prepareProviderSwitch(to: provider.id)
+                                    if model.pendingSwitch == nil && model.visibleError == nil && model.isProviderActive(provider) {
                                         NSApp.keyWindow?.close()
-                                    } else {
-                                        page = .confirmProviderSwitch(provider)
                                     }
                                 }
                             } label: {
@@ -152,7 +118,7 @@ struct MenuBarPopover: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(model.isMutating || updater.isInstalling)
+                            .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
                         }
                     }
                 }
@@ -185,7 +151,7 @@ struct MenuBarPopover: View {
                 ) {
                     page = .manageAccounts
                 }
-                .disabled(model.isMutating || updater.isInstalling)
+                .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
 
                 FooterAction(
                     title: model.text("settings"),
@@ -193,7 +159,7 @@ struct MenuBarPopover: View {
                 ) {
                     page = .settings
                 }
-                .disabled(model.isMutating || updater.isInstalling)
+                .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
 
                 FooterAction(
                     title: model.text("quit"),
@@ -223,8 +189,6 @@ private enum PopoverPage {
     case accounts
     case manageAccounts
     case settings
-    case confirmAccountSwitch(AccountProfile)
-    case confirmProviderSwitch(ProviderProfile)
 }
 
 private struct SwitchConfirmationPage: View {

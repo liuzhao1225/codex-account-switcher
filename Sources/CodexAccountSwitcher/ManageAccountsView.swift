@@ -181,8 +181,8 @@ struct ManageAccountsView: View {
 
             Spacer(minLength: 5)
 
-            if account.id == model.activeAccountID {
-                Text(model.text("active"))
+            if model.isCredentialOwner(account) {
+                Text(model.text(model.isAccountActive(account) ? "active" : "credential_in_use"))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
             } else {
@@ -195,7 +195,7 @@ struct ManageAccountsView: View {
                 .buttonStyle(.plain)
                 .help(model.format("remove_title", account.displayName))
                 .accessibilityLabel(model.format("remove_title", account.displayName))
-                .disabled(model.isMutating)
+                .disabled(!model.canRemoveAccount(account))
             }
         }
         .padding(.horizontal, 8)

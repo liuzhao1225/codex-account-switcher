@@ -55,10 +55,16 @@ public sealed class MainWindow : Window
         Activate();
         _ = Run("refresh");
     }
-    public void Navigate(string destination) { page = destination; target = null; localError = null; Render(); }
-    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null)
+    public async void Navigate(string destination) {
+        if (State.PendingSwitch != null) {
+            await Run("cancelSwitch");
+            if (State.PendingSwitch != null) return;
+        }
+        page = destination; target = null; localError = null; Render();
+    }
+    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null, string? providerID = null)
     {
-        try { await client.CommandAsync(command, id, value, language); }
+        try { await client.CommandAsync(command, id, value, language, providerID); }
         catch (Exception ex) { localError = ex.Message; Render(); }
     }
     private TextBlock Text(string text, double size = 13, bool muted = false, bool bold = false) => new() {
@@ -83,6 +89,8 @@ public sealed class MainWindow : Window
 
     private void Render()
     {
+        if (State.PendingSwitch != null) page = "switch";
+        else if (page == "switch") page = "accounts";
         var body = new StackPanel();
         if (State.Error != null || localError != null) {
             var message = Text(localError ?? State.Error!, 11, muted: true); message.TextWrapping = TextWrapping.Wrap;
@@ -109,9 +117,9 @@ public sealed class MainWindow : Window
             var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 16, 20, 16) };
             header.Children.Add(Button("", () => Navigate(page == "remove" ? "manage" : "accounts"), "\uE72B"));
             AutomationProperties.SetName(header.Children[0], T("back"));
-            var title = target != null && page is "switch" or "remove"
-                ? T(page + "_title").Replace("%@", target.Profile.DisplayName)
-                : T(page == "settings" ? "settings" : "accounts");
+            var title = State.PendingSwitch?.Title ?? (target != null && page == "remove"
+                ? T("remove_title").Replace("%@", target.Profile.DisplayName)
+                : T(page == "settings" ? "settings" : "accounts"));
             var heading = Text(title, 20, bold: true); heading.Margin = new Thickness(12, 0, 0, 0); header.Children.Add(heading);
             body.Children.Add(header);
         }
@@ -135,7 +143,7 @@ public sealed class MainWindow : Window
                 Child = Text(row.Initials, 11, bold: true) };
             ((TextBlock)avatar.Child).HorizontalAlignment = HorizontalAlignment.Center;
             var details = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var active = row.Profile.Id == State.ActiveAccountID;
+            var active = row.IsActive;
             if (manage) {
                 details.Children.Add(Text(row.Profile.DisplayName, 14, bold: true));
                 details.Children.Add(Text(row.Profile.Email ?? "", 12, muted: true));
@@ -156,13 +164,21 @@ public sealed class MainWindow : Window
             grid.Children.Add(avatar); Grid.SetColumn(details, 1); grid.Children.Add(details);
             if (manage) {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                UIElement action = active ? Text(T("active"), 11, muted: true) : Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
-                AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 2); grid.Children.Add(action);
+                var status = T(active ? "active" : "credential_in_use");
+                UIElement action;
+                if (row.IsCredentialOwner) action = Text(status, 11, muted: true);
+                else {
+                    var remove = Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
+                    remove.IsEnabled = row.CanRemove && !IsBusy && !State.IsAddingAccount;
+                    action = remove;
+                }
+                AutomationProperties.SetName(action, row.IsCredentialOwner ? status : T("remove"));
+                Grid.SetColumn(action, 2); grid.Children.Add(action);
                 list.Children.Add(new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid });
             } else {
-                var button = new Button { Content = grid, Style = (Style)FindResource("AccountRow"), Background = active ? B("Selected") : Brushes.Transparent, IsEnabled = !IsBusy };
+                var button = new Button { Content = grid, Style = (Style)FindResource("AccountRow"), Background = active ? B("Selected") : Brushes.Transparent, IsEnabled = !IsBusy && !State.IsAddingAccount };
                 AutomationProperties.SetName(button, row.Profile.DisplayName);
-                button.Click += (_, _) => { if (!active) { target = row; page = "switch"; Render(); } };
+                button.Click += (_, _) => _ = Run("prepareAccountSwitch", row.Profile.Id);
                 var selection = new Border { Width = 3, Height = 24, Background = active ? B("Accent") : Brushes.Transparent,
                     HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
                 var rowContainer = new Grid(); rowContainer.Children.Add(button); rowContainer.Children.Add(selection);
@@ -172,6 +188,7 @@ public sealed class MainWindow : Window
         if (State.Accounts.Length == 0) { var empty = Text(T("no_accounts"), 12, muted: true); empty.Margin = new Thickness(12, 24, 12, 24); list.Children.Add(empty); }
         body.Children.Add(new Border { Margin = new Thickness(20, 0, 20, 20), BorderBrush = B("Line"), BorderThickness = new Thickness(1),
             Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
+        if (!manage && State.Settings.EnablesProviderSwitching && State.Providers.Length > 0) Providers(body);
         if (manage) {
             var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
             var commands = new WrapPanel();
@@ -183,6 +200,29 @@ public sealed class MainWindow : Window
             var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 12, muted: true);
             hint.TextWrapping = TextWrapping.Wrap; actions.Children.Add(hint); body.Children.Add(actions);
         }
+    }
+
+    private void Providers(StackPanel body)
+    {
+        var heading = Text(T("providers"), 14, bold: true);
+        heading.Margin = new Thickness(20, 0, 20, 8); body.Children.Add(heading);
+        var list = new StackPanel();
+        foreach (var provider in State.Providers) {
+            var details = new StackPanel();
+            var name = Text(provider.Profile.DisplayName, 14, bold: true);
+            name.ToolTip = provider.Profile.DisplayName;
+            details.Children.Add(name); details.Children.Add(Text(provider.Subtitle, 11, muted: true));
+            var content = Pair(details, Text(provider.IsActive ? "✓" : "", 14));
+            var button = new Button { Content = content, Style = (Style)FindResource("AccountRow"),
+                Background = provider.IsActive ? B("Selected") : Brushes.Transparent,
+                IsEnabled = !IsBusy && !State.IsAddingAccount };
+            AutomationProperties.SetName(button, provider.Profile.DisplayName);
+            button.Click += (_, _) => _ = Run("prepareProviderSwitch", providerID: provider.Profile.Id);
+            list.Children.Add(button);
+        }
+        body.Children.Add(new Border { Margin = new Thickness(20, 0, 20, 20), BorderBrush = B("Line"),
+            BorderThickness = new Thickness(1), Background = B("ListSurface"),
+            CornerRadius = new CornerRadius(4), Child = list });
     }
 
     private string Reset(DateTimeOffset date, bool includeDate = true) => T("resets") + " " + date.ToLocalTime().ToString(includeDate ? "MMM d HH:mm" : "HH:mm", CultureInfo.CurrentCulture);
@@ -201,14 +241,19 @@ public sealed class MainWindow : Window
     }
     private void Confirmation(StackPanel body)
     {
-        if (target == null) return;
+        var prepared = State.PendingSwitch;
+        if (prepared == null && target == null) return;
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-        var copy = T(page == "switch" ? "switch_body" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
+        var copy = prepared?.Message ?? T("remove_body");
         var text = Text(copy, 13, muted: true); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 0, 14); content.Children.Add(text);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Button(T("cancel"), () => Navigate(page == "remove" ? "manage" : "accounts")));
-        var command = page; var id = target.Profile.Id;
-        var confirm = Button(T(command), () => { Navigate(command == "remove" ? "manage" : "accounts"); _ = Run(command, id); });
+        var id = target?.Profile.Id;
+        var confirm = Button(prepared?.ConfirmTitle ?? T("remove"), () => {
+            if (prepared != null) _ = Run("confirmSwitch");
+            else { Navigate("manage"); _ = Run("remove", id); }
+        });
+        confirm.IsEnabled &= !State.IsAddingAccount;
         confirm.Margin = new Thickness(8, 0, 0, 0); confirm.BorderBrush = B("Accent"); confirm.IsDefault = true; buttons.Children.Add(confirm); content.Children.Add(buttons); body.Children.Add(content);
     }
     private void Settings(StackPanel body)
@@ -227,6 +272,11 @@ public sealed class MainWindow : Window
         var language = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = new[] { T("system_default"), T("english"), T("simplified_chinese") }, SelectedIndex = Array.IndexOf(languages, State.Settings.Language) };
         language.SelectionChanged += (_, _) => { if (language.SelectedIndex >= 0) _ = Run("language", language: languages[language.SelectedIndex]); };
         var languageRow = Pair(Text(T("language")), language); languageRow.Height = 48; settings.Children.Add(languageRow);
+        var advanced = Text(T("advanced"), 14, bold: true); advanced.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(advanced);
+        Toggle(T("enable_provider_switching"), State.Settings.EnablesProviderSwitching, value => _ = Run("providerSwitching", value: value));
+        ((CheckBox)settings.Children[^1]).IsEnabled = !IsBusy && !State.IsAddingAccount;
+        var providerHint = Text(T("provider_setup_notice"), 11, muted: true);
+        providerHint.TextWrapping = TextWrapping.Wrap; providerHint.Margin = new Thickness(0, 0, 0, 12); settings.Children.Add(providerHint);
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());

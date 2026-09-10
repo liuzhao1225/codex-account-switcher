@@ -1,4 +1,4 @@
-public struct ProviderProfile: Identifiable, Equatable, Hashable, Sendable {
+public struct ProviderProfile: Identifiable, Encodable, Equatable, Hashable, Sendable {
     public let id: String
     public let displayName: String
 

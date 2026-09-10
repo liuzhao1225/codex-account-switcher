@@ -87,7 +87,7 @@ Launch the app, add accounts through browser sign-in, then select and confirm a 
 1. **Download for your platform:** install the macOS DMG or run the portable Windows EXE.
 2. **Add each account once:** complete the familiar browser sign-in; the app derives the account name from the login identity.
 3. **Choose and continue:** select an account in the app, confirm, and let the app reopen Codex Desktop.
-4. **Optional providers on macOS:** after configuring and testing a provider in Codex, enable **Settings → Advanced → Enable provider switching**. You can switch from a saved account to a configured provider and back.
+4. **Optional providers:** after configuring and testing a provider in Codex, enable **Settings → Advanced → Enable provider switching**. You can switch from a saved account to a configured provider and back.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
 
@@ -207,7 +207,7 @@ Add each authorized account once. Finish or stop active Desktop tasks, then sele
 
 ### How do I switch model providers?
 
-On macOS, configure the provider, its authentication, and a working model in Codex first. Verify a successful request in Desktop, then enable **Settings → Advanced → Enable provider switching**. Selecting a custom provider changes only `model_provider` and restarts Desktop. Native OpenAI API selection also restores the separately saved API login. The switcher does not select a model, discover deployments, validate compatibility, or manage model catalogs. If the retained model ID is unsupported, requests can fail. Select a compatible model in Desktop if available, otherwise configure it in Codex. Returning to a saved ChatGPT account restores `openai` but does not restore a previous OpenAI model or catalog. Existing conversations are not migrated.
+On macOS or Windows, configure the provider, its authentication, and a working model in Codex first. Verify a successful request in Desktop, then enable **Settings → Advanced → Enable provider switching**. Selecting a custom provider changes only `model_provider` and restarts Desktop. Native OpenAI API selection also restores the separately saved API login. The switcher does not select a model, discover deployments, validate compatibility, or manage model catalogs. If the retained model ID is unsupported, requests can fail. Select a compatible model in Desktop if available, otherwise configure it in Codex. Returning to a saved ChatGPT account restores `openai` but does not restore a previous OpenAI model or catalog. Existing conversations are not migrated.
 
 The stock Desktop round trip with different model IDs remains an acceptance requirement, not a verified feature. See [provider compatibility and validation](docs/provider-compatibility.md).
 

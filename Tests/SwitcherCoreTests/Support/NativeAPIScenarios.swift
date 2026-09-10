@@ -2,8 +2,8 @@ import Foundation
 import SwitcherCore
 
 @MainActor
-enum NativeAPIChecks {
-    static func run() async throws {
+enum NativeAPIScenarios {
+    static func run(check require: (Bool, String) throws -> Void) async throws {
         func check(_ condition: Bool, _ message: String) throws { try require(condition, message) }
         let files = FileManager.default
         let root = files.temporaryDirectory.appending(path: "native-api-checks-\(UUID())")
@@ -50,8 +50,10 @@ enum NativeAPIChecks {
         try check(Data(contentsOf: activeFile) == firstBytes, "saved ChatGPT credentials become active")
         try check(Data(contentsOf: firstFile) == firstBytes, "API key never overwrites a ChatGPT profile")
         try check(Data(contentsOf: apiFile) == apiBytes, "API login is saved separately before replacement")
+        #if !os(Windows)
         let permissions = try files.attributesOfItem(atPath: apiFile.path)[.posixPermissions] as? NSNumber
         try require(permissions?.intValue == 0o600, "saved API login is owner-only")
+        #endif
         try require(model.providers.contains(api), "saved API login stays selectable after returning to ChatGPT")
         try require(model.activeRemainingPercent == 73, "verified ChatGPT menu-bar percentage remains weekly")
 

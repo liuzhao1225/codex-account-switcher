@@ -191,13 +191,13 @@ public actor AccountStore: AccountStoring {
         }
     }
 
-    public func removeAccount(id: UUID) throws {
+    public func removeAccount(id: UUID, activeAuthentication: CodexAuthenticationState) throws {
         var current = try loadRegistry()
-        guard current.activeAccountID != id else {
-            throw AccountStoreError.cannotRemoveActiveAccount
-        }
-        guard current.accounts.contains(where: { $0.id == id }) else {
+        guard let profile = current.accounts.first(where: { $0.id == id }) else {
             throw AccountStoreError.profileNotFound
+        }
+        guard activeAuthentication.identity?.matches(profile) != true else {
+            throw AccountStoreError.cannotRemoveActiveAccount
         }
         var cache = try loadUsageCache()
         if cache.entries.contains(where: { $0.profileID == id }) {
@@ -206,6 +206,7 @@ public actor AccountStore: AccountStoring {
         }
         let original = current
         current.accounts.removeAll(where: { $0.id == id })
+        if current.activeAccountID == id { current.activeAccountID = nil }
         try saveRegistry(current)
         do {
             try removeProfileDirectory(profileHome(id: id))

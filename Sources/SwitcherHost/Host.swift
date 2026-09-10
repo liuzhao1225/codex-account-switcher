@@ -5,6 +5,7 @@ private struct Request: Decodable, Sendable {
     let id: Int
     let command: String
     var accountID: UUID?
+    var providerID: String?
     var value: Bool?
     var language: AppLanguage?
     var version: String?
@@ -90,13 +91,21 @@ private final class Host {
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
         switch request.command {
-        case "refresh": model.refreshWeeklyUsage()
+        case "refresh": await model.refresh()
         case "add": model.addAccount()
         case "cancelAdd": model.cancelAddingAccount()
         case "register": await model.registerCurrentAccount()
-        case "switch":
+        case "prepareAccountSwitch":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
-            await model.switchAccount(to: id)
+            await model.prepareAccountSwitch(to: id)
+        case "prepareProviderSwitch":
+            guard let id = request.providerID else { throw HostError.message("Missing provider ID.") }
+            await model.prepareProviderSwitch(to: id)
+        case "confirmSwitch": await model.confirmSwitch()
+        case "cancelSwitch": model.cancelSwitch()
+        case "providerSwitching":
+            guard let value = request.value else { throw HostError.message("Missing setting.") }
+            await model.setEnablesProviderSwitching(value)
         case "remove":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.removeAccount(id: id)

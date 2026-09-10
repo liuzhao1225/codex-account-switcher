@@ -751,7 +751,7 @@ struct CoreChecks {
         let savedAdvancedSettings = try await store.loadSettings()
         try require(!savedAdvancedSettings.enablesProviderSwitching, "provider opt-out persists")
 
-        try await NativeAPIChecks.run()
+        try await NativeAPIScenarios.run { condition, message in try require(condition, message) }
         print("Core checks passed")
     }
 }
