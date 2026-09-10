@@ -37,9 +37,10 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     override init(store: AccountStore, codex: any AccountClient,
                   configuration: any ProviderConfigurationServicing,
                   switchService: any SwitchServicing,
-                  providerSwitchService: any ProviderSwitchServicing) {
+                  providerSwitchService: any ProviderSwitchServicing,
+                  modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery()) {
         super.init(store: store, codex: codex, configuration: configuration,
-                   switchService: switchService, providerSwitchService: providerSwitchService)
+                   switchService: switchService, providerSwitchService: providerSwitchService, modelDiscovery: modelDiscovery)
         onChange = { [weak self] in self?.objectWillChange.send() }
         refreshLaunchAtLoginStatus()
     }
@@ -47,7 +48,7 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     static func live() -> AppModel {
         let store = AccountStore()
         let codex = CodexClient()
-        let configuration = CodexConfigurationClient(codex: codex)
+        let configuration = ProviderManager(store: store, codex: codex)
         let desktop = DesktopController()
         return AppModel(
             store: store,

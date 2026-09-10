@@ -1,26 +1,30 @@
-# Provider, model and reasoning setup
+# Adding a service provider and managing models
 
-This is the proposed model-management scope following the cross-platform provider fixes. Model discovery, model allowlists and per-destination model/reasoning restoration are not implemented by the current switcher. Current switches retain Codex's model settings; the confirmations explain that limitation.
+macOS and Windows expose a separate **Service providers** window from **Add provider** in the main account window/menu, or from Settings. The Swift core owns discovery, fuzzy matching, selection, ordering, validation, persistence and applying defaults. SwiftUI and WPF send the same commands.
 
-## Reference workflows
+## Workflow
 
-- [Cherry Studio provider settings](https://docs.cherry-ai.com/cherry-studio-wen-dang/en-us/cherry-studio/preview/settings/providers) fetch models through Manage and let the user add individual models to the selectable list. Connectivity checks are a separate operation. [Custom providers](https://docs.cherry-ai.com/cherry-studio-wen-dang/en-us/pre-basic/providers/zi-ding-yi-fu-wu-shang) also support manual model IDs.
-- [Open WebUI connections](https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/) discover models when supported and expose a Model IDs filter. Some working chat endpoints have no compatible model-list endpoint. Azure configurations can require explicit deployment names.
-- [Cherry Studio reasoning controls](https://github.com/CherryHQ/cherry-studio/blob/main/packages/provider-registry/docs/reasoning-control.md) separate model capabilities from provider request encoding. Supported controls include discrete effort, a token budget, or a toggle. A default choice means omitting an explicit override.
+1. Enter a name, API base URL and key. Use an HTTPS endpoint ending at the API base (usually `/v1`); localhost may use HTTP.
+2. Select **OpenAI Responses** for a Codex-compatible service. **Anthropic Messages** supports model discovery, but saving a directly usable Codex provider requires a Responses-compatible gateway. This release does not include an Anthropic protocol bridge.
+3. Click **Fetch models**. The key goes to the entered origin. Redirects are reported rather than followed with credentials. Failed discovery displays an error; a model ID can also be entered manually.
+4. Search by model ID or display name. Matching ignores case, punctuation, width and diacritics, and supports ordered abbreviations such as `g5m` for `gpt-5-mini`.
+5. Check the models to enable, choose A→Z, Z→A or custom order, and use the arrows to change the custom order. A search does not alter that stored order. Refreshing preserves selection/order/effort for IDs still returned by the service.
+6. Use the star to choose the default model. Set **Thinking / effort** for that model. Empty means the model default. When the service advertises options, they are offered; otherwise a documented service-specific value can be entered explicitly. The app does not infer model capabilities from its name.
+7. **Save provider** writes and reads back the private Codex configuration and stores the model selection/order. It adds the provider without activating it. Editing an active provider requires switching away first.
+8. Confirm a provider switch when ready. The switch applies its default model and effort together. Previous provider model/effort/catalog selections are retained for returning to OpenAI. Existing conversations keep their own settings.
 
-## Proposed user flow
+The enabled list and its order are the switcher's preferences. They do not replace Codex Desktop's own model picker. Successful discovery and configuration readback do not establish inference or tool-call compatibility; verify those with the actual service.
 
-1. Configure or select the connection and its authentication. The existing switcher only selects connections already configured in Codex; adding/editing provider credentials would be additional scope.
-2. Fetch the model list on request. Show an explicit error if fetching fails and keep manual model-ID entry available. Fetch success establishes discovery only.
-3. Choose which models appear in the switcher's list. Keep upstream model/deployment IDs separate from display names. A switcher allowlist must not be presented as a change to Codex Desktop's own picker.
-4. Choose a default model for that destination and the default reasoning setting for that model. Show only capabilities supported by the destination/model; use the model default when no explicit override is selected. Do not assume every provider accepts the same effort vocabulary or token-budget field.
-5. Verify a harmless request using the selected model and effort. Report discovery, saved preferences and request verification as separate outcomes.
-6. On a confirmed switch, apply the destination's explicit settings together and restore the previous destination's settings on failure. Returning to ChatGPT should restore the prior ChatGPT model/reasoning selection. Preserve existing conversations and their own settings.
+## Storage and Codex integration
 
-## Codex boundary
+The key is stored in the provider's `experimental_bearer_token` in the local Codex configuration because a GUI-entered key must remain available to Desktop and CLI after restarting. The file is restricted to the current user (`0600` on macOS, a private ACL on Windows). The switcher's `providers.json` contains metadata and model preferences only. API keys are excluded from snapshots and error response bodies are not displayed.
 
-[Codex app-server](https://learn.chatgpt.com/docs/app-server) exposes `model/list` with `supportedReasoningEfforts` and `defaultReasoningEffort`, and `config/batchWrite` for atomic configuration edits. Use the returned option order. A Codex catalog entry does not by itself establish availability or reasoning support at a particular custom provider; verify that relationship before using it as provider-specific capability data.
+Provider creation uses `config/batchWrite`; selection uses the same API to apply `model_provider`, `model`, `model_reasoning_effort`, and the destination's saved `model_catalog_json` path together. The app reads the result back. It does not manufacture a Codex model catalog or infer Azure deployment IDs. Profile overrides that prevent the effective configuration from matching are reported as failures.
 
-For Codex, the settings to investigate together are `model_provider`, `model` and `model_reasoning_effort`. The switcher should not translate arbitrary Anthropic/Gemini thinking parameters independently of Codex's supported protocol. Model changes should revalidate reasoning options. Do not hardcode a universal low/medium/high/max menu or silently substitute an unsupported choice.
+## References
 
-The shared Swift core should own discovery results, selected model IDs, validated reasoning options, prepared changes and failure restoration. SwiftUI and WPF should render the same metadata and send the same user actions. Provider-native credential adapters and actual Desktop picker behavior require separate acceptance evidence.
+- [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference): Responses is the supported `wire_api`; model selection, reasoning and provider credentials are separate settings.
+- [Codex app-server](https://learn.chatgpt.com/docs/app-server): configuration read/write interfaces and model catalog metadata.
+- [Cherry Studio provider settings](https://docs.cherry-ai.com/cherry-studio-wen-dang/en-us/cherry-studio/preview/settings/providers): fetching and selecting models; [custom providers](https://docs.cherry-ai.com/cherry-studio-wen-dang/en-us/pre-basic/providers/zi-ding-yi-fu-wu-shang) include manual model IDs.
+- [Open WebUI connections](https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/): model discovery and explicit model IDs.
+- [Anthropic Models API](https://platform.claude.com/docs/en/api/models/list): model-list endpoint and authentication headers. Reading that list does not add native Anthropic inference support to Codex.

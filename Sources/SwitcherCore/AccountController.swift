@@ -20,6 +20,11 @@ open class AccountController {
     public var visibleError: OperationError? { didSet { onChange?() } }
     public private(set) var activeIdentityConfirmed = true { didSet { onChange?() } }
     public private(set) var pendingSwitch: SwitchConfirmation? { didSet { onChange?() } }
+    public private(set) var managedProviders: [ManagedProvider] = [] { didSet { onChange?() } }
+    public private(set) var providerEditor: ProviderEditorState? { didSet { onChange?() } }
+    private var editorAPIKey: String?
+    private var providerFetchTask: Task<[ProviderModel], any Error>?
+    private let modelDiscovery: any ProviderModelDiscovering
 
     private let store: AccountStore
     private let codex: any AccountClient
@@ -38,13 +43,15 @@ open class AccountController {
         codex: any AccountClient,
         configuration: any ProviderConfigurationServicing,
         switchService: any SwitchServicing,
-        providerSwitchService: any ProviderSwitchServicing
+        providerSwitchService: any ProviderSwitchServicing,
+        modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery()
     ) {
         self.store = store
         self.codex = codex
         self.switchService = switchService
         self.configuration = configuration
         self.providerSwitchService = providerSwitchService
+        self.modelDiscovery = modelDiscovery
     }
 
     public func text(_ key: String) -> String {
@@ -463,7 +470,7 @@ open class AccountController {
     private func accountConfirmation(_ account: AccountProfile) -> SwitchConfirmation {
         var paragraphs = [text("switch_body")]
         if activeProviderID != CodexConfigurationClient.openAIProviderID || activeAuthentication == .apiKey {
-            paragraphs.append(text("return_account_model_notice"))
+            paragraphs.append(text(managedProviders.isEmpty ? "return_account_model_notice" : "return_saved_model_notice"))
         }
         if activeAuthentication == .apiKey { paragraphs.append(text("native_api_storage_notice")) }
         return SwitchConfirmation(accountID: account.id, providerID: nil,
@@ -472,13 +479,20 @@ open class AccountController {
     }
 
     private func providerConfirmation(_ provider: ProviderProfile) -> SwitchConfirmation {
-        var paragraphs = [text("switch_provider_body")]
+        let managed = managedProviders.first { $0.id == provider.id }
+        var paragraphs = [text(managed == nil ? "switch_provider_body" : "switch_managed_provider_body")]
+        if let managed { paragraphs.append(text("provider_default_model") + ": " + managed.defaultModelID) }
         if provider.id == CodexConfigurationClient.openAIProviderID {
             paragraphs.append(text("native_api_storage_notice"))
         }
         return SwitchConfirmation(accountID: nil, providerID: provider.id,
             title: format("switch_provider_title", provider.displayName), message: paragraphs.joined(separator: "\n\n"),
             confirmTitle: text("switch_provider"))
+    }
+
+    public func providerSubtitle(_ provider: ProviderProfile) -> String {
+        managedProviders.first(where: { $0.id == provider.id })?.defaultModelID
+            ?? text(provider.id == CodexConfigurationClient.openAIProviderID ? "native_api_login" : "configured_provider")
     }
 
     public func switchProvider(to provider: ProviderProfile) async {
@@ -544,6 +558,7 @@ open class AccountController {
             providers = choices
             activeProviderID = snapshot.activeProviderID
             activeAuthentication = authentication
+            if let manager = configuration as? any ProviderManaging { managedProviders = try await manager.savedProviders() }
             return true
         } catch {
             activeAuthentication = nil
@@ -553,4 +568,185 @@ open class AccountController {
         }
     }
 
+}
+
+extension AccountController {
+    public func openProviderEditor(id: String? = nil) async {
+        guard !isMutating, !isAddingAccount else { return }
+        guard let manager = configuration as? any ProviderManaging else {
+            showError(ProviderSetupError.unsupportedFormat)
+            return
+        }
+        do {
+            managedProviders = try await manager.savedProviders()
+            let existing = id.flatMap { requested in managedProviders.first { $0.id == requested } }
+            if id != nil, existing == nil { throw ProviderSetupError.invalidResponse }
+            providerFetchTask?.cancel()
+            editorAPIKey = nil
+            providerEditor = ProviderEditorState(provider: existing)
+        } catch { showError(error) }
+    }
+
+    public func closeProviderEditor() {
+        guard !isMutating else { return }
+        providerFetchTask?.cancel()
+        providerFetchTask = nil
+        editorAPIKey = nil
+        providerEditor = nil
+    }
+
+    private func applyConnectionInput(_ input: ProviderConnectionInput) throws {
+        guard var editor = providerEditor else { return }
+        let base = try ProviderModelDiscovery.endpoint(input.baseURL).deletingLastPathComponent().absoluteString
+        let key = input.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newKey = key.flatMap { $0.isEmpty ? nil : $0 }
+        if editor.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) != base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            || editor.apiFormat != input.apiFormat || (newKey != editorAPIKey) {
+            editor.models = []
+            editor.defaultModelID = nil
+        }
+        editor.displayName = input.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        editor.baseURL = base
+        editor.apiFormat = input.apiFormat
+        editorAPIKey = newKey
+        editor.error = nil
+        editor.didSave = false
+        editor.updateVisibleModels()
+        providerEditor = editor
+    }
+
+    public func fetchProviderModels(_ input: ProviderConnectionInput) async {
+        guard let original = providerEditor, !original.isBusy, !isMutating else { return }
+        do {
+            try applyConnectionInput(input)
+            guard let editor = providerEditor else { return }
+            providerEditor?.isBusy = true
+            defer { if providerEditor?.id == original.id { providerEditor?.isBusy = false } }
+            let key: String
+            if let editorAPIKey { key = editorAPIKey }
+            else if editor.hasStoredKey, let manager = configuration as? any ProviderManaging { key = try await manager.storedKey(providerID: editor.id) }
+            else { throw ProviderSetupError.invalidKey }
+            let discovery = modelDiscovery
+            let task = Task { try await discovery.fetchModels(baseURL: editor.baseURL, apiKey: key, format: editor.apiFormat) }
+            providerFetchTask = task
+            let fetched = try await task.value
+            guard providerEditor?.id == original.id else { return }
+            // Preserve selection, effort and custom order for IDs that still exist.
+            let byID = Dictionary(fetched.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            var merged = editor.models.compactMap { previous -> ProviderModel? in
+                guard var fresh = byID[previous.id] else { return nil }
+                fresh.isEnabled = previous.isEnabled
+                fresh.reasoningEffort = previous.reasoningEffort
+                return fresh
+            }
+            let retained = Set(merged.map(\.id))
+            merged += fetched.filter { !retained.contains($0.id) }
+            providerEditor?.models = merged
+            if !merged.contains(where: { $0.id == editor.defaultModelID && $0.isEnabled }) { providerEditor?.defaultModelID = nil }
+            providerEditor?.updateVisibleModels()
+        } catch is CancellationError {
+            if providerEditor?.id == original.id { providerEditor?.error = text("provider_fetch_cancelled") }
+        } catch { if providerEditor?.id == original.id { providerEditor?.error = providerError(error) } }
+    }
+
+    public func searchProviderModels(_ query: String) {
+        providerEditor?.query = query
+        providerEditor?.updateVisibleModels()
+    }
+
+    public func sortProviderModels(_ order: ProviderModelSort) {
+        providerEditor?.sort = order
+        providerEditor?.updateVisibleModels()
+    }
+
+    public func enableProviderModel(id: String, enabled: Bool) {
+        guard var editor = providerEditor, !editor.isBusy,
+              let index = editor.models.firstIndex(where: { $0.id == id }) else { return }
+        editor.models[index].isEnabled = enabled
+        if !enabled, editor.defaultModelID == id { editor.defaultModelID = nil }
+        editor.error = nil
+        providerEditor = editor
+    }
+
+    public func chooseProviderDefaultModel(id: String) {
+        guard var editor = providerEditor, !editor.isBusy,
+              let index = editor.models.firstIndex(where: { $0.id == id }) else { return }
+        editor.models[index].isEnabled = true
+        editor.defaultModelID = id
+        editor.error = nil
+        providerEditor = editor
+    }
+
+    public func setProviderReasoning(_ effort: String) {
+        guard var editor = providerEditor, !editor.isBusy,
+              let index = editor.models.firstIndex(where: { $0.id == editor.defaultModelID }) else { return }
+        let value = effort.trimmingCharacters(in: .whitespacesAndNewlines)
+        editor.models[index].reasoningEffort = value.isEmpty ? nil : value
+        providerEditor = editor
+    }
+
+    public func moveProviderModel(id: String, offset: Int) {
+        guard var editor = providerEditor, !editor.isBusy, !isMutating, [-1, 1].contains(offset),
+              let visibleIndex = editor.visibleModelIDs.firstIndex(of: id),
+              editor.visibleModelIDs.indices.contains(visibleIndex + offset) else { return }
+        let neighbor = editor.visibleModelIDs[visibleIndex + offset]
+        // Start custom ordering from the displayed sort, then move between visible matches.
+        var unfiltered = editor
+        unfiltered.query = ""
+        unfiltered.updateVisibleModels()
+        let byID = Dictionary(uniqueKeysWithValues: editor.models.map { ($0.id, $0) })
+        editor.models = unfiltered.visibleModelIDs.compactMap { byID[$0] }
+        guard let index = editor.models.firstIndex(where: { $0.id == id }),
+              let destination = editor.models.firstIndex(where: { $0.id == neighbor }) else { return }
+        editor.models.swapAt(index, destination)
+        editor.sort = .custom
+        editor.updateVisibleModels()
+        providerEditor = editor
+    }
+
+    public func addProviderModel(id raw: String, connection: ProviderConnectionInput? = nil) {
+        if let connection {
+            do { try applyConnectionInput(connection) }
+            catch { providerEditor?.error = providerError(error); return }
+        }
+        guard var editor = providerEditor, !editor.isBusy else { return }
+        let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty, !editor.models.contains(where: { $0.id == id }) else { return }
+        editor.models.append(ProviderModel(id: id, isEnabled: true))
+        editor.query = ""
+        editor.updateVisibleModels()
+        providerEditor = editor
+    }
+
+    public func saveProvider(_ input: ProviderConnectionInput) async {
+        guard let editor = providerEditor, !editor.isBusy, !isMutating, !isAddingAccount,
+              let manager = configuration as? any ProviderManaging else { return }
+        isMutating = true
+        defer { isMutating = false; providerEditor?.isBusy = false }
+        do {
+            try applyConnectionInput(input)
+            guard let state = providerEditor, let defaultID = state.defaultModelID,
+                  state.models.contains(where: { $0.id == defaultID && $0.isEnabled }) else { throw ProviderSetupError.selectDefault }
+            providerEditor?.isBusy = true
+            try await manager.save(ManagedProvider(id: state.id, displayName: state.displayName, baseURL: state.baseURL,
+                apiFormat: state.apiFormat, models: state.models, defaultModelID: defaultID, sort: state.sort), apiKey: editorAPIKey)
+            var updated = settings
+            updated.enablesProviderSwitching = true
+            try await store.saveSettings(updated)
+            settings = updated
+            guard await refreshProviderConfiguration() else {
+                providerEditor?.error = visibleError.map { $0.messageKey.map(text) ?? $0.message }
+                return
+            }
+            providerEditor?.didSave = true
+            editorAPIKey = nil
+        } catch { providerEditor?.error = providerError(error) }
+    }
+
+    private func providerError(_ error: any Error) -> String {
+        // HTTP response bodies and submitted keys are never included in UI errors.
+        let message = (error as? ProviderSetupError)?.errorDescription ?? error.localizedDescription
+        let safe = editorAPIKey.map { message.replacingOccurrences(of: $0, with: "••••") } ?? message
+        return text(safe)
+    }
 }

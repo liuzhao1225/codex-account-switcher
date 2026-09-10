@@ -44,13 +44,16 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null)
         => SendAsync(new { command, accountID, value, language, providerID });
 
+    public Task ProviderCommandAsync(string command, ProviderEditorCommand? editor = null)
+        => SendAsync(new { command, editor });
+
     private async Task SendAsync(object command)
     {
         var id = Interlocked.Increment(ref nextID);
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = completion;
         try {
-            var message = JsonSerializer.SerializeToNode(command)!.AsObject();
+            var message = JsonSerializer.SerializeToNode(command, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
             message["id"] = id;
             await WriteAsync(message);
             await completion.Task;

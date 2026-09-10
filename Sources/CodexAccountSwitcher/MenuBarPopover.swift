@@ -114,7 +114,7 @@ struct MenuBarPopover: View {
                                 ProviderRow(
                                     provider: provider,
                                     isActive: model.isProviderActive(provider),
-                                    language: model.settings.language
+                                    subtitle: model.providerSubtitle(provider)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -124,6 +124,15 @@ struct MenuBarPopover: View {
                 }
                 .padding(5)
             }
+
+            Button(model.text("provider_new"), systemImage: "plus.circle") {
+                ProviderManagementWindow.shared.show(model: model)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
 
             if let version = updater.availableVersion {
                 Divider()

@@ -87,7 +87,7 @@ Launch the app, add accounts through browser sign-in, then select and confirm a 
 1. **Download for your platform:** install the macOS DMG or run the portable Windows EXE.
 2. **Add each account once:** complete the familiar browser sign-in; the app derives the account name from the login identity.
 3. **Choose and continue:** select an account in the app, confirm, and let the app reopen Codex Desktop.
-4. **Optional providers:** after configuring and testing a provider in Codex, enable **Settings → Advanced → Enable provider switching**. You can switch from a saved account to a configured provider and back.
+4. **Add a service provider:** open **Add provider**, enter the API base URL and key, fetch models, search and order them, then choose a default model and thinking setting. Save and confirm a switch when ready.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
 
@@ -107,7 +107,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.
 - Both platforms use file-backed credential storage; macOS does not store profile credentials in Keychain.
 - The product runs without its own account proxy, traffic router, or cloud account service.
-- Provider discovery and selection use the installed Codex app-server. `config/read` can return inline provider credentials into process memory; the switcher retains only provider IDs/names for the UI and does not display, log, or persist custom-provider values returned by configuration reads. It does not independently read provider environment-variable values or invoke provider authentication commands, and changes only `model_provider` in Codex configuration. Native OpenAI API login snapshots are saved separately from ChatGPT profiles when switching authentication.
+- Provider discovery, model selection and switching share a Swift core on both platforms. GUI-entered API keys are saved in the private local Codex configuration and never included in UI snapshots. Model preferences are stored separately; confirmed switches apply the saved default model and effort. Native OpenAI API login snapshots remain separate from ChatGPT profiles.
 - Every account is selected and confirmed by the user; the app does not rotate accounts automatically.
 - The project is independent open-source software and is not affiliated with or endorsed by OpenAI.
 - The current account appears through a row highlight inside the popover.
@@ -207,9 +207,9 @@ Add each authorized account once. Finish or stop active Desktop tasks, then sele
 
 ### How do I switch model providers?
 
-On macOS or Windows, configure the provider, its authentication, and a working model in Codex first. Verify a successful request in Desktop, then enable **Settings → Advanced → Enable provider switching**. Selecting a custom provider changes only `model_provider` and restarts Desktop. Native OpenAI API selection also restores the separately saved API login. The switcher does not select a model, discover deployments, validate compatibility, or manage model catalogs. If the retained model ID is unsupported, requests can fail. Select a compatible model in Desktop if available, otherwise configure it in Codex. Returning to a saved ChatGPT account restores `openai` but does not restore a previous OpenAI model or catalog. Existing conversations are not migrated.
+On macOS or Windows, open **Add provider** in the main window/menu. Enter a name, Base URL and API key, fetch and select models, choose their order and star a default model. The list supports fuzzy matching. Thinking can follow the model default or an explicitly entered service-supported effort. Saving adds the service; switching applies its defaults and records the previous provider settings for returning to OpenAI. See [the complete provider workflow](docs/provider-model-flow.md).
 
-The stock Desktop round trip with different model IDs remains an acceptance requirement, not a verified feature. See [provider compatibility and validation](docs/provider-compatibility.md).
+Direct use requires an OpenAI Responses-compatible endpoint. Anthropic model discovery is available, while Anthropic inference requires a compatible gateway. Real-service Desktop round trips remain an acceptance requirement. See [provider compatibility and validation](docs/provider-compatibility.md).
 
 ### Can I enter an API key in the switcher?
 

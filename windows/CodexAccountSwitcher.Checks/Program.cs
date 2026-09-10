@@ -22,6 +22,31 @@ try {
         Require(client.State.Accounts.Length == 0, "Isolated startup should have no accounts.");
         Require(client.State.Providers != null && client.State.PendingSwitch == null,
             "Provider and confirmation fields must deserialize from the Swift snapshot.");
+        await client.ProviderCommandAsync("openProviderEditor");
+        await UntilAsync(() => client.State.ProviderEditor != null);
+        var availablePort = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        availablePort.Start(); var port = ((System.Net.IPEndPoint)availablePort.LocalEndpoint).Port; availablePort.Stop();
+        using (var endpoint = new System.Net.HttpListener()) {
+            endpoint.Prefixes.Add($"http://127.0.0.1:{port}/"); endpoint.Start();
+            var response = Task.Run(async () => {
+                var request = await endpoint.GetContextAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                Require(request.Request.RawUrl == "/v1/models", "Model discovery uses the normalized API path.");
+                Require(request.Request.Headers["Authorization"] == "Bearer synthetic-discovery-key", "The key reaches only the intended endpoint.");
+                request.Response.ContentType = "application/json";
+                var bytes = System.Text.Encoding.UTF8.GetBytes("{\"data\":[{\"id\":\"gpt-5-mini\"}]}");
+                await request.Response.OutputStream.WriteAsync(bytes); request.Response.Close();
+            });
+            await client.ProviderCommandAsync("fetchProviderModels", new(Connection: new("Synthetic", $"http://127.0.0.1:{port}/v1", "responses", "synthetic-discovery-key")));
+            await response;
+            await UntilAsync(() => client.State.ProviderEditor?.Models.Length == 1);
+        }
+        await client.ProviderCommandAsync("searchProviderModels", new(Query: "g5m"));
+        await client.ProviderCommandAsync("chooseProviderDefaultModel", new(ModelID: "gpt-5-mini"));
+        await UntilAsync(() => client.State.ProviderEditor?.DefaultModelID == "gpt-5-mini");
+        Require(client.State.ProviderEditor!.VisibleModelIDs.SequenceEqual(new[] { "gpt-5-mini" }), "Swift fuzzy search results cross the native transport.");
+        Require(!System.Text.Json.JsonSerializer.Serialize(client.State).Contains("synthetic-discovery-key"), "Keys never appear in snapshots.");
+        await client.ProviderCommandAsync("closeProviderEditor");
+        await UntilAsync(() => client.State.ProviderEditor == null);
         await client.CommandAsync("language", language: "simplifiedChinese");
         await client.CommandAsync("fiveHour", value: true);
         await client.CommandAsync("percentage", value: false);

@@ -20,6 +20,7 @@ public sealed class MainWindow : Window
     private AccountRow? target;
     private string? localError;
     private bool closingForExit;
+    private ProviderManagementWindow? providerWindow;
     public bool IsBusy => client.State.IsMutating;
     public string CurrentPage => page;
     private AccountSnapshot State => client.State;
@@ -66,6 +67,16 @@ public sealed class MainWindow : Window
     {
         try { await client.CommandAsync(command, id, value, language, providerID); }
         catch (Exception ex) { localError = ex.Message; Render(); }
+    }
+    private async void OpenProviders() {
+        if (providerWindow != null) { providerWindow.Show(); providerWindow.Activate(); return; }
+        try {
+            await client.ProviderCommandAsync("openProviderEditor");
+            if (State.ProviderEditor == null) return;
+            providerWindow = new ProviderManagementWindow(client);
+            providerWindow.Closed += (_, _) => providerWindow = null;
+            providerWindow.Show();
+        } catch (Exception ex) { localError = ex.Message; Render(); }
     }
     private TextBlock Text(string text, double size = 13, bool muted = false, bool bold = false) => new() {
         Text = text, FontSize = size, Foreground = B(muted ? "Muted" : "Ink"),
@@ -189,6 +200,11 @@ public sealed class MainWindow : Window
         body.Children.Add(new Border { Margin = new Thickness(20, 0, 20, 20), BorderBrush = B("Line"), BorderThickness = new Thickness(1),
             Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
         if (!manage && State.Settings.EnablesProviderSwitching && State.Providers.Length > 0) Providers(body);
+        if (!manage) {
+            var addProvider = Button(T("provider_new"), OpenProviders, "\uE710");
+            addProvider.IsEnabled &= !State.IsAddingAccount;
+            addProvider.Margin = new Thickness(20, 0, 20, 16); body.Children.Add(addProvider);
+        }
         if (manage) {
             var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
             var commands = new WrapPanel();
@@ -277,6 +293,7 @@ public sealed class MainWindow : Window
         ((CheckBox)settings.Children[^1]).IsEnabled = !IsBusy && !State.IsAddingAccount;
         var providerHint = Text(T("provider_setup_notice"), 11, muted: true);
         providerHint.TextWrapping = TextWrapping.Wrap; providerHint.Margin = new Thickness(0, 0, 0, 12); settings.Children.Add(providerHint);
+        settings.Children.Add(Button(T("provider_manager_title"), OpenProviders));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());

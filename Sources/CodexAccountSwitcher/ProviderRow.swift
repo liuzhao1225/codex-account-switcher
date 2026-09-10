@@ -4,7 +4,7 @@ import SwiftUI
 struct ProviderRow: View {
     let provider: ProviderProfile
     let isActive: Bool
-    let language: AppLanguage
+    let subtitle: String
     @State private var isHovering = false
 
     var body: some View {
@@ -18,8 +18,7 @@ struct ProviderRow: View {
                 Text(provider.displayName)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
-                Text(L10n.string(provider.id == CodexConfigurationClient.openAIProviderID
-                    ? "native_api_login" : "configured_provider", language: language))
+                Text(subtitle)
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

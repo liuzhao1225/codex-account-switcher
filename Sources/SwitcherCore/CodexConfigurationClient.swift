@@ -3,11 +3,13 @@ import Foundation
 public struct CodexConfigurationClient: ProviderConfigurationServicing {
     public static let openAIProviderID = "openai"
 
-    let codex: CodexClient
+    let codex: any CodexConfigurationRPC
 
     public init(codex: CodexClient = CodexClient()) {
         self.codex = codex
     }
+
+    init(rpc: any CodexConfigurationRPC) { codex = rpc }
 
     public func readConfiguration(codexHome: URL) async throws -> ProviderConfigurationSnapshot {
         let result = try await codex.readConfiguration(profileHome: codexHome)

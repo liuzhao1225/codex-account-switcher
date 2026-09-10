@@ -131,6 +131,25 @@ internal static class Program
             window.Navigate("manage");
             Assert(All<Button>(window).Count(button => AutomationProperties.GetName(button) == "移除") == 2,
                 "API authentication must not mark an old ChatGPT account as protected.");
+            client.ProviderCommandAsync("openProviderEditor").GetAwaiter().GetResult();
+            var providerWindow = new ProviderManagementWindow(client);
+            Render(providerWindow, Path.Combine(output, "provider-add-zh.png"));
+            All<PasswordBox>(providerWindow).Single().Password = "synthetic-only";
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_fetch"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Render(providerWindow, Path.Combine(output, "provider-models-zh.png"));
+            var search = All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_search"));
+            search.Text = "g5m";
+            Assert(client.LastProviderQuery == "g5m", "Fuzzy queries are sent to the shared core unchanged.");
+            Assert(All<CheckBox>(providerWindow).Count() == 1, "Render exactly the model IDs filtered by the shared core.");
+            var makeDefault = All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_set_default") + " gpt-5-mini");
+            makeDefault.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Thinking / effort").Text = "high";
+            Assert(client.State.ProviderEditor?.Models.Single(row => row.Id == "gpt-5-mini").ReasoningEffort == "high", "Thinking changes go through the core.");
+            Render(providerWindow, Path.Combine(output, "provider-fuzzy-default-zh.png"));
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_save"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(!providerWindow.IsVisible && client.LastProviderCommand == "closeProviderEditor", "Save closes the independent provider window and clears its editor.");
             var closed = false; window.Closed += (_, _) => closed = true;
             var beforeClose = client.Commands.Count;
             window.Close();
@@ -172,6 +191,8 @@ internal static class Program
         public event Action? Changed;
         public List<string> Commands { get; } = [];
         public string? LastProviderID { get; private set; }
+        public string? LastProviderCommand { get; private set; }
+        public string? LastProviderQuery { get; private set; }
         public TaskCompletionSource? PendingCancellation { get; set; }
         public AccountSnapshot State { get; set; }
         public FixtureClient() {
@@ -191,11 +212,52 @@ internal static class Program
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。",
                 ["advanced"] = "高级", ["enable_provider_switching"] = "启用提供商切换", ["providers"] = "已配置的提供商",
-                ["provider_setup_notice"] = "适用于已在 Codex 中配置的提供商。不会验证模型兼容性。每个提供商可能需要单独配置模型，切回 ChatGPT 时也一样。关闭此选项只隐藏提供商，不更改当前提供商。", ["credential_in_use"] = "登录凭据使用中",
+                ["provider_setup_notice"] = "在服务商窗口中添加连接、选择和排序模型。此开关控制账号列表是否显示服务商，关闭后不改变当前服务商。", ["credential_in_use"] = "登录凭据使用中",
                 ["switch_provider_body"] = "Codex Desktop 将使用此提供商重新启动。请先完成或停止正在运行的 Desktop 任务，并处理退出提示；无法正常退出时会停止切换。现有 CLI 会话保持运行。切换器不会选择模型或管理模型列表。请在 Desktop 中选择兼容模型；如果列表中没有，请先在 Codex 中配置。现有对话不会迁移。",
                 ["native_api_storage_notice"] = "OpenAI API 登录将单独保存在本机，便于以后切回。已保存的 ChatGPT 账号与其分开保存。模型设置会保留，必要时请选择兼容模型。",
-                ["return_account_model_notice"] = "模型设置将保留。如果自定义提供商使用了不同的模型 ID，请先在 Desktop 中选择 ChatGPT 支持的模型再发送消息。自定义模型目录也可能需要在 Codex 中更改。"
-            }, [], "openai", "chatgpt", null);
+                ["return_account_model_notice"] = "模型设置将保留。如果自定义提供商使用了不同的模型 ID，请先在 Desktop 中选择 ChatGPT 支持的模型再发送消息。自定义模型目录也可能需要在 Codex 中更改。",
+                ["provider_manager_title"] = "服务商",
+                ["provider_new"] = "添加服务商",
+                ["provider_saved"] = "已保存的服务商",
+                ["provider_name"] = "名称",
+                ["provider_name_placeholder"] = "例如：我的 API 服务",
+                ["provider_key_placeholder"] = "输入 API Key",
+                ["provider_keep_key"] = "留空保留已保存的密钥",
+                ["provider_api_format"] = "接口格式",
+                ["provider_responses_notice"] = "使用支持 Responses API 的服务。获取模型后勾选要启用的模型，点击星标设置默认模型。",
+                ["provider_anthropic_notice"] = "Codex 暂不能直接使用 Anthropic Messages。请使用兼容 Responses 的网关来保存可用服务商；这里支持获取 Anthropic 模型列表。",
+                ["provider_models"] = "模型",
+                ["provider_fetch"] = "获取模型",
+                ["provider_search"] = "模糊搜索模型 ID 或名称",
+                ["provider_sort"] = "排序",
+                ["provider_sort_custom"] = "自定义顺序",
+                ["provider_manual_id"] = "或手动输入模型 ID",
+                ["provider_add_model"] = "添加模型",
+                ["provider_default_model"] = "默认模型",
+                ["provider_set_default"] = "设为默认模型",
+                ["provider_enable_model"] = "启用此模型",
+                ["provider_move_up"] = "上移",
+                ["provider_move_down"] = "下移",
+                ["provider_effort_default"] = "跟随模型默认值（留空）",
+                ["provider_effort_options"] = "服务商提供的选项",
+                ["provider_effort_manual_hint"] = "模型列表没有提供 effort 选项。留空使用模型默认值，也可填写服务商文档支持的 effort 值。",
+                ["provider_effort_advertised_hint"] = "选择服务商提供的选项，或留空使用模型默认值。",
+                ["provider_fetch_hint"] = "获取模型或手动添加 ID。勾选列表和排序用于本切换器。",
+                ["provider_no_match"] = "没有匹配的模型。",
+                ["provider_storage_notice"] = "API Key 保存到本机受文件权限保护的 Codex 配置。保存后添加服务商，准备好后再切换。",
+                ["provider_save"] = "保存服务商",
+                ["provider_invalid_url"] = "请输入 HTTPS API Base URL，不包含用户名、密码、查询参数或片段；本地地址可用 HTTP。",
+                ["provider_invalid_key"] = "请输入 API Key，或保留有效的已保存密钥。",
+                ["provider_empty_name"] = "请输入服务商名称。",
+                ["provider_no_models"] = "服务返回的模型列表为空，可以手动输入模型 ID。",
+                ["provider_select_default"] = "请启用一个模型并将其设为默认模型。",
+                ["provider_edit_active"] = "请先切换到其他账号或服务商，再编辑当前服务商。",
+                ["provider_invalid_response"] = "服务返回的模型或配置数据格式无效。",
+                ["provider_redirect_refused"] = "模型接口发生重定向。请填写最终 API Base URL，以确保密钥只发送到指定服务器。",
+                ["provider_pagination_failed"] = "模型分页未正常推进，列表未导入。",
+                ["provider_fetch_cancelled"] = "已取消获取模型。",
+                ["provider_switched_reopen_message"] = "所选提供商已经生效，但 Codex Desktop 未能重新打开。请手动打开 Codex 继续使用。"
+            }, [], "openai", "chatgpt", null, [], null);
         }
         public async Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null, string? providerID = null) {
             Commands.Add(command + ":" + value);
@@ -210,6 +272,30 @@ internal static class Program
                 State = State with { PendingSwitch = new(null, providerID, "切换提供商？", State.Text("switch_provider_body"), "切换提供商") };
             } else if (command is "cancelSwitch" or "confirmSwitch") State = State with { PendingSwitch = null };
             Changed?.Invoke();
+        }
+        public Task ProviderCommandAsync(string command, ProviderEditorCommand? editor = null) {
+            LastProviderCommand = command;
+            if (command == "openProviderEditor") {
+                State = State with { ProviderEditor = new("switcher_synthetic", "示例服务商", "https://api.example.test/v1", "responses", false,
+                    [], null, "", "custom", [], false, null, false) };
+            } else if (command == "closeProviderEditor") State = State with { ProviderEditor = null };
+            else if (State.ProviderEditor is { } current) {
+                if (command == "fetchProviderModels") current = current with {
+                    Models = [new("vendor-large", "Vendor Large", false, [], null), new("gpt-5-mini", "GPT 5 Mini", false, ["low", "high"], null)],
+                    VisibleModelIDs = ["vendor-large", "gpt-5-mini"] };
+                if (command == "searchProviderModels") {
+                    LastProviderQuery = editor?.Query;
+                    current = current with { Query = editor?.Query ?? "", VisibleModelIDs = editor?.Query == "g5m" ? ["gpt-5-mini"] : current.Models.Select(row => row.Id).ToArray() };
+                }
+                if (command == "chooseProviderDefaultModel") current = current with {
+                    DefaultModelID = editor?.ModelID, Models = current.Models.Select(row => row.Id == editor?.ModelID ? row with { IsEnabled = true } : row).ToArray() };
+                if (command == "setProviderReasoning") current = current with {
+                    Models = current.Models.Select(row => row.Id == current.DefaultModelID ? row with { ReasoningEffort = editor?.Effort } : row).ToArray() };
+                if (command == "saveProvider") current = current with { DidSave = true };
+                State = State with { ProviderEditor = current };
+            }
+            Changed?.Invoke();
+            return Task.CompletedTask;
         }
     }
 }

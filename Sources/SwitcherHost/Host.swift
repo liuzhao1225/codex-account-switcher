@@ -10,6 +10,18 @@ private struct Request: Decodable, Sendable {
     var language: AppLanguage?
     var version: String?
     var error: String?
+    var editor: ProviderEditorCommand?
+}
+
+private struct ProviderEditorCommand: Decodable, Sendable {
+    var providerID: String?
+    var connection: ProviderConnectionInput?
+    var modelID: String?
+    var query: String?
+    var sort: ProviderModelSort?
+    var offset: Int?
+    var value: Bool?
+    var effort: String?
 }
 
 private struct DesktopAdapter: DesktopControlling {
@@ -76,7 +88,7 @@ private final class Host {
                 }
                 try await platform("openBrowser", url: url)
             })
-            let configuration = CodexConfigurationClient(codex: codex)
+            let configuration = ProviderManager(store: store, codex: codex)
             let desktop = DesktopAdapter(host: self)
             let model = AccountController(store: store, codex: codex, configuration: configuration,
                 switchService: SwitchService(desktop: desktop, store: store, codex: codex,
@@ -91,6 +103,25 @@ private final class Host {
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
         switch request.command {
+        case "openProviderEditor": await model.openProviderEditor(id: request.editor?.providerID)
+        case "closeProviderEditor": model.closeProviderEditor()
+        case "fetchProviderModels", "saveProvider":
+            guard let input = request.editor?.connection else { throw HostError.message("Missing provider connection.") }
+            if request.command == "fetchProviderModels" { await model.fetchProviderModels(input) }
+            else { await model.saveProvider(input) }
+        case "searchProviderModels": model.searchProviderModels(request.editor?.query ?? "")
+        case "sortProviderModels":
+            guard let sort = request.editor?.sort else { throw HostError.message("Missing model sort order.") }
+            model.sortProviderModels(sort)
+        case "enableProviderModel", "chooseProviderDefaultModel", "moveProviderModel", "addProviderModel":
+            guard let id = request.editor?.modelID else { throw HostError.message("Missing model ID.") }
+            switch request.command {
+            case "enableProviderModel": model.enableProviderModel(id: id, enabled: request.editor?.value == true)
+            case "chooseProviderDefaultModel": model.chooseProviderDefaultModel(id: id)
+            case "moveProviderModel": model.moveProviderModel(id: id, offset: request.editor?.offset ?? 0)
+            default: model.addProviderModel(id: id, connection: request.editor?.connection)
+            }
+        case "setProviderReasoning": model.setProviderReasoning(request.editor?.effort ?? "")
         case "refresh": await model.refresh()
         case "add": model.addAccount()
         case "cancelAdd": model.cancelAddingAccount()

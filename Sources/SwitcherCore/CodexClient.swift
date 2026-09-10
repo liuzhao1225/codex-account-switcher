@@ -3,13 +3,25 @@ import Foundation
 import AppKit
 #endif
 
-public enum JSONValue: Decodable, Sendable {
+public enum JSONValue: Codable, Equatable, Sendable {
     case object([String: JSONValue])
     case array([JSONValue])
     case string(String)
     case number(Double)
     case bool(Bool)
     case null
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .object(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        }
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -455,7 +467,13 @@ public protocol AccountClient: CodexIdentityReading {
     func login(profileHome: URL) async throws -> AccountIdentity
 }
 
-public struct CodexClient: AccountClient {
+protocol CodexConfigurationRPC: Sendable {
+    func readConfiguration(profileHome: URL) async throws -> JSONValue
+    func writeConfiguration(edits: [(String, JSONValue)], profileHome: URL) async throws
+    func writeModelProvider(_ providerID: String, profileHome: URL) async throws
+}
+
+public struct CodexClient: AccountClient, CodexConfigurationRPC {
     public let locator: CodexExecutableLocator
     public let requestTimeout: Duration
     public let clientVersion: String
@@ -588,6 +606,21 @@ public struct CodexClient: AccountClient {
                 timeout: requestTimeout
             )
         }
+    }
+
+    func writeConfiguration(edits: [(String, JSONValue)], profileHome: URL) async throws {
+        let encoded = try JSONEncoder().encode(edits.map { ConfigEdit(keyPath: $0.0, value: $0.1) })
+        let result = try await withSession(profileHome: profileHome) { session in
+            try await session.request(method: "config/batchWrite", id: 1,
+                params: ["edits": try JSONSerialization.jsonObject(with: encoded)], timeout: requestTimeout)
+        }
+        guard result["status"]?.stringValue == "ok" else { throw ProviderConfigurationError.malformedConfiguration }
+    }
+
+    private struct ConfigEdit: Encodable {
+        let keyPath: String
+        let value: JSONValue
+        let mergeStrategy = "replace"
     }
 
     private func withSession<T: Sendable>(

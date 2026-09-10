@@ -22,6 +22,8 @@ public struct AccountSnapshot: Encodable, Sendable {
     public let activeProviderID: String
     public let authenticationKind: String
     public let pendingSwitch: SwitchConfirmation?
+    public let managedProviders: [ManagedProvider]
+    public let providerEditor: ProviderEditorState?
     public let activeAccountID: UUID?
     public let settings: AppSettings
     public let isMutating: Bool
@@ -44,14 +46,15 @@ extension AccountController {
             },
             providers: providers.map { provider in
                 AccountSnapshot.ProviderRow(profile: provider, isActive: isProviderActive(provider),
-                    subtitle: text(provider.id == CodexConfigurationClient.openAIProviderID
-                        ? "native_api_login" : "configured_provider"))
+                    subtitle: providerSubtitle(provider))
             },
             activeProviderID: activeProviderID,
             authenticationKind: activeAuthentication.map {
                 switch $0 { case .signedOut: "signedOut"; case .apiKey: "apiKey"; case .chatGPT: "chatgpt" }
             } ?? "unknown",
             pendingSwitch: pendingSwitch,
+            managedProviders: managedProviders,
+            providerEditor: providerEditor,
             activeAccountID: accounts.first(where: { isAccountActive($0) })?.id,
             settings: settings,
             isMutating: isMutating, isAddingAccount: isAddingAccount,

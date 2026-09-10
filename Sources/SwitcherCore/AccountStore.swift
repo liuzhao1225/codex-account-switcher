@@ -92,6 +92,27 @@ public actor AccountStore: AccountStoring {
         try writeJSON(settings, to: settingsURL)
     }
 
+    public func loadProviderLibrary() throws -> ProviderLibrary {
+        let url = baseURL.appending(path: "providers.json")
+        guard fileManager.fileExists(atPath: url.path) else { return ProviderLibrary() }
+        return try Self.decoder.decode(ProviderLibrary.self, from: readChecked(url))
+    }
+
+    public func saveProviderLibrary(_ library: ProviderLibrary) throws {
+        try prepareDirectories()
+        try writeJSON(library, to: baseURL.appending(path: "providers.json"))
+    }
+
+    public func protectProviderConfiguration() throws {
+        let url = activeHomeURL.appending(path: "config.toml")
+        try checkPath(url)
+        if !fileManager.fileExists(atPath: url.path) {
+            try fileManager.createDirectory(at: activeHomeURL, withIntermediateDirectories: true)
+            try secureAtomicWrite(Data(), to: url)
+        }
+        try restrictPermissions(url, directory: false)
+    }
+
     public func loadUsageCache() throws -> UsageCache {
         try prepareDirectories()
         if let usageCache { return usageCache }
