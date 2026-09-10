@@ -4,9 +4,9 @@ macOS and Windows use one Swift core for provider discovery, editing, model disc
 
 ## Setup and authentication
 
-Add saved ChatGPT accounts through the existing sign-in flow. For a custom API provider, enter its name, Base URL and API key in **Add provider**, fetch or manually add models, select the models to keep, and choose a default. Saving adds the provider without activating it. A subsequent confirmed switch applies its settings and restarts Desktop.
+Add saved ChatGPT accounts through the existing sign-in flow. For a custom API provider, open **Manage accounts → Add provider** and enter its name, Base URL and API key, fetch or manually add models, select the models to keep, and choose a default. Saving adds the provider without activating it. A subsequent confirmed switch applies its settings and restarts Desktop.
 
-The installed Codex runtime currently accepts OpenAI Responses as its custom-provider wire format. Anthropic format can be used to fetch models; saving requires a Responses-compatible gateway and the Responses format. No Anthropic inference protocol converter is included. A successful models request does not establish Responses, streaming, tool-call or model compatibility.
+The installed Codex runtime currently accepts OpenAI Responses as its custom-provider wire format. The form fixes this format and offers no Anthropic selector or discovery. Third-party providers must implement `/responses`; `/messages` or `/chat/completions` alone is insufficient. Fetching models does not establish Responses compatibility. A separate **Verify connection** action sends a short request with the selected model and effort (up to 512 output tokens, possibly billable). It requires completed Responses text output; streaming and tool calls are outside this check.
 
 Previously configured Codex providers remain available through the advanced visibility setting. Their environment or command-based authentication remains owned by Codex. For native OpenAI API sign-in, enter the key in Codex; the switcher discovers the login through `account/read` and retains its file-backed credential separately when a confirmed switch replaces it.
 
@@ -40,12 +40,12 @@ After external logout, selecting the same saved ChatGPT account restores its sav
 
 Shared tests cover provider selection, native authentication, model parsing, fuzzy matching, custom and alphabetical order, secret-free snapshots, save failures and model/effort/catalog restoration. Windows checks exercise the actual shared-host model-discovery commands against an isolated HTTP fixture, as well as native controls. These checks use synthetic credentials.
 
-A separate macOS integration probe exercises HTTP discovery, redirect refusal, installed Codex `config/batchWrite`, configuration readback, model/effort restoration and private config permissions in a temporary home. These checks do not issue provider inference requests or establish stock Desktop acceptance.
+A separate macOS integration probe exercises HTTP discovery, redirect refusal, installed Codex `config/batchWrite`, configuration readback, model/effort restoration and private config permissions in a temporary home. The isolated HTTP fixtures exercise both model discovery and a synthetic Responses validation request. They do not establish stock Desktop acceptance or real-provider inference compatibility.
 
 For acceptance with released Codex Desktop and an authorized provider, record versions, provider IDs, model IDs and outcomes without tokens or full configuration:
 
 1. Start with a saved ChatGPT account, record the new-conversation model and picker choices, and send a harmless prompt.
-2. Add a Responses provider, fetch models, exercise fuzzy search and ordering, choose its default and an explicitly supported effort, and save. Confirm saving does not activate it.
+2. Open Manage accounts and add a Responses provider, fetch models, exercise fuzzy search and ordering, choose its default and an explicitly supported effort, verify the connection, and save. Confirm saving does not activate it.
 3. Confirm the switch. Record the model and picker after restart, then send a request. Exercise streaming and tool use when supported by the destination.
 4. Switch back to ChatGPT. Verify restored model settings and a successful new request. Repeat with a destination requiring a different model ID.
 5. Repeat with native OpenAI API sign-in, then after external logout. Verify the saved native credential and ChatGPT credential remain distinct.

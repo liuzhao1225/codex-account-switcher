@@ -2,7 +2,6 @@ import Foundation
 
 public enum ProviderAPIFormat: String, Codable, CaseIterable, Sendable {
     case responses
-    case anthropic
 }
 
 public struct ProviderModel: Codable, Equatable, Identifiable, Sendable {
@@ -81,6 +80,7 @@ public struct ProviderEditorState: Encodable, Equatable, Sendable {
     public var isBusy = false
     public var error: String?
     public var didSave = false
+    public var connectionVerified = false
 
     public init(provider: ManagedProvider? = nil) {
         id = provider?.id ?? "switcher_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
@@ -135,7 +135,7 @@ public enum ModelSearch {
 }
 
 public enum ProviderSetupError: Error, LocalizedError, Sendable {
-    case invalidURL, invalidKey, emptyName, noModels, selectDefault, unsupportedFormat, activeProvider, invalidResponse, http(Int), redirects, pagination
+    case invalidURL, invalidKey, emptyName, noModels, selectDefault, managementUnavailable, validationIncomplete, activeProvider, invalidResponse, http(Int), redirects, pagination
     public var errorDescription: String? {
         switch self {
         case .invalidURL: "provider_invalid_url"
@@ -143,7 +143,8 @@ public enum ProviderSetupError: Error, LocalizedError, Sendable {
         case .emptyName: "provider_empty_name"
         case .noModels: "provider_no_models"
         case .selectDefault: "provider_select_default"
-        case .unsupportedFormat: "provider_anthropic_notice"
+        case .managementUnavailable: "provider_management_unavailable"
+        case .validationIncomplete: "provider_validation_incomplete"
         case .activeProvider: "provider_edit_active"
         case .invalidResponse: "provider_invalid_response"
         case .http(let status): "HTTP \(status)"

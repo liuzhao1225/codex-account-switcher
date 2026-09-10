@@ -38,9 +38,10 @@ final class AppModel: AccountController, @MainActor ObservableObject {
                   configuration: any ProviderConfigurationServicing,
                   switchService: any SwitchServicing,
                   providerSwitchService: any ProviderSwitchServicing,
-                  modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery()) {
+                  modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery(),
+                  connectionValidator: any ProviderConnectionValidating = ProviderModelDiscovery()) {
         super.init(store: store, codex: codex, configuration: configuration,
-                   switchService: switchService, providerSwitchService: providerSwitchService, modelDiscovery: modelDiscovery)
+                   switchService: switchService, providerSwitchService: providerSwitchService, modelDiscovery: modelDiscovery, connectionValidator: connectionValidator)
         onChange = { [weak self] in self?.objectWillChange.send() }
         refreshLaunchAtLoginStatus()
     }

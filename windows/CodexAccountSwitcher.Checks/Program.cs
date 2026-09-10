@@ -29,16 +29,35 @@ try {
         using (var endpoint = new System.Net.HttpListener()) {
             endpoint.Prefixes.Add($"http://127.0.0.1:{port}/"); endpoint.Start();
             var response = Task.Run(async () => {
-                var request = await endpoint.GetContextAsync().WaitAsync(TimeSpan.FromSeconds(10));
-                Require(request.Request.RawUrl == "/v1/models", "Model discovery uses the normalized API path.");
-                Require(request.Request.Headers["Authorization"] == "Bearer synthetic-discovery-key", "The key reaches only the intended endpoint.");
-                request.Response.ContentType = "application/json";
-                var bytes = System.Text.Encoding.UTF8.GetBytes("{\"data\":[{\"id\":\"gpt-5-mini\"}]}");
-                await request.Response.OutputStream.WriteAsync(bytes); request.Response.Close();
+                for (var i = 0; i < 2; i++) {
+                    var request = await endpoint.GetContextAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                    Require(request.Request.Headers["Authorization"] == "Bearer synthetic-discovery-key", "The key reaches only the intended endpoint.");
+                    string payload;
+                    if (i == 0) {
+                        Require(request.Request.RawUrl == "/v1/models" && request.Request.HttpMethod == "GET", "Model discovery reads the models path.");
+                        payload = "{\"data\":[{\"id\":\"gpt-5-mini\"}]}";
+                    } else {
+                        Require(request.Request.RawUrl == "/v1/responses" && request.Request.HttpMethod == "POST", "Validation sends an independent Responses request.");
+                        using var body = await System.Text.Json.JsonDocument.ParseAsync(request.Request.InputStream);
+                        Require(body.RootElement.GetProperty("model").GetString() == "gpt-5-mini", "Validate the selected model.");
+                        Require(body.RootElement.GetProperty("reasoning").GetProperty("effort").GetString() == "high", "Validate the chosen effort.");
+                        Require(!body.RootElement.GetProperty("store").GetBoolean(), "Do not store validation responses remotely.");
+                        payload = "{\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"OK\"}]}]}";
+                    }
+                    request.Response.ContentType = "application/json";
+                    await request.Response.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes(payload)); request.Response.Close();
+                }
             });
             await client.ProviderCommandAsync("fetchProviderModels", new(Connection: new("Synthetic", $"http://127.0.0.1:{port}/v1", "responses", "synthetic-discovery-key")));
-            await response;
             await UntilAsync(() => client.State.ProviderEditor?.Models.Length == 1);
+            Require(client.State.ProviderEditor?.ConnectionVerified == false, "Fetching models must not report a verified connection.");
+            await client.ProviderCommandAsync("chooseProviderDefaultModel", new(ModelID: "gpt-5-mini"));
+            await client.ProviderCommandAsync("setProviderReasoning", new(Effort: "high"));
+            await client.ProviderCommandAsync("validateProviderConnection", new(Connection: new("Synthetic", $"http://127.0.0.1:{port}/v1", "responses", "synthetic-discovery-key")));
+            await response;
+            await UntilAsync(() => client.State.ProviderEditor?.ConnectionVerified == true);
+            await client.ProviderCommandAsync("setProviderReasoning", new(Effort: "low"));
+            await UntilAsync(() => client.State.ProviderEditor?.ConnectionVerified == false);
         }
         await client.ProviderCommandAsync("searchProviderModels", new(Query: "g5m"));
         await client.ProviderCommandAsync("chooseProviderDefaultModel", new(ModelID: "gpt-5-mini"));

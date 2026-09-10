@@ -23,6 +23,8 @@ open class AccountController {
     public private(set) var managedProviders: [ManagedProvider] = [] { didSet { onChange?() } }
     public private(set) var providerEditor: ProviderEditorState? { didSet { onChange?() } }
     private var editorAPIKey: String?
+    private var providerValidationTask: Task<Void, any Error>?
+    private let connectionValidator: any ProviderConnectionValidating
     private var providerFetchTask: Task<[ProviderModel], any Error>?
     private let modelDiscovery: any ProviderModelDiscovering
 
@@ -44,7 +46,8 @@ open class AccountController {
         configuration: any ProviderConfigurationServicing,
         switchService: any SwitchServicing,
         providerSwitchService: any ProviderSwitchServicing,
-        modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery()
+        modelDiscovery: any ProviderModelDiscovering = ProviderModelDiscovery(),
+        connectionValidator: any ProviderConnectionValidating = ProviderModelDiscovery()
     ) {
         self.store = store
         self.codex = codex
@@ -52,6 +55,7 @@ open class AccountController {
         self.configuration = configuration
         self.providerSwitchService = providerSwitchService
         self.modelDiscovery = modelDiscovery
+        self.connectionValidator = connectionValidator
     }
 
     public func text(_ key: String) -> String {
@@ -574,7 +578,7 @@ extension AccountController {
     public func openProviderEditor(id: String? = nil) async {
         guard !isMutating, !isAddingAccount else { return }
         guard let manager = configuration as? any ProviderManaging else {
-            showError(ProviderSetupError.unsupportedFormat)
+            showError(ProviderSetupError.managementUnavailable)
             return
         }
         do {
@@ -582,6 +586,7 @@ extension AccountController {
             let existing = id.flatMap { requested in managedProviders.first { $0.id == requested } }
             if id != nil, existing == nil { throw ProviderSetupError.invalidResponse }
             providerFetchTask?.cancel()
+            providerValidationTask?.cancel()
             editorAPIKey = nil
             providerEditor = ProviderEditorState(provider: existing)
         } catch { showError(error) }
@@ -590,6 +595,8 @@ extension AccountController {
     public func closeProviderEditor() {
         guard !isMutating else { return }
         providerFetchTask?.cancel()
+        providerValidationTask?.cancel()
+        providerValidationTask = nil
         providerFetchTask = nil
         editorAPIKey = nil
         providerEditor = nil
@@ -604,6 +611,7 @@ extension AccountController {
             || editor.apiFormat != input.apiFormat || (newKey != editorAPIKey) {
             editor.models = []
             editor.defaultModelID = nil
+            editor.connectionVerified = false
         }
         editor.displayName = input.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         editor.baseURL = base
@@ -617,9 +625,11 @@ extension AccountController {
 
     public func fetchProviderModels(_ input: ProviderConnectionInput) async {
         guard let original = providerEditor, !original.isBusy, !isMutating else { return }
+        invalidateProviderValidation()
         do {
             try applyConnectionInput(input)
             guard let editor = providerEditor else { return }
+            providerEditor?.connectionVerified = false
             providerEditor?.isBusy = true
             defer { if providerEditor?.id == original.id { providerEditor?.isBusy = false } }
             let key: String
@@ -627,7 +637,7 @@ extension AccountController {
             else if editor.hasStoredKey, let manager = configuration as? any ProviderManaging { key = try await manager.storedKey(providerID: editor.id) }
             else { throw ProviderSetupError.invalidKey }
             let discovery = modelDiscovery
-            let task = Task { try await discovery.fetchModels(baseURL: editor.baseURL, apiKey: key, format: editor.apiFormat) }
+            let task = Task { try await discovery.fetchModels(baseURL: editor.baseURL, apiKey: key) }
             providerFetchTask = task
             let fetched = try await task.value
             guard providerEditor?.id == original.id else { return }
@@ -649,6 +659,33 @@ extension AccountController {
         } catch { if providerEditor?.id == original.id { providerEditor?.error = providerError(error) } }
     }
 
+    public func invalidateProviderValidation() {
+        if providerEditor?.connectionVerified == true { providerEditor?.connectionVerified = false }
+    }
+
+    public func validateProviderConnection(_ input: ProviderConnectionInput) async {
+        guard let original = providerEditor, !original.isBusy, !isMutating else { return }
+        invalidateProviderValidation()
+        do {
+            try applyConnectionInput(input)
+            guard let editor = providerEditor,
+                  let selected = editor.models.first(where: { $0.id == editor.defaultModelID && $0.isEnabled }) else { throw ProviderSetupError.selectDefault }
+            providerEditor?.connectionVerified = false
+            providerEditor?.isBusy = true
+            defer { if providerEditor?.id == original.id { providerEditor?.isBusy = false } }
+            let key: String
+            if let editorAPIKey { key = editorAPIKey }
+            else if editor.hasStoredKey, let manager = configuration as? any ProviderManaging { key = try await manager.storedKey(providerID: editor.id) }
+            else { throw ProviderSetupError.invalidKey }
+            let validator = connectionValidator
+            let task = Task { try await validator.validateConnection(baseURL: editor.baseURL, apiKey: key, model: selected.id, effort: selected.reasoningEffort) }
+            providerValidationTask = task
+            try await task.value
+            guard providerEditor?.id == original.id else { return }
+            providerEditor?.connectionVerified = true
+        } catch { if providerEditor?.id == original.id { providerEditor?.error = providerError(error) } }
+    }
+
     public func searchProviderModels(_ query: String) {
         providerEditor?.query = query
         providerEditor?.updateVisibleModels()
@@ -663,7 +700,7 @@ extension AccountController {
         guard var editor = providerEditor, !editor.isBusy,
               let index = editor.models.firstIndex(where: { $0.id == id }) else { return }
         editor.models[index].isEnabled = enabled
-        if !enabled, editor.defaultModelID == id { editor.defaultModelID = nil }
+        if !enabled, editor.defaultModelID == id { editor.defaultModelID = nil; editor.connectionVerified = false }
         editor.error = nil
         providerEditor = editor
     }
@@ -673,6 +710,7 @@ extension AccountController {
               let index = editor.models.firstIndex(where: { $0.id == id }) else { return }
         editor.models[index].isEnabled = true
         editor.defaultModelID = id
+        editor.connectionVerified = false
         editor.error = nil
         providerEditor = editor
     }
@@ -681,7 +719,9 @@ extension AccountController {
         guard var editor = providerEditor, !editor.isBusy,
               let index = editor.models.firstIndex(where: { $0.id == editor.defaultModelID }) else { return }
         let value = effort.trimmingCharacters(in: .whitespacesAndNewlines)
-        editor.models[index].reasoningEffort = value.isEmpty ? nil : value
+        let effort = value.isEmpty ? nil : value
+        if editor.models[index].reasoningEffort != effort { editor.connectionVerified = false }
+        editor.models[index].reasoningEffort = effort
         providerEditor = editor
     }
 

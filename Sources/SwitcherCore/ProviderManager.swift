@@ -31,7 +31,6 @@ public struct ProviderManager: ProviderManaging, ProviderConfigurationServicing 
     }
 
     public func save(_ provider: ManagedProvider, apiKey: String?) async throws {
-        guard provider.apiFormat == .responses else { throw ProviderSetupError.unsupportedFormat }
         guard provider.id.hasPrefix("switcher_"), provider.id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") })
         else { throw ProviderSetupError.invalidResponse }
         let home = await store.activeCodexHome()

@@ -64,7 +64,6 @@ private struct ProviderEditorForm: View {
     let state: ProviderEditorState
     @State private var name: String
     @State private var baseURL: String
-    @State private var format: ProviderAPIFormat
     @State private var apiKey = ""
     @State private var query = ""
     @State private var manualModelID = ""
@@ -74,12 +73,11 @@ private struct ProviderEditorForm: View {
         self.model = model; self.onClose = onClose; state = initial
         _name = State(initialValue: initial.displayName)
         _baseURL = State(initialValue: initial.baseURL)
-        _format = State(initialValue: initial.apiFormat)
         _query = State(initialValue: initial.query)
         _effort = State(initialValue: initial.models.first { $0.id == initial.defaultModelID }?.reasoningEffort ?? "")
     }
     private var busy: Bool { state.isBusy || model.isMutating }
-    private var connection: ProviderConnectionInput { ProviderConnectionInput(displayName: name, baseURL: baseURL, apiFormat: format, apiKey: apiKey) }
+    private var connection: ProviderConnectionInput { ProviderConnectionInput(displayName: name, baseURL: baseURL, apiFormat: .responses, apiKey: apiKey) }
     private func t(_ key: String) -> String { model.text(key) }
 
     var body: some View {
@@ -93,16 +91,9 @@ private struct ProviderEditorForm: View {
                             Text("API Key")
                             SecureField(t(state.hasStoredKey ? "provider_keep_key" : "provider_key_placeholder"), text: $apiKey)
                         }
-                        GridRow {
-                            Text(t("provider_api_format"))
-                            Picker(t("provider_api_format"), selection: $format) {
-                                Text("OpenAI Responses").tag(ProviderAPIFormat.responses)
-                                Text("Anthropic Messages").tag(ProviderAPIFormat.anthropic)
-                            }.labelsHidden().pickerStyle(.menu)
-                        }
                     }.textFieldStyle(.roundedBorder).disabled(busy)
-                    Text(t(format == .anthropic ? "provider_anthropic_notice" : "provider_responses_notice"))
-                        .font(.callout).foregroundStyle(format == .anthropic ? .orange : .secondary)
+                    Text(t("provider_responses_notice"))
+                        .font(.callout).foregroundStyle(.secondary)
                     HStack {
                         Text(t("provider_models")).font(.headline)
                         Spacer()
@@ -148,6 +139,12 @@ private struct ProviderEditorForm: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    HStack {
+                        Button(t("provider_validate"), systemImage: "checkmark.shield") { Task { await model.validateProviderConnection(connection) } }
+                            .disabled(busy || state.defaultModelID == nil)
+                        Text(t("provider_validation_hint")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    if state.connectionVerified { Text(t("provider_validation_success")).font(.callout).foregroundStyle(.green) }
                     if let error = state.error { Text(error).foregroundStyle(.red).font(.callout).textSelection(.enabled) }
                 }.padding(22)
             }
@@ -162,9 +159,11 @@ private struct ProviderEditorForm: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(busy || state.defaultModelID == nil || format != .responses)
+                .disabled(busy || state.defaultModelID == nil)
             }.padding(18)
         }
+        .onChange(of: baseURL) { _, _ in model.invalidateProviderValidation() }
+        .onChange(of: apiKey) { _, _ in model.invalidateProviderValidation() }
         .onChange(of: state.defaultModelID) { _, value in
             effort = state.models.first { $0.id == value }?.reasoningEffort ?? ""
         }

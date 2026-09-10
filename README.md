@@ -87,7 +87,7 @@ Launch the app, add accounts through browser sign-in, then select and confirm a 
 1. **Download for your platform:** install the macOS DMG or run the portable Windows EXE.
 2. **Add each account once:** complete the familiar browser sign-in; the app derives the account name from the login identity.
 3. **Choose and continue:** select an account in the app, confirm, and let the app reopen Codex Desktop.
-4. **Add a service provider:** open **Add provider**, enter the API base URL and key, fetch models, search and order them, then choose a default model and thinking setting. Save and confirm a switch when ready.
+4. **Add a service provider:** open **Manage accounts → Add provider**, enter the API base URL and key, fetch models, search and order them, then choose a default model and thinking setting. Save and confirm a switch when ready.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
 
@@ -207,9 +207,9 @@ Add each authorized account once. Finish or stop active Desktop tasks, then sele
 
 ### How do I switch model providers?
 
-On macOS or Windows, open **Add provider** in the main window/menu. Enter a name, Base URL and API key, fetch and select models, choose their order and star a default model. The list supports fuzzy matching. Thinking can follow the model default or an explicitly entered service-supported effort. Saving adds the service; switching applies its defaults and records the previous provider settings for returning to OpenAI. See [the complete provider workflow](docs/provider-model-flow.md).
+On macOS or Windows, open **Manage accounts → Add provider**. Enter a name, Base URL and API key, fetch and select models, choose their order and star a default model. The list supports fuzzy matching. Thinking can follow the model default or an explicitly entered service-supported effort. Saving adds the service; switching applies its defaults and records the previous provider settings for returning to OpenAI. See [the complete provider workflow](docs/provider-model-flow.md).
 
-Direct use requires an OpenAI Responses-compatible endpoint. Anthropic model discovery is available, while Anthropic inference requires a compatible gateway. Real-service Desktop round trips remain an acceptance requirement. See [provider compatibility and validation](docs/provider-compatibility.md).
+Direct use requires an OpenAI Responses-compatible endpoint. The format is fixed to Responses; native Anthropic Messages and Chat Completions-only endpoints are unsupported. **Verify connection** sends a separate short Responses request using the selected model and effort; model discovery alone does not verify compatibility. Real-service Desktop round trips remain an acceptance requirement. See [provider compatibility and validation](docs/provider-compatibility.md).
 
 ### Can I enter an API key in the switcher?
 

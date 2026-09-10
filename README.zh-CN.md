@@ -87,7 +87,7 @@ macOS 使用菜单栏界面，应用与 DMG 均已签名并通过 Apple 公证�
 1. **下载对应平台版本：** macOS 安装 DMG；Windows 直接运行免安装 EXE。
 2. **每个账号添加一次：** 完成熟悉的浏览器登录，应用根据登录身份生成账号名称。
 3. **选择后继续使用：** 在应用中选择账号并确认，由应用重新打开 Codex Desktop。
-4. **添加服务商：** 点击 **添加服务商**，在独立窗口填写 Base URL 和 API Key，获取、模糊搜索并排序模型，设置默认模型和 thinking。保存后即可确认切换。
+4. **添加服务商：** 在 **管理账号** 中点击 **添加服务商**，在独立窗口填写 Base URL 和 API Key，获取、模糊搜索并排序模型，设置默认模型和 thinking。保存后即可确认切换。
 
 已经运行的终端进程会保留原有运行状态。启动新的 Codex CLI 进程即可使用刚刚选择的账号。
 
@@ -207,9 +207,9 @@ swift test
 
 ### 如何切换模型提供商？
 
-macOS 和 Windows 都可点击主界面的 **添加服务商**，在独立窗口输入名称、Base URL、API Key，获取模型后勾选、排序并星标默认模型。模型 ID 和名称支持模糊匹配。thinking 可跟随模型默认值，或填写服务商支持的 effort。保存后添加服务商，确认切换时应用默认设置；切回 OpenAI 时恢复此前保存的模型设置。详见 [完整操作流程](docs/provider-model-flow.md)。
+macOS 和 Windows 都可进入 **管理账号 → 添加服务商**，在独立窗口输入名称、Base URL、API Key，获取模型后勾选、排序并星标默认模型。模型 ID 和名称支持模糊匹配。thinking 可跟随模型默认值，或填写服务商支持的 effort。保存后添加服务商，确认切换时应用默认设置；切回 OpenAI 时恢复此前保存的模型设置。详见 [完整操作流程](docs/provider-model-flow.md)。
 
-直接使用需兼容 OpenAI Responses。Anthropic 格式支持获取模型，推理需使用兼容网关。输入的 API Key 保存到本机受权限保护的 Codex 配置，不进入界面快照。真实服务商的 Desktop 模型往返仍需验收，详见 [提供商兼容性](docs/provider-compatibility.md)。
+直接使用需兼容 OpenAI Responses。接口固定为 Responses，不支持 Anthropic 原生 Messages 或仅提供 Chat Completions 的服务。**验证连接** 使用所选模型和 thinking 单独发送简短请求；获取模型成功不代表接口可用。输入的 API Key 保存到本机受权限保护的 Codex 配置，不进入界面快照。真实服务商的 Desktop 模型往返仍需验收，详见 [提供商兼容性](docs/provider-compatibility.md)。
 
 ### 可以在切换器中输入 API key 吗？
 

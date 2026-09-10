@@ -14,7 +14,7 @@ public sealed record SwitchConfirmation(Guid? AccountID, string? ProviderID, str
 public sealed record ProviderModel(string Id, string DisplayName, bool IsEnabled, string[] ReasoningOptions, string? ReasoningEffort);
 public sealed record ManagedProvider(string Id, string DisplayName, string BaseURL, string ApiFormat, ProviderModel[] Models, string DefaultModelID, string Sort = "custom");
 public sealed record ProviderEditorState(string Id, string DisplayName, string BaseURL, string ApiFormat, bool HasStoredKey,
-    ProviderModel[] Models, string? DefaultModelID, string Query, string Sort, string[] VisibleModelIDs, bool IsBusy, string? Error, bool DidSave);
+    ProviderModel[] Models, string? DefaultModelID, string Query, string Sort, string[] VisibleModelIDs, bool IsBusy, string? Error, bool DidSave, bool ConnectionVerified = false);
 public sealed record ProviderConnectionInput(string DisplayName, string BaseURL, string ApiFormat, string? ApiKey);
 public sealed record ProviderEditorCommand(string? ProviderID = null, ProviderConnectionInput? Connection = null,
     string? ModelID = null, string? Query = null, string? Sort = null, int? Offset = null, bool? Value = null, string? Effort = null);

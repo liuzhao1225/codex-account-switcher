@@ -200,11 +200,6 @@ public sealed class MainWindow : Window
         body.Children.Add(new Border { Margin = new Thickness(20, 0, 20, 20), BorderBrush = B("Line"), BorderThickness = new Thickness(1),
             Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
         if (!manage && State.Settings.EnablesProviderSwitching && State.Providers.Length > 0) Providers(body);
-        if (!manage) {
-            var addProvider = Button(T("provider_new"), OpenProviders, "\uE710");
-            addProvider.IsEnabled &= !State.IsAddingAccount;
-            addProvider.Margin = new Thickness(20, 0, 20, 16); body.Children.Add(addProvider);
-        }
         if (manage) {
             var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
             var commands = new WrapPanel();
@@ -212,6 +207,8 @@ public sealed class MainWindow : Window
             add.Margin = new Thickness(0, 0, 8, 8); commands.Children.Add(add);
             var register = Button(T("register_current_account"), () => _ = Run("register"));
             register.IsEnabled &= !State.IsAddingAccount; register.Margin = new Thickness(0, 0, 0, 8); commands.Children.Add(register);
+            var addProvider = Button(T("provider_new"), OpenProviders, "\uE710");
+            addProvider.IsEnabled &= !State.IsAddingAccount; addProvider.Margin = new Thickness(0, 0, 0, 8); commands.Children.Add(addProvider);
             actions.Children.Add(commands);
             var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 12, muted: true);
             hint.TextWrapping = TextWrapping.Wrap; actions.Children.Add(hint); body.Children.Add(actions);
@@ -293,7 +290,6 @@ public sealed class MainWindow : Window
         ((CheckBox)settings.Children[^1]).IsEnabled = !IsBusy && !State.IsAddingAccount;
         var providerHint = Text(T("provider_setup_notice"), 11, muted: true);
         providerHint.TextWrapping = TextWrapping.Wrap; providerHint.Margin = new Thickness(0, 0, 0, 12); settings.Children.Add(providerHint);
-        settings.Children.Add(Button(T("provider_manager_title"), OpenProviders));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());

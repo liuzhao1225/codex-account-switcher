@@ -105,9 +105,11 @@ private final class Host {
         switch request.command {
         case "openProviderEditor": await model.openProviderEditor(id: request.editor?.providerID)
         case "closeProviderEditor": model.closeProviderEditor()
-        case "fetchProviderModels", "saveProvider":
+        case "invalidateProviderValidation": model.invalidateProviderValidation()
+        case "fetchProviderModels", "validateProviderConnection", "saveProvider":
             guard let input = request.editor?.connection else { throw HostError.message("Missing provider connection.") }
             if request.command == "fetchProviderModels" { await model.fetchProviderModels(input) }
+            else if request.command == "validateProviderConnection" { await model.validateProviderConnection(input) }
             else { await model.saveProvider(input) }
         case "searchProviderModels": model.searchProviderModels(request.editor?.query ?? "")
         case "sortProviderModels":

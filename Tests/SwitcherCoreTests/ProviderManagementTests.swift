@@ -115,18 +115,49 @@ struct ProviderManagementTests {
         #expect(!String(decoding: libraryBytes, as: UTF8.self).contains("synthetic-secret"))
     }
 
-    @Test func rejectsUnsupportedFormatAndEditingTheActiveProvider() async throws {
+    @Test func rejectsNonResponsesInputAndEditingTheActiveProvider() async throws {
         let fixture = try ProviderFixture()
         defer { fixture.clean() }
-        var provider = fixture.provider()
-        provider.apiFormat = .anthropic
-        await #expect(throws: ProviderSetupError.self) { try await fixture.manager.save(provider, apiKey: "synthetic-secret") }
-        #expect(await fixture.rpc.writeCount == 0)
-        provider.apiFormat = .responses
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(ProviderAPIFormat.self, from: Data("\"anthropic\"".utf8)) }
+        let provider = fixture.provider()
         try await fixture.manager.save(provider, apiKey: "synthetic-secret")
         try await fixture.manager.activateProvider(id: provider.id, codexHome: fixture.home)
         await #expect(throws: ProviderSetupError.self) { try await fixture.manager.save(provider, apiKey: "replacement-secret") }
         #expect(await fixture.rpc.configuredKey() == "synthetic-secret")
+    }
+
+    @Test @MainActor func verificationIsSeparateFromDiscoveryAndInvalidatedByModelSettings() async throws {
+        let fixture = try ProviderFixture(); defer { fixture.clean() }
+        let validator = ProviderValidationFixture()
+        let controller = fixture.controller(validator: validator)
+        await controller.start(); await controller.openProviderEditor()
+        await controller.fetchProviderModels(fixture.input)
+        #expect(await validator.calls == 0)
+        #expect(controller.providerEditor?.connectionVerified == false)
+        controller.chooseProviderDefaultModel(id: "gpt-5-mini"); controller.setProviderReasoning("high")
+        await controller.validateProviderConnection(fixture.input)
+        #expect(controller.providerEditor?.connectionVerified == true)
+        #expect(await validator.model == "gpt-5-mini")
+        #expect(await validator.effort == "high")
+        #expect(await fixture.rpc.writeCount == 0)
+        controller.setProviderReasoning("low")
+        #expect(controller.providerEditor?.connectionVerified == false)
+        await controller.validateProviderConnection(fixture.input)
+        controller.chooseProviderDefaultModel(id: "vendor-large")
+        #expect(controller.providerEditor?.connectionVerified == false)
+        await validator.fail()
+        await controller.validateProviderConnection(fixture.input)
+        #expect(controller.providerEditor?.connectionVerified == false)
+        #expect(controller.providerEditor?.error == "HTTP 401")
+    }
+
+    @Test func validationRejectsModelsListsChatCompletionsAndIncompleteResponses() throws {
+        for body in [#"{"data":[{"id":"gpt-5"}]}"#, #"{"choices":[{"message":{"content":"OK"}}]}"#,
+                     #"{"object":"response","status":"incomplete","output":[]}"#,
+                     #"{"object":"response","status":"completed","output":[]}"#] {
+            #expect(throws: ProviderSetupError.self) { try ProviderModelDiscovery.checkValidationResponse(Data(body.utf8)) }
+        }
+        try ProviderModelDiscovery.checkValidationResponse(Data(#"{"object":"response","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#.utf8))
     }
 
     @Test func failedConfigurationWriteDoesNotReportASavedProvider() async throws {
@@ -155,19 +186,19 @@ private struct ProviderFixture {
         ManagedProvider(id: "switcher_fixture", displayName: "Synthetic Service", baseURL: input.baseURL, apiFormat: .responses,
             models: [ProviderModel(id: "gpt-5-mini", isEnabled: true, reasoningEffort: "high")], defaultModelID: "gpt-5-mini")
     }
-    @MainActor func controller() -> AccountController {
+    @MainActor func controller(validator: any ProviderConnectionValidating = ProviderValidationFixture()) -> AccountController {
         let client = NativeAPITestClient()
         let desktop = NativeAPITestDesktop()
         return AccountController(store: store, codex: client, configuration: manager,
             switchService: SwitchService(desktop: desktop, store: store, codex: client, configuration: manager),
             providerSwitchService: ProviderSwitchService(desktop: desktop, store: store, codex: client, configuration: manager),
-            modelDiscovery: ProviderDiscoveryFixture())
+            modelDiscovery: ProviderDiscoveryFixture(), connectionValidator: validator)
     }
     func clean() { try? FileManager.default.removeItem(at: root) }
 }
 
 private struct ProviderDiscoveryFixture: ProviderModelDiscovering {
-    func fetchModels(baseURL: String, apiKey: String, format: ProviderAPIFormat) async throws -> [ProviderModel] {
+    func fetchModels(baseURL: String, apiKey: String) async throws -> [ProviderModel] {
         [ProviderModel(id: "vendor-large"), ProviderModel(id: "gpt-5-mini", reasoningOptions: ["low", "high"]), ProviderModel(id: "vendor-small")]
     }
 }
@@ -201,4 +232,16 @@ private actor ProviderRPCFixture: CodexConfigurationRPC {
     func selectedEffort() -> String? { value["model_reasoning_effort"]?.stringValue }
     func catalog() -> String? { value["model_catalog_json"]?.stringValue }
     func configuredKey() -> String? { value["model_providers"]?.objectValue?.values.first?["experimental_bearer_token"]?.stringValue }
+}
+
+private actor ProviderValidationFixture: ProviderConnectionValidating {
+    var calls = 0
+    var model: String?
+    var effort: String?
+    var shouldFail = false
+    func fail() { shouldFail = true }
+    func validateConnection(baseURL: String, apiKey: String, model: String, effort: String?) throws {
+        calls += 1; self.model = model; self.effort = effort
+        if shouldFail { throw ProviderSetupError.http(401) }
+    }
 }

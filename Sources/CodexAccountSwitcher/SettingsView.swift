@@ -74,10 +74,6 @@ struct SettingsView: View {
             Text(model.text("provider_setup_notice"))
                 .foregroundStyle(.secondary)
                 .modifier(SettingsDetail())
-            Button(model.text("provider_manager_title")) { ProviderManagementWindow.shared.show(model: model) }
-                .buttonStyle(.link)
-                .modifier(SettingsDetail())
-                .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
 
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {

@@ -128,6 +128,22 @@ struct ManageAccountsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.isMutating || model.isAddingAccount)
+
+                Button {
+                    ProviderManagementWindow.shared.show(model: model)
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "plus.circle").frame(width: 14)
+                        Text(model.text("provider_new"))
+                        Spacer()
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .frame(height: 30)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating || model.isAddingAccount)
             }
             .padding(5)
         }

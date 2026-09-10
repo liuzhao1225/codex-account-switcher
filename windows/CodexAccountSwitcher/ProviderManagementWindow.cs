@@ -15,10 +15,10 @@ public sealed class ProviderManagementWindow : Window
     private readonly IAccountClient client;
     private readonly TextBox name = new(), baseURL = new(), query = new(), manualID = new(), effort = new();
     private readonly PasswordBox key = new();
-    private readonly ComboBox format = new(), sort = new(), saved = new(), advertisedEffort = new();
+    private readonly ComboBox sort = new(), saved = new(), advertisedEffort = new();
     private readonly StackPanel models = new();
-    private readonly TextBlock error = new(), hint = new(), defaultModel = new(), effortHint = new();
-    private readonly Button fetch, save, addModel, addProvider;
+    private readonly TextBlock error = new(), validation = new(), hint = new(), defaultModel = new(), effortHint = new();
+    private readonly Button fetch, save, addModel, addProvider, validate;
     private string? editorID;
     private string? selectedModelID;
     private bool updating;
@@ -61,8 +61,6 @@ public sealed class ProviderManagementWindow : Window
             AutomationProperties.SetName(control, title); body.Children.Add(grid);
         }
         Field(T("provider_name"), name); Field("Base URL", baseURL); Field("API Key", key);
-        format.ItemsSource = new[] { "OpenAI Responses", "Anthropic Messages" }; format.SelectedIndex = 0;
-        Field(T("provider_api_format"), format);
         hint.TextWrapping = TextWrapping.Wrap; hint.FontSize = 12; hint.Margin = new Thickness(0, 0, 0, 16); body.Children.Add(hint);
         var modelHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
         fetch = Action(T("provider_fetch"), async () => await Run("fetchProviderModels", new(Connection: Connection())));
@@ -87,13 +85,19 @@ public sealed class ProviderManagementWindow : Window
         advertisedEffort.Width = 150; advertisedEffort.Margin = new Thickness(10, 0, 0, 0); DockPanel.SetDock(advertisedEffort, Dock.Right); reasoning.Children.Add(advertisedEffort);
         effort.Padding = new Thickness(8, 4, 8, 4); effort.ToolTip = T("provider_effort_default"); AutomationProperties.SetName(effort, "Thinking / effort"); reasoning.Children.Add(effort); body.Children.Add(reasoning);
         effortHint.TextWrapping = TextWrapping.Wrap; effortHint.FontSize = 11; body.Children.Add(effortHint);
+        var validationRow = new DockPanel { Margin = new Thickness(0, 12, 0, 8) };
+        validate = Action(T("provider_validate"), async () => await Run("validateProviderConnection", new(Connection: Connection())));
+        validate.Margin = new Thickness(0, 0, 12, 0); validationRow.Children.Add(validate);
+        validationRow.Children.Add(Label(T("provider_validation_hint"), 11)); body.Children.Add(validationRow);
+        validation.TextWrapping = TextWrapping.Wrap; validation.Foreground = Brushes.ForestGreen; body.Children.Add(validation);
         error.TextWrapping = TextWrapping.Wrap; error.Foreground = Brushes.Firebrick; error.Margin = new Thickness(0, 14, 0, 8); body.Children.Add(error);
         root.Children.Add(new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }); Content = root;
         query.TextChanged += async (_, _) => { if (!updating) await Run("searchProviderModels", new(Query: query.Text)); };
         sort.SelectionChanged += async (_, _) => { if (!updating && sort.SelectedIndex >= 0) await Run("sortProviderModels", new(Sort: new[] { "custom", "nameAscending", "nameDescending" }[sort.SelectedIndex])); };
         effort.TextChanged += async (_, _) => { if (!updating) await Run("setProviderReasoning", new(Effort: effort.Text)); };
         advertisedEffort.SelectionChanged += (_, _) => { if (!updating && advertisedEffort.SelectedItem is string choice) effort.Text = choice == T("provider_effort_default") ? "" : choice; };
-        format.SelectionChanged += (_, _) => { if (!updating) UpdateConnectionHint(); };
+        baseURL.TextChanged += async (_, _) => { if (!updating) await Run("invalidateProviderValidation"); };
+        key.PasswordChanged += async (_, _) => { if (!updating) await Run("invalidateProviderValidation"); };
         saved.SelectionChanged += async (_, _) => { if (!updating && saved.SelectedItem is ManagedProvider provider) await Run("openProviderEditor", new(ProviderID: provider.Id)); };
         client.Changed += Refresh;
         Closing += (_, e) => { if (client.State.IsMutating) e.Cancel = true; };
@@ -101,7 +105,7 @@ public sealed class ProviderManagementWindow : Window
         Refresh();
     }
 
-    private ProviderConnectionInput Connection() => new(name.Text, baseURL.Text, format.SelectedIndex == 1 ? "anthropic" : "responses", string.IsNullOrEmpty(key.Password) ? null : key.Password);
+    private ProviderConnectionInput Connection() => new(name.Text, baseURL.Text, "responses", string.IsNullOrEmpty(key.Password) ? null : key.Password);
     private TextBlock Label(string text, double size = 13) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private FrameworkElement WithPlaceholder(TextBox input, string placeholder) {
         var grid = new Grid(); grid.Children.Add(input);
@@ -120,8 +124,8 @@ public sealed class ProviderManagementWindow : Window
         catch (Exception ex) { localError = ex.Message; error.Text = localError; }
     }
     private void UpdateConnectionHint() {
-        hint.Text = T(format.SelectedIndex == 1 ? "provider_anthropic_notice" : "provider_responses_notice");
-        save.IsEnabled = !Busy && State?.DefaultModelID != null && format.SelectedIndex == 0;
+        hint.Text = T("provider_responses_notice");
+        save.IsEnabled = !Busy && State?.DefaultModelID != null;
     }
     private void Refresh() {
         if (State is not { } state) return;
@@ -129,13 +133,13 @@ public sealed class ProviderManagementWindow : Window
         try {
             if (editorID != state.Id) {
                 editorID = state.Id; name.Text = state.DisplayName; baseURL.Text = state.BaseURL; key.Clear(); query.Clear();
-                format.SelectedIndex = state.ApiFormat == "anthropic" ? 1 : 0; selectedModelID = null;
+                selectedModelID = null;
             }
             saved.ItemsSource = client.State.ManagedProviders;
             saved.SelectedItem = client.State.ManagedProviders.FirstOrDefault(provider => provider.Id == state.Id);
             key.ToolTip = T(state.HasStoredKey ? "provider_keep_key" : "provider_key_placeholder");
             sort.SelectedIndex = Array.IndexOf(new[] { "custom", "nameAscending", "nameDescending" }, state.Sort);
-            foreach (var control in new Control[] { name, baseURL, key, format, fetch, addModel, addProvider, saved }) control.IsEnabled = !Busy;
+            foreach (var control in new Control[] { name, baseURL, key, fetch, addModel, addProvider, saved }) control.IsEnabled = !Busy;
             saved.IsEnabled &= client.State.ManagedProviders.Length > 0;
             saved.Visibility = client.State.ManagedProviders.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             fetch.Content = T("provider_fetch") + (state.IsBusy ? "…" : "");
@@ -149,6 +153,8 @@ public sealed class ProviderManagementWindow : Window
             advertisedEffort.SelectedItem = options.Contains(selected?.ReasoningEffort ?? "") ? selected!.ReasoningEffort : T("provider_effort_default");
             effortHint.Text = T(options.Length == 0 ? "provider_effort_manual_hint" : "provider_effort_advertised_hint");
             error.Text = localError ?? state.Error ?? "";
+            validate.IsEnabled = !Busy && state.DefaultModelID != null;
+            validation.Text = state.ConnectionVerified ? T("provider_validation_success") : "";
             UpdateConnectionHint(); RenderModels(state);
         } finally { updating = false; }
     }

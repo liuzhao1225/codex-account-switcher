@@ -66,6 +66,7 @@ internal static class Program
                 }
             }
             Render(window, Path.Combine(output, "accounts-zh.png"));
+            Assert(!All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")), "The switch screen has no provider creation action.");
             Assert(Math.Abs(window.ActualWidth - 420) < 2 && window.ActualHeight < 360,
                 $"Home must be a compact 420 DIP window (actual {window.ActualWidth} × {window.ActualHeight}).");
             Assert(window.ShowInTaskbar && !window.Topmost && window.WindowStyle == WindowStyle.SingleBorderWindow,
@@ -131,11 +132,13 @@ internal static class Program
             window.Navigate("manage");
             Assert(All<Button>(window).Count(button => AutomationProperties.GetName(button) == "移除") == 2,
                 "API authentication must not mark an old ChatGPT account as protected.");
-            client.ProviderCommandAsync("openProviderEditor").GetAwaiter().GetResult();
-            var providerWindow = new ProviderManagementWindow(client);
+            Assert(All<Button>(window).Any(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")), "Add provider belongs in account management.");
+            All<Button>(window).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_new")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var providerWindow = Application.Current.Windows.OfType<ProviderManagementWindow>().Single();
             Render(providerWindow, Path.Combine(output, "provider-add-zh.png"));
             Assert(All<TextBlock>(providerWindow).Any(text => text.Text == client.State.Text("provider_search") && text.IsVisible), "The empty model search has a visible prompt.");
             Assert(All<ComboBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == client.State.Text("provider_saved")).Visibility == Visibility.Collapsed, "Do not show an empty saved-provider picker.");
+            Assert(!All<ComboBox>(providerWindow).Any(box => box.Items.Cast<object>().Any(item => item.ToString()?.Contains("Anthropic") == true)), "Codex setup has no Anthropic format selector.");
             All<PasswordBox>(providerWindow).Single().Password = "synthetic-only";
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_fetch"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -149,7 +152,11 @@ internal static class Program
             All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Thinking / effort").Text = "high";
             Assert(client.State.ProviderEditor?.Models.Single(row => row.Id == "gpt-5-mini").ReasoningEffort == "high", "Thinking changes go through the core.");
             Assert(All<ComboBox>(providerWindow).Any(box => box.SelectedItem as string == "high"), "Advertised thinking options show the current effort.");
+            All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_validate")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert(client.LastProviderCommand == "validateProviderConnection" && client.State.ProviderEditor?.ConnectionVerified == true, "Validation is a separate core command.");
             Render(providerWindow, Path.Combine(output, "provider-fuzzy-default-zh.png"));
+            All<TextBox>(providerWindow).Single(box => AutomationProperties.GetName(box) == "Base URL").AppendText("/");
+            Assert(client.State.ProviderEditor?.ConnectionVerified == false, "Changing the connection invalidates its displayed validation.");
             All<Button>(providerWindow).Single(button => AutomationProperties.GetName(button) == client.State.Text("provider_save"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(!providerWindow.IsVisible && client.LastProviderCommand == "closeProviderEditor", "Save closes the independent provider window and clears its editor.");
@@ -215,10 +222,15 @@ internal static class Program
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。",
                 ["advanced"] = "高级", ["enable_provider_switching"] = "启用提供商切换", ["providers"] = "已配置的提供商",
-                ["provider_setup_notice"] = "在服务商窗口中添加连接、选择和排序模型。此开关控制账号列表是否显示服务商，关闭后不改变当前服务商。", ["credential_in_use"] = "登录凭据使用中",
+                ["provider_setup_notice"] = "在管理账号中添加服务商、选择和排序模型。此开关控制账号列表是否显示服务商，关闭后不改变当前服务商。", ["credential_in_use"] = "登录凭据使用中",
                 ["switch_provider_body"] = "Codex Desktop 将使用此提供商重新启动。请先完成或停止正在运行的 Desktop 任务，并处理退出提示；无法正常退出时会停止切换。现有 CLI 会话保持运行。切换器不会选择模型或管理模型列表。请在 Desktop 中选择兼容模型；如果列表中没有，请先在 Codex 中配置。现有对话不会迁移。",
                 ["native_api_storage_notice"] = "OpenAI API 登录将单独保存在本机，便于以后切回。已保存的 ChatGPT 账号与其分开保存。模型设置会保留，必要时请选择兼容模型。",
                 ["return_account_model_notice"] = "模型设置将保留。如果自定义提供商使用了不同的模型 ID，请先在 Desktop 中选择 ChatGPT 支持的模型再发送消息。自定义模型目录也可能需要在 Codex 中更改。",
+                ["provider_validate"] = "验证连接",
+                ["provider_validation_hint"] = "使用所选模型和 thinking 发送简短请求（最多 512 输出 token），可能产生少量费用。",
+                ["provider_validation_success"] = "所选模型的 Responses 请求成功。流式输出和工具调用尚未验证。",
+                ["provider_validation_incomplete"] = "Responses 请求未完成。请检查模型权限和 thinking 设置；本次验证最多使用 512 输出 token。",
+                ["provider_management_unavailable"] = "当前运行时无法管理服务商。",
                 ["provider_manager_title"] = "服务商",
                 ["provider_new"] = "添加服务商",
                 ["provider_saved"] = "已保存的服务商",
@@ -226,9 +238,7 @@ internal static class Program
                 ["provider_name_placeholder"] = "例如：我的 API 服务",
                 ["provider_key_placeholder"] = "输入 API Key",
                 ["provider_keep_key"] = "留空保留已保存的密钥",
-                ["provider_api_format"] = "接口格式",
-                ["provider_responses_notice"] = "使用支持 Responses API 的服务。获取模型后勾选要启用的模型，点击星标设置默认模型。",
-                ["provider_anthropic_notice"] = "Codex 暂不能直接使用 Anthropic Messages。请使用兼容 Responses 的网关来保存可用服务商；这里支持获取 Anthropic 模型列表。",
+                ["provider_responses_notice"] = "服务商需支持 OpenAI Responses API（/responses），可以是第三方服务。获取模型成功不代表 Responses 调用可用。",
                 ["provider_models"] = "模型",
                 ["provider_fetch"] = "获取模型",
                 ["provider_search"] = "模糊搜索模型 ID 或名称",
@@ -294,6 +304,8 @@ internal static class Program
                     DefaultModelID = editor?.ModelID, Models = current.Models.Select(row => row.Id == editor?.ModelID ? row with { IsEnabled = true } : row).ToArray() };
                 if (command == "setProviderReasoning") current = current with {
                     Models = current.Models.Select(row => row.Id == current.DefaultModelID ? row with { ReasoningEffort = editor?.Effort } : row).ToArray() };
+                if (command == "validateProviderConnection") current = current with { ConnectionVerified = true };
+                if (command == "invalidateProviderValidation") current = current with { ConnectionVerified = false };
                 if (command == "saveProvider") current = current with { DidSave = true };
                 State = State with { ProviderEditor = current };
             }
