@@ -2,12 +2,13 @@
 
 ## 1. Product principle
 
-Codex Account Switcher is a simple switcher. Every persistent control must directly support one of four jobs:
+Codex Account Switcher is a simple switcher. Every persistent control must directly support one of five jobs:
 
 1. inspect account Usage;
 2. select an account;
 3. maintain the saved account list;
-4. exit the application.
+4. exit the application;
+5. optionally enable advanced selection of providers already configured in Codex, with manual model setup when needed.
 
 The September 5 update adds one explicit maintenance job: keep Switcher current through a quiet update notice and user-initiated installation. Sparkle owns scheduling, downloading, validation, and relaunch. Other product expansion remains outside the MVP.
 
@@ -31,6 +32,8 @@ The current account is represented by a highlighted row. It does not use:
 - a checkmark;
 - a `Current` label;
 - a second status column.
+
+After opt-in in Settings (off by default), custom providers returned by Codex are shown in a separate **Configured Providers** section. Provider rows show a configured name, use a checkmark in addition to highlighting for active state, and never display ChatGPT Usage.
 
 The footer divides its width equally between:
 
@@ -73,6 +76,8 @@ These are product semantics, not Settings options.
 
 The confirmation renders inside the popover. Cancel returns to the account list, keeps the popover open, and starts no switch operation.
 
+Provider selection uses a separate confirmation that states two fixed consequences: Codex Desktop restarts, and existing conversations remain bound to their original provider.
+
 ## 5. Direct switching flow
 
 The switch implementation is intentionally sequential:
@@ -80,6 +85,7 @@ The switch implementation is intentionally sequential:
 ```text
 Preflight target and original active profile
 → close Codex Desktop
+→ activate the built-in OpenAI provider
 → save current credentials
 → activate target credentials
 → verify target identity
@@ -87,7 +93,7 @@ Preflight target and original active profile
 → reopen Codex Desktop
 ```
 
-Before any credential write, preflight reads the registry and validates `originalActiveID`. After target activation succeeds, a verification or registry-commit failure restores `~/.codex/auth.json` from the original profile snapshot saved earlier in the same attempt. An activation failure does not run restoration because replacement did not complete. A Desktop-reopen failure occurs after the registry commit and keeps the selected account active.
+Before any credential write, preflight reads the registry and validates `originalActiveID`. After Desktop closes, the built-in `openai` provider is activated so `account/read` can validate saved ChatGPT identities even when the previous selection was a custom provider. Failures before target activation restore the original provider and reopen Desktop. Failures from target activation through registry commit restore the original credential and provider, then reopen Desktop. A Desktop-reopen failure after commit keeps the selected account active.
 
 The MVP does not implement:
 
@@ -98,7 +104,11 @@ The MVP does not implement:
 - startup recovery;
 - silent fallback to the previous account.
 
-When a step fails, execution stops and the exact original error is shown. If the bounded credential restoration also fails, the same error report contains both failures.
+When a step fails, execution stops and the exact original error is shown. If bounded restoration or reopening also fails, the same error report contains those failures.
+
+Configured-provider switching closes Codex Desktop, writes only `model_provider` through Codex app-server, and reopens Desktop. A failed provider activation restores the previous provider and attempts to reopen Desktop. A Desktop-reopen failure keeps the selected provider active.
+
+Custom-provider authentication remains in Codex configuration. Native OpenAI API sign-in is a separate saved login within account switching. The app receives full configuration through `config/read`, so inline secrets may enter process memory. It retains provider IDs/names for the UI and does not display, log, or persist custom-provider API keys. It does not independently read provider environment-variable values or invoke authentication commands; Codex controls authentication.
 
 ## 6. Credential storage
 
@@ -178,3 +188,7 @@ The implementation should:
 - avoid retry loops unless a later product requirement explicitly adds them.
 
 A partially completed switch remains observable. The implementation performs only the documented pre-commit credential restoration and adds no generic repair, retry, or startup-recovery behavior.
+
+## Native API login retention
+
+Both native API and ChatGPT sign-ins use `openai`. Selection therefore uses the actual `account/read` authentication type and verified ChatGPT identity. When a confirmed transition replaces native API authentication, preserve it in a separate owner-only `openai-api/auth.json`, never under the last selected ChatGPT account. The native API row reuses that saved login. Startup only discovers it; no API key is copied on startup.

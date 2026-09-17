@@ -86,6 +86,13 @@ jobs:
           dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- "$bin/SwitcherHost.exe"
       - name: Check WPF screens and data bindings with synthetic accounts
         run: dotnet run --project windows/CodexAccountSwitcher.UiChecks -c Release
+      - name: Upload synthetic Windows UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Account-Switcher-windows-ui
+          path: windows/artifacts/ui/*.png
+          if-no-files-found: warn
       - name: Package self-contained EXE
         shell: pwsh
         run: ./scripts/package-windows.ps1

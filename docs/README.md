@@ -35,6 +35,7 @@ The implementation flow is:
 ```text
 Preflight
 → close Codex Desktop
+→ activate the built-in OpenAI provider
 → save the current account's latest credentials
 → atomically activate the target credentials
 → verify the target identity through Codex
@@ -42,7 +43,7 @@ Preflight
 → reopen Codex Desktop
 ```
 
-The sequence is deliberately linear. Every step either succeeds or returns an error. Verification and registry-commit failures after activation restore the validated original profile credential; the implementation does not add a general recovery state machine around the switch.
+The sequence is deliberately linear. Every step either succeeds or returns an error. Failures after Desktop closes restore the relevant credential and provider state and attempt to reopen Desktop; the implementation does not add a general recovery state machine around the switch.
 
 ## Windows and platform releases
 

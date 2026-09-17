@@ -13,7 +13,7 @@ struct SwitchServiceTests {
         #expect(await fixture.store.restoredProfileIDs().isEmpty)
     }
 
-    @Test func executesTheSixSwitchStagesInOrder() async throws {
+    @Test func switchesFromCustomProviderAfterActivatingOpenAIBeforeIdentityReads() async throws {
         let fixture = SwitchFixture(failure: nil)
 
         try await fixture.service.switchAccount(to: fixture.target.id)
@@ -23,6 +23,7 @@ struct SwitchServiceTests {
         #expect(await fixture.store.credentialOwner() == fixture.target.id)
         #expect(await fixture.store.activeAccountID() == fixture.target.id)
         #expect(await fixture.store.restoredProfileIDs().isEmpty)
+        #expect(await fixture.configuration.activeProviderID() == "openai")
     }
 
     @Test func stopsAtTheFirstFailedStage() async {
@@ -37,7 +38,11 @@ struct SwitchServiceTests {
                 Issue.record("Expected OperationError, got \(error)")
             }
             let index = SwitchStage.allCases.firstIndex(of: stage)!
-            #expect(await fixture.recorder.snapshot() == Array(SwitchStage.allCases[...index]))
+            var expected = Array(SwitchStage.allCases[...index])
+            if stage != .closeDesktop, stage != .reopenDesktop {
+                expected.append(.reopenDesktop)
+            }
+            #expect(await fixture.recorder.snapshot() == expected)
         }
     }
 
@@ -49,6 +54,7 @@ struct SwitchServiceTests {
         #expect(await fixture.store.credentialOwner() == fixture.original.id)
         #expect(await fixture.store.activeAccountID() == fixture.original.id)
         #expect(await fixture.store.restoredProfileIDs() == [fixture.original.id])
+        #expect(await fixture.configuration.activeProviderID() == "azure")
     }
 
     @Test func restoresOriginalCredentialWhenRegistryCommitFails() async {
@@ -59,6 +65,7 @@ struct SwitchServiceTests {
         #expect(await fixture.store.credentialOwner() == fixture.original.id)
         #expect(await fixture.store.activeAccountID() == fixture.original.id)
         #expect(await fixture.store.restoredProfileIDs() == [fixture.original.id])
+        #expect(await fixture.configuration.activeProviderID() == "azure")
     }
 
     @Test func retryAfterVerificationFailureCannotOverwriteOriginalProfile() async {
@@ -73,14 +80,15 @@ struct SwitchServiceTests {
         #expect(await fixture.store.restoredProfileIDs() == [fixture.original.id, fixture.original.id])
     }
 
-    @Test func activationFailureBeforeReplacementDoesNotRestore() async {
+    @Test func activationFailureRestoresOriginalCredentialAndReopensDesktop() async {
         let fixture = SwitchFixture(failure: .activateTargetCredential)
 
         await expectFailure(fixture, stage: .activateTargetCredential)
 
         #expect(await fixture.store.credentialOwner() == fixture.original.id)
         #expect(await fixture.store.activeAccountID() == fixture.original.id)
-        #expect(await fixture.store.restoredProfileIDs().isEmpty)
+        #expect(await fixture.store.restoredProfileIDs() == [fixture.original.id])
+        #expect(await fixture.recorder.snapshot().last == .reopenDesktop)
     }
 
     @Test func reopenFailureAfterCommitKeepsTargetAccount() async {
@@ -107,6 +115,57 @@ struct SwitchServiceTests {
         } catch {
             Issue.record("Expected OperationError, got \(error)")
         }
+    }
+
+    @Test func switchesConfiguredProviderInOrder() async throws {
+        let fixture = SwitchFixture(failure: nil)
+        let configuration = FakeConfiguration(
+            recorder: fixture.recorder,
+            failure: nil,
+            providerID: "openai",
+            targetProviderID: "azure"
+        )
+        let service = ProviderSwitchService(
+            desktop: FakeDesktop(recorder: fixture.recorder, failure: nil),
+            store: fixture.store,
+            codex: fixture.service.codex, configuration: configuration
+        )
+
+        try await service.switchProvider(to: "azure")
+
+        #expect(
+            await fixture.recorder.snapshot()
+                == [.closeDesktop, .activateTargetProvider, .reopenDesktop]
+        )
+        #expect(await configuration.activeProviderID() == "azure")
+    }
+
+    @Test func restoresProviderWhenActivationFailsAfterWriting() async {
+        let fixture = SwitchFixture(failure: nil)
+        let configuration = FakeConfiguration(
+            recorder: fixture.recorder,
+            failure: .activateTargetProvider,
+            providerID: "openai",
+            targetProviderID: "azure",
+            mutatesBeforeFailure: true
+        )
+        let service = ProviderSwitchService(
+            desktop: FakeDesktop(recorder: fixture.recorder, failure: nil),
+            store: fixture.store,
+            codex: fixture.service.codex, configuration: configuration
+        )
+
+        do {
+            try await service.switchProvider(to: "azure")
+            Issue.record("Expected provider activation to fail")
+        } catch let error as OperationError {
+            #expect(error.stage == .activateTargetProvider)
+        } catch {
+            Issue.record("Expected OperationError, got \(error)")
+        }
+
+        #expect(await configuration.activeProviderID() == "openai")
+        #expect(await fixture.recorder.snapshot().last == .reopenDesktop)
     }
 
     private func expectFailure(_ fixture: SwitchFixture, stage: SwitchStage) async {
@@ -155,6 +214,9 @@ private struct FakeDesktop: DesktopControlling {
 
 private actor FakeStore: AccountStoring {
     func clearActiveCredential() {}
+    func hasOpenAIAPICredential() -> Bool { false }
+    func saveOpenAIAPICredential() throws { throw NativeAPIAuthenticationError.savedLoginUnavailable }
+    func activateOpenAIAPICredential() throws { throw NativeAPIAuthenticationError.savedLoginUnavailable }
     let recorder: CallRecorder
     let failure: SwitchStage?
     let restoreFails: Bool
@@ -240,8 +302,15 @@ private struct FakeCodex: CodexIdentityReading {
     let recorder: CallRecorder
     let failure: SwitchStage?
     let store: FakeStore
+    let configuration: FakeConfiguration
     let target: AccountProfile
+    func readAuthentication(profileHome: URL) async throws -> CodexAuthenticationState {
+        .chatGPT(try await readIdentity(profileHome: profileHome))
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        guard await configuration.activeProviderID() == CodexConfigurationClient.openAIProviderID else {
+            throw CodexClientError.identityUnavailable
+        }
         if await store.credentialOwner() == store.original.id {
             return AccountIdentity(accountID: store.original.accountID, email: store.original.email)
         }
@@ -251,11 +320,54 @@ private struct FakeCodex: CodexIdentityReading {
     }
 }
 
+private actor FakeConfiguration: ProviderConfigurationServicing {
+    let recorder: CallRecorder
+    let failure: SwitchStage?
+    let targetProviderID: String
+    let mutatesBeforeFailure: Bool
+    private var providerID: String
+
+    init(
+        recorder: CallRecorder,
+        failure: SwitchStage?,
+        providerID: String = "azure",
+        targetProviderID: String = CodexConfigurationClient.openAIProviderID,
+        mutatesBeforeFailure: Bool = false
+    ) {
+        self.recorder = recorder
+        self.failure = failure
+        self.providerID = providerID
+        self.targetProviderID = targetProviderID
+        self.mutatesBeforeFailure = mutatesBeforeFailure
+    }
+
+    func readConfiguration(codexHome: URL) -> ProviderConfigurationSnapshot {
+        ProviderConfigurationSnapshot(
+            activeProviderID: providerID,
+            providers: [ProviderProfile(id: "azure", displayName: "Azure OpenAI")]
+        )
+    }
+
+    func activateProvider(id: String, codexHome: URL) async throws {
+        if id == targetProviderID {
+            await recorder.append(.activateTargetProvider)
+            if failure == .activateTargetProvider {
+                if mutatesBeforeFailure { providerID = id }
+                throw InjectedFailure(stage: .activateTargetProvider)
+            }
+        }
+        providerID = id
+    }
+
+    func activeProviderID() -> String { providerID }
+}
+
 private struct SwitchFixture {
     let recorder = CallRecorder()
     let original: AccountProfile
     let target: AccountProfile
     let store: FakeStore
+    let configuration: FakeConfiguration
     let service: SwitchService
 
     init(failure: SwitchStage?, restoreFails: Bool = false) {
@@ -277,10 +389,19 @@ private struct SwitchFixture {
             target: target
         )
         self.store = store
+        let configuration = FakeConfiguration(recorder: recorder, failure: failure)
+        self.configuration = configuration
         service = SwitchService(
             desktop: FakeDesktop(recorder: recorder, failure: failure),
             store: store,
-            codex: FakeCodex(recorder: recorder, failure: failure, store: store, target: target)
+            codex: FakeCodex(
+                recorder: recorder,
+                failure: failure,
+                store: store,
+                configuration: configuration,
+                target: target
+            ),
+            configuration: configuration
         )
     }
 }

@@ -2,12 +2,13 @@
 
 ## 1. Overview
 
-Codex Account Switcher is a native macOS menu-bar application that manages multiple local Codex authentication snapshots.
+Codex Account Switcher is a native macOS menu-bar application that manages multiple local Codex authentication snapshots and selects custom model providers already configured in Codex.
 
-The system has one core operation:
+The system has two core operations:
 
 ```text
 copy the selected profile's auth.json into ~/.codex/auth.json
+set model_provider through the Codex app-server configuration API
 ```
 
 Everything else exists to make that operation understandable and usable:
@@ -17,7 +18,9 @@ Everything else exists to make that operation understandable and usable:
 - close and reopen Codex Desktop;
 - save the currently active credential before replacing it;
 - verify that Codex can read the selected identity;
-- maintain a small amount of local metadata.
+- maintain a small amount of local metadata;
+- list configured providers without reading their environment-variable values;
+- restore the built-in OpenAI provider when a saved ChatGPT account is selected.
 
 The MVP uses direct sequential code and lets failures surface. One bounded consistency action restores the validated original profile credential when target verification or the registry commit fails after activation. There is no general rollback framework.
 
@@ -26,6 +29,7 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 ### 2.1 Goals
 
 - one-click account selection after one confirmation;
+- one-click configured-provider selection after one confirmation;
 - native macOS behavior;
 - no modification to Codex Desktop;
 - shared Codex configuration and history under `~/.codex`;
@@ -45,7 +49,9 @@ The MVP uses direct sequential code and lets failures surface. One bounded consi
 - secure enclave or Keychain integration;
 - account routing per request;
 - concurrent account use inside one Codex process;
-- compatibility abstraction for every future Codex authentication backend.
+- compatibility abstraction for every future Codex authentication backend;
+- API-key entry or custom-provider credential storage;
+- moving an existing conversation to another provider.
 
 ## 3. Platform and technology
 
@@ -66,52 +72,54 @@ No third-party runtime dependency is required beyond the installed Codex executa
 
 ```mermaid
 flowchart LR
-    UI[SwiftUI menu-bar UI]
-    VM[AppModel @MainActor]
-    Store[AccountStore actor]
-    Switch[SwitchService]
-    Codex[CodexClient]
-    Desktop[DesktopController]
-    Login[macOS Login Items]
-    FS[Local files]
-
-    UI --> VM
-    VM --> Store
-    VM --> Switch
-    VM --> Codex
-    VM --> Login
-    Switch --> Store
-    Switch --> Desktop
-    Switch --> Codex
-    Store --> FS
-    Codex --> CLI[Installed codex executable]
+    Mac[macOS SwiftUI] --> VM[AppModel]
+    VM --> Core[AccountController]
+    Windows[Windows WPF] --> Host[SwitcherHost]
+    Host --> Core
+    Core --> Accounts[SwitchService]
+    Core --> Providers[ProviderSwitchService]
+    Core --> Store[AccountStore]
+    Accounts --> Config[CodexConfigurationClient]
+    Providers --> Config
+    Config --> CLI[Installed Codex app-server]
+    Accounts --> Desktop[Platform Desktop controller]
+    Providers --> Desktop
+    Store --> Files[Local account files]
 ```
 
-The application is a single process. There is no daemon and no local network service.
+macOS runs the shared core in its app process. Windows calls the shared core through the existing `SwitcherHost` process. Provider selection UI is currently macOS-only; account restoration and its failure recovery live in the shared core. No provider proxy or separate network service is introduced.
 
 ## 5. Source layout
 
 ```text
-Sources/CodexAccountSwitcher/
-├── SwitcherApp.swift
-├── AppModel.swift
-├── MenuBarPopover.swift
-├── AccountRow.swift
-├── ManageAccountsView.swift
-├── SettingsView.swift
+Sources/CodexAccountSwitcher/        # macOS views, AppModel, DesktopController, updater
+Sources/SwitcherCore/
+├── AccountController.swift          # shared account/provider state and operations
+├── AccountSnapshot.swift            # presentation-only Windows payload
+├── AccountStore.swift
+├── CodexAuthenticationState.swift   # native ChatGPT / API-key / signed-out state
+├── LoginCredentialManager.swift     # preserve and restore the actual login kind
+├── SavedLoginState.swift
+├── NativeAPIAuthenticationError.swift
+├── CodexClient.swift                # app-server transport
+├── CodexConfigurationClient.swift   # configured-provider discovery and selection
+├── ProviderConfigurationServicing.swift
+├── ProviderConfigurationSnapshot.swift
+├── ProviderConfigurationError.swift
+├── ProviderProfile.swift
+├── ProviderSwitchServicing.swift
+├── ProviderSwitchService.swift
+├── SwitchService.swift
 ├── Models.swift
 ├── Localization.swift
-├── AccountStore.swift
-├── CodexClient.swift
-├── WeeklyUsageNormalizer.swift
-├── SwitchService.swift
-└── DesktopController.swift
-
-Tests/CodexAccountSwitcherTests/
+└── WeeklyUsageNormalizer.swift
+Sources/SwitcherHost/                # Windows host adapter
+Sources/SwitcherPlatform/            # Windows filesystem support
+windows/                            # native Windows client
+Tests/SwitcherCoreTests/             # shared switching and controller tests
+Tests/CodexAccountSwitcherTests/     # macOS UI/platform and shell transport tests
 Checks/CoreChecks.swift
 ```
-
-Avoid adding protocol layers until a second implementation actually exists. Small concrete types are preferable for the MVP.
 
 ## 6. Local storage
 
@@ -248,6 +256,7 @@ enum UsageViewState: Equatable {
 ```swift
 enum SwitchStage: String {
     case closeDesktop
+    case activateTargetProvider
     case saveCurrentCredential
     case activateTargetCredential
     case verifyTargetIdentity
@@ -268,7 +277,9 @@ Lookup order:
 2. the login shell's shared `CODEX_CLI_PATH`, resolved through its `PATH` when it is a command name;
 3. the login shell's `codex` command when no shared override is set.
 
-The runtime version is never pinned. Each operation resolves the current system command. The same login-shell PATH is passed to app-server so npm launchers can resolve Node. A missing command or invalid explicit path is an error; the switcher does not silently start another bundled version.
+The runtime version is never pinned. Each operation resolves the current system command. The same
+login-shell PATH is passed to app-server so npm launchers can resolve Node. A missing command or
+invalid explicit path is an error.
 
 If not found, show one direct error:
 
@@ -347,7 +358,19 @@ WeeklyUsage(
 
 If no six-to-eight-day window exists, return `weeklyUsageUnavailable`. Missing 5-hour data leaves the optional fields empty. A 4-hour or 6-hour window never populates them. The client makes one `account/rateLimits/read` request and parses both windows from the same response whether the display setting is on or off.
 
-### 9.4 Timeouts
+### 9.4 Provider configuration
+
+`CodexConfigurationClient` calls `config/read` to obtain the active `model_provider` and configured `model_providers`. It retains only provider identifiers and display names for the UI. Selecting a provider calls `config/value/write` with `keyPath = "model_provider"`, then reads the configuration again to verify the result.
+
+The switcher does not persist provider definitions or custom-provider secrets. Environment variables, command-backed authentication, and other provider-specific credential mechanisms remain owned by Codex and the user's existing configuration.
+
+`config/read` returns full effective configuration. Inline credentials can enter the switcher process in the decoded response. Only provider IDs/names are retained for the UI; this is not a claim that secrets never enter memory. Configuration reads also occur during account selection, even with the advanced provider UI disabled. The switcher does not display, log, or persist inline provider credentials.
+
+Provider selection is off by default, including when migrating older settings. Both provider rows and the AppModel switching action require opt-in. Disabling the setting does not modify Codex configuration. Model selection/catalog handling is outside this feature; see [compatibility and acceptance](provider-compatibility.md).
+
+Conversation provider identity is persisted by Codex. The switcher does not edit Codex's thread database or rollout files, so provider selection applies to new conversations and does not mutate existing conversations.
+
+### 9.5 Timeouts
 
 Use one fixed 20-second process/request timeout. Login completion has a separate 10-minute timeout. On timeout:
 
@@ -402,7 +425,7 @@ Use `NSRunningApplication` for the Codex Desktop bundle identifier and call `ter
 
 Codex Desktop can display a quit confirmation while work is active. Allow up to 30 seconds for its normal exit, including its history and settings flush. Never force-terminate Desktop. If the quit request is rejected or Desktop remains running, report a close-stage error before saving or replacing credentials. The user can finish or stop active tasks, close Desktop, and switch again. Cancellation also stops the wait.
 
-The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. There is no switcher-specific override or automatic selection of another bundled CLI.
+The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node.
 
 If Desktop is not running, `close()` succeeds immediately.
 
@@ -429,7 +452,8 @@ An existing CLI process may have already loaded credentials into memory. Therefo
 stateDiagram-v2
     [*] --> Preflight
     Preflight --> ClosingDesktop
-    ClosingDesktop --> SavingCurrent
+    ClosingDesktop --> ActivatingOpenAI
+    ActivatingOpenAI --> SavingCurrent
     SavingCurrent --> ActivatingTarget
     ActivatingTarget --> VerifyingTarget
     VerifyingTarget --> CommittingProfile
@@ -438,18 +462,21 @@ stateDiagram-v2
 
     Preflight --> Failed
     ClosingDesktop --> Failed
-    SavingCurrent --> Failed
-    ActivatingTarget --> Failed
+    ActivatingOpenAI --> RestoringProvider
+    SavingCurrent --> RestoringProvider
+    ActivatingTarget --> RestoringOriginal
     VerifyingTarget --> RestoringOriginal
     CommittingProfile --> RestoringOriginal
-    RestoringOriginal --> Failed
+    RestoringProvider --> ReopeningAfterFailure
+    RestoringOriginal --> ReopeningAfterFailure
+    ReopeningAfterFailure --> Failed
     ReopeningDesktop --> Failed
 
     Completed --> [*]
     Failed --> [*]
 ```
 
-`RestoringOriginal` is the single bounded consistency action after successful target activation and before a successful registry commit. There is no persisted or general rollback state machine.
+`RestoringProvider` and `RestoringOriginal` are bounded consistency actions after Desktop has closed. Both lead to a Desktop reopen attempt before the original failure is reported. There is no persisted or general rollback state machine.
 
 ### 12.2 Pseudocode
 
@@ -465,25 +492,31 @@ func switchAccount(to targetID: UUID) async throws {
     stage = .closeDesktop
     try await desktop.closeDesktop()
 
-    stage = .saveCurrentCredential
-    try await store.saveCurrentCredential()
-
-    stage = .activateTargetCredential
-    try await store.activateTargetCredential(id: target.id)
-
-    stage = .verifyTargetIdentity
+    var restoresCredential = false
     do {
+        stage = .activateTargetProvider
+        try await configuration.activateProvider(id: "openai", codexHome: store.activeCodexHome())
+
+        stage = .saveCurrentCredential
+        try await validateAndSaveCurrentCredential()
+
+        stage = .activateTargetCredential
+        restoresCredential = true
+        try await store.activateTargetCredential(id: target.id)
+
+        stage = .verifyTargetIdentity
         let identity = try await codex.readIdentity(profileHome: store.activeCodexHome())
         guard identity.matches(target) else { throw CodexClientError.identityUnavailable }
-    } catch {
-        throw await restoreOriginalCredential(originalActiveID, preserving: error)
-    }
 
-    stage = .commitActiveAccountID
-    do {
+        stage = .commitActiveAccountID
         try await store.commitActiveAccountID(target.id)
     } catch {
-        throw await restoreOriginalCredential(originalActiveID, preserving: error)
+        let restored = await restoreOriginalState(
+            credential: restoresCredential ? originalActiveID : nil,
+            provider: originalProviderID,
+            preserving: error
+        )
+        throw await reopenDesktop(preserving: restored)
     }
 
     stage = .reopenDesktop
@@ -491,27 +524,31 @@ func switchAccount(to targetID: UUID) async throws {
 }
 ```
 
-The restoration helper reuses the saved profile credential and the same atomic installation path. It returns the original stage error after a successful restoration, or one error containing both the original and restoration failures.
+The restoration helper restores the saved ChatGPT credential, separate native API credential, or signed-out state through the same atomic installation path when target activation may have changed `auth.json`. Earlier failures restore only the original provider. It returns the original stage error after successful restoration and reopening, or one error containing the original, restoration, and reopening failures.
 
 ### 12.3 Preflight
 
 Preflight performs only the minimum required to start:
 
 - target profile exists;
-- when `originalActiveID` exists, it refers to a registry profile before credential writes; with no active ID, the shared auth file must also be absent;
+- when `originalActiveID` exists, it refers to a registry profile before credential writes; a native API login or signed-out state is handled independently of that last ChatGPT selection;
 - no in-process switch is currently running.
 
 It does not inspect every filesystem property, create backups, test network reachability, or pre-verify credentials.
 
-These checks occur before the six recorded `SwitchStage` values.
+These checks occur before the seven recorded `SwitchStage` values.
 
 ### 12.4 Close Codex Desktop
 
 Closing Desktop comes before saving the active credential so Codex has a chance to finish its normal shutdown writes.
 
-### 12.5 Save current credentials
+### 12.5 Activate the OpenAI provider
 
-The registry must identify one active account. After Desktop exits, read the shared home’s current identity and match it against this profile before saving. An external login mismatch stops visibly and leaves saved profiles unchanged.
+Set `model_provider` to the built-in `openai` provider before either ChatGPT identity read. A custom provider may validly use its own authentication and return no ChatGPT account identity even though the shared `auth.json` is valid. If activation fails, restore the original provider and attempt to reopen Desktop.
+
+### 12.6 Save current credentials
+
+For an active ChatGPT login, the registry must identify the corresponding saved account. After Desktop exits, read the shared home’s current identity and match it against this profile before saving. An external login mismatch stops visibly and leaves saved profiles unchanged.
 
 ```text
 copy ~/.codex/auth.json
@@ -519,9 +556,11 @@ copy ~/.codex/auth.json
 → rename to accounts/<activeAccountID>/auth.json
 ```
 
-If the active file is missing or unreadable, stop and show the error. Do not continue by assuming the stored snapshot is good enough.
+A signed-out active login has nothing to save and may restore an explicitly selected saved account. An API login is saved to its separate `openai-api/auth.json`; it is never saved under the last ChatGPT account ID. An unreadable or malformed credential stops the switch.
 
-### 12.6 Activate target
+If validation or saving fails, restore the original provider and attempt to reopen Desktop.
+
+### 12.7 Activate target
 
 ```text
 copy accounts/<targetID>/auth.json
@@ -530,23 +569,23 @@ copy accounts/<targetID>/auth.json
 → rename the temporary file to ~/.codex/auth.json
 ```
 
-If activation fails, stop. Atomic installation throws before a completed replacement, so no restoration runs. There is no credential backup file.
+If activation fails, reinstall the original saved credential, restore the original provider, and attempt to reopen Desktop. There is no separate credential backup file.
 
-### 12.7 Verify target
+### 12.8 Verify target
 
 Start Codex app-server using the active `~/.codex` home and read identity.
 
-If identity does not match the target metadata, preserve the mismatch as the stage error and reinstall the just-saved original profile credential into `~/.codex/auth.json`.
+If identity does not match the target metadata, preserve the mismatch as the stage error, restore the just-preserved original login kind and credential into `~/.codex/auth.json`, restore the original provider, and attempt to reopen Desktop.
 
-### 12.8 Commit active profile
+### 12.9 Commit active profile
 
 After successful identity verification, write `activeAccountID` and `lastUsedAt` to `accounts.json`.
 
-If this write fails, preserve the registry error and reinstall the just-saved original profile credential. The registry continues to name the original profile. No retry or startup reconciliation runs.
+If this write fails, preserve the registry error, restore the just-preserved original login kind and credential, restore the original provider, and attempt to reopen Desktop. The registry continues to name the original profile. No retry or startup reconciliation runs.
 
-### 12.9 Reopen Desktop
+### 12.10 Reopen Desktop
 
-Always attempt to reopen Codex Desktop after metadata commit.
+Always attempt to reopen Codex Desktop after metadata commit and after handling a post-close failure.
 
 If opening fails, report `reopeningDesktop` failure. The selected account remains active.
 
@@ -739,3 +778,9 @@ Do not add the following unless a new product decision explicitly requires it:
 First activation skips saving an original credential when both active ID and shared auth are absent; recheck file absence after Desktop closes. If verification or commit fails, clear only the newly installed active auth and preserve the saved target profile. Normal switches retain the existing original-credential restoration path.
 
 AccountStore rejects duplicate identities on add. Register Current Account explicitly associates the shared login with a matching saved profile or imports a new one. Login cleanup checks the registry before deleting the attempt directory. The updater uses the semantic release version as CFBundleVersion, eliminating a separately maintained build number.
+
+## Native OpenAI API login
+
+Native OpenAI API access shares `model_provider = "openai"` with ChatGPT. `account/read` supplies the distinct authentication type. A read-only app-server provider override allows inspecting the native login while Azure or another custom provider remains selected. The UI never marks a ChatGPT account active merely because its ID is still in the registry.
+
+`LoginCredentialManager` preserves the actual active login after Desktop exits. It validates a ChatGPT identity before updating its saved profile, saves an API login to the separate `openai-api/auth.json` file, and records signed-out state without inventing a login. Recovery restores that exact kind. Native API credentials use the same protected file storage as ChatGPT snapshots; custom-provider credentials from config remain untouched. No secret enters `AccountSnapshot` or `ProviderProfile`.

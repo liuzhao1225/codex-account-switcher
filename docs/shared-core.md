@@ -22,4 +22,10 @@ The same core tests must run on macOS and Windows. They must cover startup regis
 
 Both clients now use `AccountController` and the shared account services. Windows no longer has its former C# account store, switch service or Codex RPC implementation. The compact native client receives shared snapshots through `SwitcherHost`.
 
+Provider selection is opt-in on both platforms. The snapshot includes provider rows, authentication kind, per-account active/credential-owner/removal state, and a prepared confirmation with display text. Both UIs ask the core to prepare account/provider selection, render its confirmation, and then confirm or cancel it. Even a highlighted row goes through a fresh core check. Opening either UI refreshes authentication and configuration as well as usage.
+
+The core prepares API-retention and retained-model notices. It refreshes the prepared action again on confirmation; a changed notice must be presented before execution. Account deletion checks the actual native credential owner, including while a custom provider is selected, and clears a removed historical registry selection. API keys never enter the snapshot.
+
+`Tests/SwitcherCoreTests/Support/NativeAPIScenarios.swift` is shared by Swift Testing on macOS/Windows and the standalone macOS core checks. It covers API file round trips and failure restoration. Additional shared tests cover stale selection, confirmation changes, opt-in, cancellation and deletion policy. See [the proposed model/reasoning workflow](provider-model-flow.md) for the separate model-management scope.
+
 The Windows package includes the Swift host/runtime and .NET runtime. Its isolated `--self-test` checks that no SDK installation is required. See `docs/windows-validation.md` for completed local checks and the macOS/real-account validation boundary.
