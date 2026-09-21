@@ -60,7 +60,7 @@ OpenAI's official account switcher currently applies to ChatGPT on the web and [
 
 ## Download
 
-[Latest version v0.1.13](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) includes both macOS and Windows packages with SHA-256 checksums.
+[Latest version v0.1.14](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) includes both macOS and Windows packages with SHA-256 checksums.
 
 | Platform | Requirements | Download and install |
 | --- | --- | --- |

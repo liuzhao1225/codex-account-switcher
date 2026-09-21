@@ -1,9 +1,7 @@
-- 修复 macOS 使用 fish 作为登录 shell 时，账号操作报“Could not read the login shell's Codex path”的问题（#10）。
-- 保留登录 shell 的 PATH 与 CODEX_CLI_PATH 设置，覆盖 sh、bash、zsh、fish 的真实登录 shell 回归测试。
-- Windows 使用相同版本号重新构建，运行时查找行为保持不变。
+- macOS 和 Windows 的账号列表、管理账号页直接显示邮箱，便于区分不同域名的账号（#11、#12）。
+- 邮箱保持单行，超出部分显示省略号；鼠标悬停时通过浮动提示显示完整地址。没有邮箱的账号保留原名称。
+- “添加账号”的浏览器登录说明移到按钮右侧，与按钮保持同一行；较长说明可悬停查看全文。
 
-- Fix macOS account actions failing with fish as the login shell (#10).
-- Preserve login-shell PATH and CODEX_CLI_PATH settings, with regression coverage for sh, bash, zsh, and fish.
-- Rebuild Windows at the same version with unchanged runtime discovery behavior.
-
-**下载 / Downloads:** 在 Assets 中选择 macOS `.dmg` 或 Windows `.exe`。SHA-256 校验文件同时提供。
+- Show email addresses as account titles in Accounts and Manage Accounts on macOS and Windows (#11, #12).
+- Keep titles on one line with ellipsis and reveal the complete address in a hover tooltip. Accounts without an email keep their saved name.
+- Place the browser sign-in hint beside Add Account on the same line, with the complete hint available on hover.
