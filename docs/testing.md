@@ -124,6 +124,11 @@ invalid overrides, startup output, paths containing spaces, and PATH inheritance
 Verify:
 
 - current row is highlighted;
+- both account lists use the full saved email, including its domain, as the primary title;
+- account titles remain on one line with tail ellipsis, and hovering reveals the full title in a floating tooltip;
+- missing or empty emails use the display name;
+- the add-account hint sits to the right of its action on one line, with its full text available on hover;
+- accounts with matching email prefixes and different domains remain distinguishable;
 - no checkmark or `Current` label exists;
 - reset text remains on the name line in the default compact layout;
 - enabled 5-hour display shows separate 5h and 7d rows with percentages and reset times;

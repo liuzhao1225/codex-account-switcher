@@ -67,12 +67,14 @@ The popover content width is 326 points.
 With `Show 5-hour Usage` disabled, each row keeps the compact layout:
 
 ```text
-[avatar]  Display Name                     Resets Aug 25, 9:20 AM
+[avatar]  Email Address                    Resets Aug 25, 9:20 AM
           Usage  [================----]                 42% left
 ```
 
 Constraints:
 
+- use the full saved email as the title, falling back to the display name when email is missing or empty;
+- keep the title on one line with tail ellipsis and show its full text in a floating tooltip on hover;
 - reset time is on the name line;
 - `Usage` is the only quota label;
 - the percentage is remaining percentage;
@@ -84,7 +86,7 @@ Constraints:
 With `Show 5-hour Usage` enabled and exact 5-hour data available, the row expands:
 
 ```text
-[avatar]  Display Name
+[avatar]  Email Address
           5h   [==========------]  65%  Resets 2:20 PM
           7d   [========--------]  42%  Resets Aug 25, 9:20 AM
 ```
@@ -217,14 +219,16 @@ This bounded repair does not add a general rollback state machine, credential ba
 Show:
 
 - avatar or initials;
-- local display name;
-- email when available;
+- full email as a single-line title with tail ellipsis and a floating full-text tooltip;
+- local display name when email is missing or empty;
 - active-state highlight;
 - remove action for inactive profiles.
 
 ### 8.2 Add account
 
 `Add Account` starts a Codex login using a new profile directory.
+
+The browser sign-in hint sits to the right of the action on the same line. Long hints use tail ellipsis and expose the full text on hover, including while browser sign-in is pending.
 
 Expected flow:
 

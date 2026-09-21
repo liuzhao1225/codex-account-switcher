@@ -72,18 +72,29 @@ internal static class Program
             var other = new Window { Width = 100, Height = 100, ShowInTaskbar = false };
             other.Show(); other.Activate(); other.Close();
             Assert(window.IsVisible, "Losing focus must not dismiss the account window.");
-            var active = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Personal");
+            var active = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "personal@example.test");
             active.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.IsVisible && client.Commands.Count == 0, "Clicking the active account keeps the window open.");
-            Assert(!All<TextBlock>(window).Any(text => text.Text.Contains("@")), "Home must not display email addresses.");
+            Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Home must use full emails as account titles.");
+            Assert(All<TextBlock>(window).Where(text => text.Text.Contains("@example.test")).All(text =>
+                text.TextWrapping == TextWrapping.NoWrap && text.TextTrimming == TextTrimming.CharacterEllipsis && Equals(text.ToolTip, text.Text)),
+                "Account emails must stay on one line and expose the full address in a tooltip.");
             Assert(!All<TextBlock>(window).Any(text => text.Text == "当前"), "Home uses selection color, not active labels.");
-            var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "Studio");
+            var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "studio@example.test");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
             Assert(client.Commands.Count == 0, "Selection must not switch before confirmation.");
             Render(window, Path.Combine(output, "switch-zh.png"));
             window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
+            Assert(!All<TextBlock>(window).Any(text => text.Text is "Personal" or "Studio"), "Manage must not duplicate the email with a display-name row.");
+            var addHint = All<TextBlock>(window).Single(text => text.Text == client.State.Text("sign_in_hint"));
+            var addButton = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_account"));
+            var hintPosition = addHint.TranslatePoint(new Point(), window);
+            var addPosition = addButton.TranslatePoint(new Point(), window);
+            Assert(hintPosition.X >= addPosition.X + addButton.ActualWidth &&
+                hintPosition.Y >= addPosition.Y && hintPosition.Y + addHint.ActualHeight <= addPosition.Y + addButton.ActualHeight + 1,
+                "The sign-in hint must sit to the right of Add Account within the same row.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
             Assert(!All<TextBox>(window).Any(), "Account management must not add a rename workflow.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
