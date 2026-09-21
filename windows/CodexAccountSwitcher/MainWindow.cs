@@ -136,11 +136,12 @@ public sealed class MainWindow : Window
             ((TextBlock)avatar.Child).HorizontalAlignment = HorizontalAlignment.Center;
             var details = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var active = row.Profile.Id == State.ActiveAccountID;
+            var title = string.IsNullOrEmpty(row.Profile.Email) ? row.Profile.DisplayName : row.Profile.Email;
+            var name = Text(title, 14, bold: true);
+            name.ToolTip = title;
             if (manage) {
-                details.Children.Add(Text(row.Profile.DisplayName, 14, bold: true));
-                details.Children.Add(Text(row.Profile.Email ?? "", 12, muted: true));
+                details.Children.Add(name);
             } else {
-                var name = Text(row.Profile.DisplayName, 14, bold: true);
                 var reset = Text(row.Usage != null && !State.Settings.ShowsFiveHourUsage ? Reset(row.Usage.ResetsAt) : "", 10.5, muted: true);
                 reset.Margin = new Thickness(7, 0, 0, 0); details.Children.Add(Pair(name, reset));
                 if (row.Usage is { } usage) {
@@ -161,7 +162,7 @@ public sealed class MainWindow : Window
                 list.Children.Add(new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid });
             } else {
                 var button = new Button { Content = grid, Style = (Style)FindResource("AccountRow"), Background = active ? B("Selected") : Brushes.Transparent, IsEnabled = !IsBusy };
-                AutomationProperties.SetName(button, row.Profile.DisplayName);
+                AutomationProperties.SetName(button, title);
                 button.Click += (_, _) => { if (!active) { target = row; page = "switch"; Render(); } };
                 var selection = new Border { Width = 3, Height = 24, Background = active ? B("Accent") : Brushes.Transparent,
                     HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
@@ -174,14 +175,18 @@ public sealed class MainWindow : Window
             Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
         if (manage) {
             var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-            var commands = new WrapPanel();
             var add = Button(T(State.IsAddingAccount ? "cancel_add_account" : "add_account"), () => _ = Run(State.IsAddingAccount ? "cancelAdd" : "add"), State.IsAddingAccount ? "\uE711" : "\uE710");
-            add.Margin = new Thickness(0, 0, 8, 8); commands.Children.Add(add);
-            var register = Button(T("register_current_account"), () => _ = Run("register"));
-            register.IsEnabled &= !State.IsAddingAccount; register.Margin = new Thickness(0, 0, 0, 8); commands.Children.Add(register);
-            actions.Children.Add(commands);
             var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 12, muted: true);
-            hint.TextWrapping = TextWrapping.Wrap; actions.Children.Add(hint); body.Children.Add(actions);
+            hint.ToolTip = hint.Text;
+            hint.Margin = new Thickness(8, 0, 0, 0);
+            var addRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            addRow.ColumnDefinitions.Add(new ColumnDefinition());
+            addRow.Children.Add(add); Grid.SetColumn(hint, 1); addRow.Children.Add(hint);
+            actions.Children.Add(addRow);
+            var register = Button(T("register_current_account"), () => _ = Run("register"));
+            register.IsEnabled &= !State.IsAddingAccount; register.HorizontalAlignment = HorizontalAlignment.Left;
+            actions.Children.Add(register); body.Children.Add(actions);
         }
     }
 

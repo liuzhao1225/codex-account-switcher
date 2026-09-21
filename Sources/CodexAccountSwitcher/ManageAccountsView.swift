@@ -77,7 +77,9 @@ struct ManageAccountsView: View {
                             Image(systemName: "xmark")
                                 .frame(width: 14)
                             Text(model.text("cancel_add_account"))
-                            Spacer()
+                                .fixedSize()
+                            Spacer(minLength: 4)
+                            signInHint
                             ProgressView()
                                 .controlSize(.small)
                         }
@@ -95,7 +97,9 @@ struct ManageAccountsView: View {
                             Image(systemName: "plus")
                                 .frame(width: 14)
                             Text(model.text("add_account"))
-                            Spacer()
+                                .fixedSize()
+                            Spacer(minLength: 4)
+                            signInHint
                         }
                         .font(.system(size: 12, weight: .medium))
                         .padding(.horizontal, 8)
@@ -105,12 +109,6 @@ struct ManageAccountsView: View {
                     .buttonStyle(.plain)
                     .disabled(model.isMutating)
                 }
-
-                Text(model.text(model.isAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"))
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 4)
 
                 Button {
                     Task { await model.registerCurrentAccount() }
@@ -131,6 +129,16 @@ struct ManageAccountsView: View {
             }
             .padding(5)
         }
+    }
+
+    private var signInHint: some View {
+        let hint = model.text(model.isAddingAccount ? "sign_in_pending_hint" : "sign_in_hint")
+        return Text(hint)
+            .font(.system(size: 10.5))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .help(hint)
     }
 
     private func removePage(_ account: AccountProfile) -> some View {
@@ -161,23 +169,18 @@ struct ManageAccountsView: View {
     }
 
     private func managedAccountRow(_ account: AccountProfile) -> some View {
-        HStack(spacing: 9) {
+        let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
+        return HStack(spacing: 9) {
             Text(account.initials)
                 .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                 .frame(width: 28, height: 28)
                 .background(Color.primary.opacity(0.10), in: Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(account.displayName)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                if let email = account.email {
-                    Text(email)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
+            Text(verbatim: title)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(title)
 
             Spacer(minLength: 5)
 

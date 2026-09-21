@@ -9,6 +9,10 @@ struct AccountRow: View {
     let showsFiveHourUsage: Bool
     @State private var isHovering = false
 
+    private var accountTitle: String {
+        account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             Text(account.initials)
@@ -18,10 +22,11 @@ struct AccountRow: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text(account.displayName)
+                    Text(verbatim: accountTitle)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        .help(accountTitle)
                     Spacer(minLength: 4)
                     if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))

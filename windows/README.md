@@ -8,8 +8,8 @@ The Windows application keeps the macOS account flow and uses Microsoft WPF Flue
 
 The compact window follows the existing macOS account flow:
 
-- Account rows show name, reset time and remaining usage. Select a row, then confirm to switch.
-- Manage Accounts contains browser sign-in, register current login and removal of inactive accounts.
+- Account rows show email, reset time and remaining usage. Email titles stay on one line with ellipsis and reveal the full address on hover; accounts without email use their saved name. Select a row, then confirm to switch.
+- Manage Accounts uses the same email titles and contains browser sign-in, register current login and removal of inactive accounts. The browser sign-in hint sits to the right of Add Account on one line.
 - Settings take effect immediately: launch at login, tray tooltip percentage, optional 5-hour usage and language.
 - Usage refreshes at startup, when opening the window, and every five minutes. Failed refreshes retain the last good value.
 - Updates are checked hourly when enabled. A new Windows version opens its release download page; the running EXE is not replaced automatically.
