@@ -3,6 +3,24 @@ import Testing
 @testable import SwitcherCore
 
 struct CodexExecutableLocatorTests {
+    @Test func findsCLIInsideDesktopApplicationWhenPATHHasNoCodex() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("codex-desktop-tests-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let application = root.appendingPathComponent("ChatGPT.app")
+        let executable = application.appendingPathComponent("Contents/Resources/codex")
+        try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: executable)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+
+        let locator = CodexExecutableLocator(desktopApplicationURLs: [application])
+        #expect(try locator.locate(environment: ["PATH": "/nonexistent"]) == executable)
+        #expect(throws: CodexClientError.self) {
+            try locator.locate(environment: [
+                "PATH": "/nonexistent", "CODEX_CLI_PATH": "custom-codex",
+            ])
+        }
+    }
+
     @Test(arguments: ["/bin/sh", "/bin/bash", "/bin/zsh"])
     func readsPOSIXLoginShellConfiguration(shell: String) throws {
         try checkLoginShell(shell)
