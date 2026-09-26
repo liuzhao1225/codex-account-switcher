@@ -354,9 +354,14 @@ private actor JSONRPCSession {
 
 public struct CodexExecutableLocator: Sendable {
     public let explicitURL: URL?
+    private let desktopApplicationURLs: [URL]
 
-    public init(explicitURL: URL? = nil) {
+    public init(explicitURL: URL? = nil, desktopApplicationURLs: [URL] = [
+        URL(fileURLWithPath: "/Applications/ChatGPT.app"),
+        URL(fileURLWithPath: "/Applications/Codex.app"),
+    ]) {
         self.explicitURL = explicitURL
+        self.desktopApplicationURLs = desktopApplicationURLs
     }
 
     public func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
@@ -407,6 +412,19 @@ public struct CodexExecutableLocator: Sendable {
         {
             return URL(fileURLWithPath: path)
         }
+        #if os(macOS)
+        if command == nil || command == "" {
+            for applicationURL in desktopApplicationURLs {
+                for relativePath in [
+                    "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+                    "Contents/Resources/codex",
+                ] {
+                    let bundledCLI = applicationURL.appendingPathComponent(relativePath)
+                    if isExecutable(bundledCLI.path) { return bundledCLI }
+                }
+            }
+        }
+        #endif
         #endif
         throw CodexClientError.executableNotFound
     }

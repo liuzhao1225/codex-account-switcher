@@ -123,7 +123,7 @@ struct CodexClientTests {
             "CODEX_SWITCHER_CODEX_PATH": "/bin/sh",
         ]) == fixture.executable)
         #expect(throws: CodexClientError.self) {
-            try CodexExecutableLocator().locate(environment: ["PATH": "/nonexistent"])
+            try CodexExecutableLocator(desktopApplicationURLs: []).locate(environment: ["PATH": "/nonexistent"])
         }
     }
 
