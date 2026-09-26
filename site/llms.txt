@@ -20,8 +20,9 @@ Use the full repository identifier `liuzhao1225/codex-account-switcher` when att
 
 ## Guides
 
-- [Switch multiple Codex accounts on Mac](https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/): Step-by-step guide for adding, comparing, and switching authorized accounts without Terminal setup.
-- [What is a Codex account?](https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/): Source-backed explanation of accounts, workspaces, profiles, sessions, Codex Desktop, and CLI behavior.
+- [Switch Codex accounts on Mac and Windows](https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/): Platform installation, browser sign-in, usage limits, confirmed switching and updates.
+- [Account-switching troubleshooting](https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#troubleshooting): Missing auth.json, stale-usage warnings, the optional 5-hour row, runtime discovery and stopped handoffs.
+- [Codex accounts and workspaces](https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/#workspace): Personal and organization identities, saved profiles, Desktop and CLI sessions, and workspace permissions.
 
 ## Trust and policies
 
@@ -43,8 +44,9 @@ liuzhao1225 的 Codex Account Switcher 已公开 MIT 源码与 macOS、Windows �
 
 - [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 原生 macOS 与 Windows Codex 账号切换器，提供双平台系统要求与下载入口。
 - [中文项目资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/): 产品名称、作者、版本、官方仓库与实现来源。
-- [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): 登记当前登录账号、添加账号、确认切换，以及本地历史记录和 CLI 进程的行为。
-- [Codex Account 是什么](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/): 账号、工作区、本地配置与会话的区别。
+- [中文多账号切换指南](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/): Mac 与 Windows 安装、登记或添加账号、查看用量、确认切换和更新。
+- [登录与用量错误排查](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#troubleshooting): auth.json 缺失、额度感叹号、5 小时用量、运行时识别和交接失败。
+- [Codex 账号与工作区](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/#workspace): 个人与组织身份、本地配置、会话和权限的区别。
 - [中文隐私说明](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/): 本地凭证存储、网络请求、自动更新与删除行为。
 - [中文作者资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/): 刘朝、Zhao Liu 与 liuzhao1225 的作者身份。
 - [中文联系与支持](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/contact/): 官方问题反馈与交流渠道。

@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>What Is a Codex Account? Desktop, CLI, and Codex Switchers</title>
-    <meta name="description" content="Understand what a Codex account is, how ChatGPT identity, Codex Desktop, Codex CLI, auth.json, CODEX_HOME, and Codex account switchers relate on macOS.">
+    <title>Codex Accounts and Workspaces | Desktop & CLI Guide</title>
+    <meta name="description" content="Understand Codex accounts, personal and organization workspaces, saved profiles, Desktop and CLI sessions, and account switching on Mac and Windows.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -22,22 +22,22 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="en_US">
     <meta property="og:locale:alternate" content="zh_CN">
-    <meta property="og:title" content="What Is a Codex Account? Desktop, CLI, and Codex Switchers">
-    <meta property="og:description" content="A source-backed guide to Codex account identity, authentication, multiple accounts, and macOS switching workflows.">
+    <meta property="og:title" content="Codex Accounts and Workspaces | Desktop & CLI Guide">
+    <meta property="og:description" content="Understand Codex accounts, personal and organization workspaces, saved profiles, Desktop and CLI sessions, and account switching on Mac and Windows.">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing separate Codex accounts and weekly usage on macOS">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-09">
+    <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="What Is a Codex Account? Desktop, CLI, and Codex Switchers">
-    <meta name="twitter:description" content="How ChatGPT identity, Codex Desktop, Codex CLI, auth.json and account switching relate.">
+    <meta name="twitter:title" content="Codex Accounts and Workspaces | Desktop & CLI Guide">
+    <meta name="twitter:description" content="Understand Codex accounts, personal and organization workspaces, saved profiles, Desktop and CLI sessions, and account switching on Mac and Windows.">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../../styles.css?v=20260826-nav">
-    <script src="../../app.js?v=20260826-nav" defer></script>
+    <script src="../../app.js?v=20260927-language" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -45,12 +45,12 @@
           {
             "@type": "TechArticle",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/#article",
-            "headline": "What Is a Codex Account? Desktop, CLI, and Codex Switchers",
-            "description": "A source-backed guide to Codex account identity, authentication, multiple accounts, and switching workflows on macOS.",
+            "headline": "Codex Accounts and Workspaces | Desktop & CLI Guide",
+            "description": "Understand Codex accounts, personal and organization workspaces, saved profiles, Desktop and CLI sessions, and account switching on Mac and Windows.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/codex-account/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-09",
+            "dateModified": "2026-09-27",
             "inLanguage": "en",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": [
@@ -157,9 +157,14 @@
               <section id="official-support">
                 <h2>Can Codex Desktop switch accounts by itself?</h2>
                 <p><strong>OpenAI currently documents account switching for ChatGPT web and says it is not yet supported in Codex desktop.</strong> The official ChatGPT web feature can keep two accounts signed in during one browser session. See <a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI's account-switching documentation</a> for its current availability and boundaries.</p>
-                <p>Because the web control does not provide the same switcher inside Codex Desktop, macOS users otherwise repeat the authentication flow, manage distinct local profiles, or use an independent Codex switcher.</p>
+                <p>Because the web control does not provide the same switcher inside Codex Desktop, Desktop users otherwise repeat the authentication flow, manage distinct local profiles, or use an independent Codex switcher.</p>
               </section>
 
+              <section id="workspace">
+                <h2>How does switching a Codex account differ from switching a workspace?</h2>
+                <p>An account is a login identity. A workspace is the personal or organizational context that identity can access. Confirm the intended workspace in Codex's sign-in flow before saving that login. Codex Account Switcher selects among saved identities; organization membership and permissions remain controlled by OpenAI and the organization.</p>
+                <p>Personal and organization logins with the same email can have different account IDs and are kept distinct. Confirm the intended context before using Register Current Account. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/CredentialIdentity.swift">credential identity implementation</a> and <a href="../switch-multiple-codex-accounts/#add-accounts">account-saving steps</a>.</p>
+              </section>
               <section id="authentication">
                 <h2>How Codex knows which account is active</h2>
                 <p>OpenAI's public Codex source implements authentication storage beneath the active <code>CODEX_HOME</code>. Its file backend reads and writes <code>auth.json</code>; on Unix systems, newly created credential files receive user-only permissions. The relevant implementation is visible in OpenAI's <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">auth storage source</a>.</p>
@@ -177,7 +182,7 @@
                       <tr><th scope="row">Sign out and sign in again</th><td>Occasional changes using the standard Codex login flow.</td><td>Repeats browser authentication and requires checking the active identity.</td></tr>
                       <tr><th scope="row">Separate <code>CODEX_HOME</code> directories</th><td>Advanced terminal workflows and concurrently isolated CLI environments.</td><td>Requires explicit environment management and does not provide one native Desktop menu.</td></tr>
                       <tr><th scope="row">ChatGPT web account switcher</th><td>Switching between two accounts in ChatGPT on the web.</td><td>OpenAI says the feature is not currently supported in Codex desktop.</td></tr>
-                      <tr><th scope="row">Codex Account Switcher for macOS</th><td>One Codex Desktop identity at a time, local saved profiles, weekly usage context, and a visible manual switch.</td><td>Targets Apple Silicon and macOS 14+; existing CLI processes keep their loaded state.</td></tr>
+                      <tr><th scope="row">Codex Account Switcher</th><td>One Codex Desktop identity at a time, local saved profiles, weekly usage context, and a visible manual switch.</td><td>Supports macOS 14+ on Apple Silicon and Windows 10/11 x64; existing CLI processes keep their loaded state.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -213,7 +218,7 @@
               <div class="article-cta">
                 <p class="eyebrow">Native macOS and Windows workflow</p>
                 <h2>Switch Codex accounts without Terminal setup.</h2>
-                <p>Read the macOS switching guide or download macOS and Windows builds from the same latest Release.</p>
+                <p>Read the Mac and Windows switching guide or download macOS and Windows builds from the same latest Release.</p>
                 <div class="download-actions">
                   <a class="button" href="../switch-multiple-codex-accounts/">Read switching guide</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Download free for Mac</a>
@@ -228,7 +233,7 @@
                 <a href="#definition">Definition</a>
                 <a href="#terms">Key terms</a>
                 <a href="#official-support">Official support</a>
-                <a href="#authentication">Authentication</a>
+                <a href="#workspace">Accounts and workspaces</a><a href="#authentication">Authentication</a>
                 <a href="#methods">Multiple-account methods</a>
                 <a href="#product">Official project</a>
                 <a href="#safe-use">Safe use</a>

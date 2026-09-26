@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mac 如何切换 Codex 多账号？安装与使用指南</title>
-    <meta name="description" content="按照实际操作安装 Codex Account Switcher、登记当前登录账号、添加其他账号并确认切换。了解本地历史记录、用量和 Desktop 与 CLI 的区别。">
+    <title>Mac 与 Windows 如何切换 Codex 多账号？安装与排错指南</title>
+    <meta name="description" content="Mac 与 Windows Codex 多账号切换指南：下载安装、浏览器添加账号、查看每周与 5 小时用量，处理 auth.json 缺失、额度感叹号和运行时查找错误。">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="刘朝 Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -22,8 +22,8 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
-    <meta property="og:title" content="Mac 如何切换 Codex 多账号？安装与使用指南">
-    <meta property="og:description" content="按照实际操作安装 Codex Account Switcher、登记当前登录账号、添加其他账号并确认切换。了解本地历史记录、用量和 Desktop 与 CLI 的区别。">
+    <meta property="og:title" content="Mac 与 Windows 如何切换 Codex 多账号？安装与排错指南">
+    <meta property="og:description" content="Mac 与 Windows Codex 多账号切换指南：下载安装、浏览器添加账号、查看每周与 5 小时用量，处理 auth.json 缺失、额度感叹号和运行时查找错误。">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
@@ -32,12 +32,12 @@
     <meta property="article:published_time" content="2026-08-26">
     <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Mac 如何切换 Codex 多账号？安装与使用指南">
-    <meta name="twitter:description" content="按照实际操作安装 Codex Account Switcher、登记当前登录账号、添加其他账号并确认切换。了解本地历史记录、用量和 Desktop 与 CLI 的区别。">
+    <meta name="twitter:title" content="Mac 与 Windows 如何切换 Codex 多账号？安装与排错指南">
+    <meta name="twitter:description" content="Mac 与 Windows Codex 多账号切换指南：下载安装、浏览器添加账号、查看每周与 5 小时用量，处理 auth.json 缺失、额度感叹号和运行时查找错误。">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../../../styles.css?v=20260826-nav">
-    <script src="../../../app.js?v=20260826-nav" defer></script>
+    <script src="../../../app.js?v=20260927-language" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -45,8 +45,8 @@
           {
             "@type": "TechArticle",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#article",
-            "headline": "Mac 如何切换 Codex 多账号？安装与使用指南",
-            "description": "按照实际操作安装 Codex Account Switcher、登记当前登录账号、添加其他账号并确认切换。了解本地历史记录、用量和 Desktop 与 CLI 的区别。",
+            "headline": "Mac 与 Windows 如何切换 Codex 多账号？安装与排错指南",
+            "description": "Mac 与 Windows Codex 多账号切换指南：下载安装、浏览器添加账号、查看每周与 5 小时用量，处理 auth.json 缺失、额度感叹号和运行时查找错误。",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "datePublished": "2026-08-26",
@@ -57,7 +57,7 @@
               "@type": "SoftwareApplication",
               "@id": "https://liuzhao1225.github.io/codex-account-switcher/#software",
               "name": "Codex Account Switcher",
-              "operatingSystem": "macOS 14 or later",
+              "operatingSystem": ["macOS 14 or later (Apple Silicon)", "Windows 10/11 x64"],
               "applicationCategory": "UtilitiesApplication"
             },
             "author": {
@@ -77,10 +77,10 @@
           {
             "@type": "HowTo",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#howto",
-            "name": "如何在 Mac 上切换多个 Codex 账号",
-            "description": "通过浏览器登录添加获准使用的 Codex 账号，比较用量，再从 macOS 菜单栏选择并确认当前账号。",
+            "name": "如何在 Mac 与 Windows 上切换多个 Codex 账号",
+            "description": "安装 Mac 或 Windows 原生应用，通过浏览器添加账号、比较用量，再选择并确认当前账号。",
             "inLanguage": "zh-CN",
-            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher macOS 应用"},
+            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher macOS 与 Windows 应用"},
             "step": [
               {
                 "@type": "HowToStep",
@@ -93,7 +93,7 @@
                 "@type": "HowToStep",
                 "position": 2,
                 "name": "比较 Codex 用量",
-                "text": "打开菜单栏应用，查看当前账号、每周剩余百分比、重置时间，以及服务提供时可选的精确 300 分钟窗口。",
+                "text": "打开应用，查看当前账号、每周剩余百分比、重置时间，以及服务提供时可选的精确 300 分钟窗口。",
                 "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/#usage"
               },
               {
@@ -109,7 +109,7 @@
             "@type": "BreadcrumbList",
             "itemListElement": [
               {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"},
-              {"@type": "ListItem", "position": 2, "name": "Mac 切换 Codex 多账号，无需终端设置", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"}
+              {"@type": "ListItem", "position": 2, "name": "Mac 与 Windows 切换 Codex 多账号", "item": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/"}
             ]
           }
         ]
@@ -150,11 +150,11 @@
             <nav class="breadcrumbs" aria-label="面包屑导航">
               <a href="../../../zh-CN/">Codex Account Switcher</a><span>/</span><span>多账号切换</span>
             </nav>
-            <p class="eyebrow">普通 Mac 用户指南</p>
-            <h1>在 Mac 上切换 Codex 多账号，无需终端设置</h1>
-            <p class="article-lede">下载应用，通过浏览器添加个人、工作或客户账号一次，之后从 Mac 菜单栏选择即可。无需代码知识，也不用修改配置文件。</p>
-            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 9 月 9 日 · 适用于 Apple Silicon 与 macOS 14+</p>
-            <p>本文以 macOS 菜单栏界面为例。Windows 使用原生窗口与托盘入口，系统要求和双平台下载见 <a href="../../#download">产品首页</a>。</p>
+            <p class="eyebrow">Mac 与 Windows 用户指南</p>
+            <h1>在 Mac 与 Windows 上切换 Codex 多账号</h1>
+            <p class="article-lede">下载对应平台的原生应用，通过浏览器添加获准使用的账号，再选择并确认。本文覆盖安装、用量查询、更新和常见错误处理。</p>
+            <p class="article-meta">作者：<a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · 更新于 2026 年 9 月 27 日 · macOS 14+、Apple Silicon；Windows 10/11 x64</p>
+            <p>直接查看<a href="#install-macos">Mac 安装</a>、<a href="#install-windows">Windows 安装</a>、<a href="#usage">用量查询</a>或<a href="#troubleshooting">常见错误</a>。下图展示 Mac 界面。</p>
             <figure class="article-visual">
               <img src="../../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="Codex Account Switcher 菜单显示三个虚构本地账号、每周用量进度与重置时间">
             </figure>
@@ -167,7 +167,7 @@
               <section id="overview">
                 <h2>为什么 Codex 多账号使用容易变得繁琐</h2>
                 <p>很多人把个人事务、公司工作区和获准使用的客户项目放在不同 ChatGPT 账号中。Codex Desktop 没有内置账号切换入口，更换身份时可能需要退出登录、打开浏览器、重新认证，再确认当前账号。</p>
-                <p>Codex Account Switcher 让每个已保存账号在 Mac 上保持可用。菜单会标出当前账号，也可以在选择前查看每周用量。</p>
+                <p>Codex Account Switcher 让每个已保存账号在电脑上保持可用。应用会标出当前账号，也可以在选择前查看每周用量。</p>
                 <div class="article-callout">
                   <p><strong>请只使用你本人拥有或获准访问的账号。</strong>应用提供本地账号选择流程，不会改变 OpenAI 账号权限、账单、工作区策略或用量限制。</p>
                 </div>
@@ -175,19 +175,18 @@
 
               <section id="official-context">
                 <h2>OpenAI 当前支持范围</h2>
-                <p><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI 官方文档说明账号切换目前用于 ChatGPT 网页版</a>，并明确说明该功能尚不支持 Codex desktop。macOS Codex 用户因此需要重复认证、手动管理不同本地配置，或使用独立切换器。</p>
+                <p><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI 官方文档说明账号切换目前用于 ChatGPT 网页版</a>，并明确说明该功能尚不支持 Codex desktop。Codex Desktop 用户因此需要重复认证、手动管理不同本地配置，或使用独立切换器。</p>
                 <p><a href="../codex-account/">有一手来源的 Codex Account 指南</a>解释账号身份、<code>CODEX_HOME</code>、<code>auth.json</code>、Desktop 会话与 CLI 会话的关系。<a href="../../about/">官方项目资料页</a>记录本应用、作者和唯一官方仓库。</p>
               </section>
 
               <section id="requirements">
-                <h2>开始前需要准备什么</h2>
-                <ul>
-                  <li>搭载 Apple Silicon、运行 macOS 14 Sonoma 或更高版本的 Mac。</li>
-                  <li>Codex Desktop；同时使用 Codex CLI 的用户也可以继续使用相关支持。</li>
-                  <li>至少两个可以使用 Codex 的 ChatGPT 账号。</li>
-                  <li>从 GitHub Releases 下载的最新签名并经过 Apple 公证的 Codex Account Switcher DMG。</li>
-                </ul>
-                <p>把应用移入“应用程序”并启动一次。切换器会出现在 macOS 菜单栏中，也可以设置为登录 Mac 后自动启动。</p>
+                <h2>在 Mac 或 Windows 上安装 Codex Account Switcher</h2>
+                <p>只使用本人拥有或获准使用的账号。两端均需要可用的 Codex 运行时，并与 Codex Desktop 使用同一个活动 Codex 目录。</p>
+                <h3 id="install-macos">Mac：macOS 14+ 与 Apple Silicon</h3>
+                <p>下载<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">已签名并通过 Apple 公证的 DMG</a>，打开后把 Codex Account Switcher 拖入“应用程序”。启动后从菜单栏图标进入。当前发布的 Mac 安装包适用于 Apple Silicon。</p>
+                <h3 id="install-windows">Windows：Windows 10/11 x64</h3>
+                <p>下载 <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a>，放入准备长期保留的文件夹后运行。免安装 EXE 已包含 .NET 和 Swift 运行时，无需另装开发 SDK。当前 Windows EXE 尚未签名。</p>
+                <p>原生窗口显示账号列表。点击标题栏关闭按钮会隐藏窗口；左键点击系统托盘图标可重新打开，右键选择“退出”才会结束应用。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/windows/README.md">Windows 界面与打包说明</a>。</p>
               </section>
 
               <section id="add-accounts">
@@ -196,12 +195,12 @@
                 <p>打开<strong>管理账号</strong>，选择<strong>登记当前登录账号</strong>，保存 Codex 当前使用的登录身份。应用会关联已有账号，或创建本地账号配置。</p>
                 <h3>添加另一个个人、工作或客户账号</h3>
                 <p>选择<strong>添加账号</strong>并完成浏览器登录。应用会把账号保存在独立的本地配置中，并根据登录身份生成显示名称。授权期间，当前账号保持不变。</p>
-                <p>对每个获准使用的身份重复这一过程。菜单会把所有已保存账号放在一起，并用整行高亮标记当前账号。</p>
+                <p>对每个获准使用的身份重复这一过程。账号列表会把所有已保存账号放在一起，并标记当前账号。</p>
               </section>
 
               <section id="usage">
                 <h2>第二步：比较 Codex 用量</h2>
-                <p>开始长时间 Codex 任务前打开菜单。每个账号行都会显示每周剩余百分比与对应重置时间；也可以在设置中开启服务端提供的精确 300 分钟（5 小时）窗口，该用量行默认关闭。成功获取的用量会缓存在本地，刷新过程中继续显示，拿到新数据后再更新。</p>
+                <p>开始长时间 Codex 任务前打开应用。每个账号行都会显示每周剩余百分比与对应重置时间；也可以在设置中开启服务端提供的精确 300 分钟（5 小时）窗口，该用量行默认关闭。成功获取的用量会缓存在本地，刷新过程中继续显示，拿到新数据后再更新。</p>
                 <p>这些信息帮助你在切换前做决定。应用不会推荐账号，也不会自动轮换配置；最终选择始终由你完成。</p>
               </section>
 
@@ -224,14 +223,34 @@
               </section>
 
               <section id="privacy">
-                <h2>账号配置保存在哪里</h2>
-                <p>Codex 当前认证文件仍位于 <code>~/.codex/auth.json</code>。OpenAI 公开的 <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">Codex 认证存储源码</a>显示，文件后端会在当前 <code>CODEX_HOME</code> 中读取和写入 <code>auth.json</code>。切换器保存的账号配置与元数据位于 <code>~/Library/Application Support/Codex Account Switcher/</code>。</p>
-                <p>应用完全在本机运行，账号目录仅供当前用户访问，也不使用账号代理、流量路由、云端配置同步或自动账号轮换。删除非当前账号时，只会删除切换器中的本地副本，不代表撤销所有服务端会话。</p>
+                <h2>Codex 账号文件保存在哪里</h2>
+                <p>Codex 从活动 <code>CODEX_HOME</code> 内的 <code>auth.json</code> 读取文件型凭据。未自定义目录时，macOS 通常为 <code>~/.codex/auth.json</code>，Windows 为 <code>%USERPROFILE%\.codex\auth.json</code>。Desktop 与切换器需要使用同一个活动目录。</p>
+                <p>切换器保存的账号配置位于 macOS 的 <code>~/Library/Application Support/Codex Account Switcher/</code> 或 Windows 的 <code>%LOCALAPPDATA%\Codex Account Switcher\</code>。凭据采用仅当前用户可访问的文件权限或 Windows ACL。详见<a href="../../privacy/">隐私与删除说明</a>和<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">存储实现</a>。</p>
+              </section>
+
+              <section id="updates">
+                <h2>Mac 和 Windows 如何更新版本</h2>
+                <p>两端使用统一版本号与<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">同一个最新 Release</a>。macOS 通过 Sparkle 下载并安装用户选择的更新。Windows 检查新版本后打开下载页：从托盘菜单退出切换器，替换免安装 EXE，再重新打开。账号数据目录与 EXE 分开保存。</p>
+                <p>发布页同时提供两个安装包的 SHA-256 校验文件，详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/platform-releases.md">发布与更新机制</a>。</p>
+              </section>
+
+              <section id="troubleshooting">
+                <h2>Codex 多账号切换的常见错误</h2>
+                <h3 id="missing-auth">“登记当前登录账号”提示找不到 auth.json</h3>
+                <p>该操作读取活动 Codex 目录中已有的文件型登录凭据。先完成 Codex 登录，并确认 Desktop 与切换器使用同一个目录。需要通过浏览器创建已保存账号时，可使用“添加账号”。使用自定义 <code>CODEX_HOME</code> 时应核对目录，详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">登记实现</a>。</p>
+                <h3 id="usage-warning">额度百分比旁为什么有感叹号</h3>
+                <p>刷新失败时，应用会继续显示上一次成功获取的用量，因此显示值可能已过期。将指针停在警告图标上查看错误，再根据提示区分登录、运行时和网络问题。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/Models.swift">用量状态</a>与<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountRow.swift">Mac 警告显示实现</a>。</p>
+                <h3 id="missing-five-hour">为什么没有显示 5 小时用量</h3>
+                <p>先在设置中开启 5 小时用量。只有 Codex 服务端提供精确 300 分钟窗口时才会显示该行；每周用量是独立数据。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/WeeklyUsageNormalizer.swift">窗口识别实现</a>。</p>
+                <h3 id="runtime-not-found">更新 Codex Desktop 后提示找不到运行时</h3>
+                <p>先核对切换器版本和完整错误，再使用<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">最新发布版本</a>。运行时查找已覆盖 Mac 新旧内置路径；Windows 会在交接时重新查找 Desktop 安装位置。仍无法识别时，通过<a href="../../contact/">支持渠道</a>提供系统版本、Desktop 版本和错误信息。</p>
+                <h3 id="switch-stage">切换停在某一步，Desktop 没有重新打开</h3>
+                <p>先查看界面报告的失败阶段，并处理 Codex 正常退出对话框。发生凭据或身份不一致时，先核对 Codex 中的账号，再登记当前登录。<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">顺序交接实现</a>会在错误处停止；反馈时记录可见阶段，并隐去凭据文件内容。</p>
               </section>
 
               <section id="choice">
                 <h2>选择适合你的多账号方式</h2>
-                <p>当一个 Codex Desktop 实例需要在某个时刻使用一个明确身份时，菜单栏切换器会很合适。如果需要让多个 Codex 进程同时使用不同账号，分别设置 <code>CODEX_HOME</code> 或使用隔离的应用环境可能更适合。</p>
+                <p>当一个 Codex Desktop 实例需要在某个时刻使用一个明确身份时，原生账号切换器会很合适。如果需要让多个 Codex 进程同时使用不同账号，分别设置 <code>CODEX_HOME</code> 或使用隔离的应用环境可能更适合。</p>
                 <p>Codex Account Switcher 专注于前一种工作流：用量清晰可见、切换由用户手动确认、没有后台账号路由。</p>
                 <div class="fact-table-wrap">
                   <table class="fact-table">
@@ -239,18 +258,19 @@
                     <tbody>
                       <tr><th scope="row">手动退出并重新登录</th><td>使用标准 Codex 与浏览器认证</td><td>退出、重新认证，再核对当前身份</td><td>偶尔更换账号</td></tr>
                       <tr><th scope="row">分别设置 <code>CODEX_HOME</code></th><td>使用终端命令和环境配置</td><td>用指定配置目录启动 Codex</td><td>需要隔离 CLI 环境的技术用户</td></tr>
-                      <tr><th scope="row">Codex Account Switcher</th><td>安装 DMG，通过浏览器一次添加每个账号</td><td>从菜单栏选择账号并确认</td><td>同一时刻使用一个 Codex Desktop 身份的普通 Mac 用户</td></tr>
+                      <tr><th scope="row">Codex Account Switcher</th><td>下载 DMG 或 EXE，通过浏览器一次添加每个账号</td><td>在应用中选择账号并确认</td><td>同一时刻使用一个 Codex Desktop 身份的 Mac 与 Windows 用户</td></tr>
                     </tbody>
                   </table>
                 </div>
               </section>
 
               <div class="article-cta">
-                <p class="eyebrow">开源 macOS 工具</p>
+                <p class="eyebrow">macOS 与 Windows 原生开源工具</p>
                 <h2>让每个获准使用的 Codex 账号始终一步直达。</h2>
-                <p>下载已签名的 Apple Silicon DMG，或在 GitHub 查看 Swift 源码与产品设计文档。</p>
+                <p>下载 Apple Silicon DMG 或 Windows x64 EXE，也可在 GitHub 查看源码与产品设计文档。</p>
                 <div class="download-actions">
                   <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">免费下载 Mac 版</a>
+                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">免费下载 Windows 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">查看源码</a>
                 </div>
               </div>
@@ -267,6 +287,8 @@
                 <a href="#switch">切换账号</a>
                 <a href="#cli">Desktop 与 CLI</a>
                 <a href="#privacy">本地存储</a>
+                <a href="#updates">版本更新</a>
+                <a href="#troubleshooting">常见错误</a>
                 <a href="#choice">选择工作流</a>
               </nav>
             </aside>

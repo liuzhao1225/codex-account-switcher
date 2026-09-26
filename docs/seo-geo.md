@@ -7,8 +7,8 @@ Reviewed September 27, 2026. Preserve the existing page URLs, navigation and vis
 | Page | English search intent | Chinese search intent |
 | --- | --- | --- |
 | Product homepage | Native Codex account switcher for macOS and Windows | Codex 账号切换器、Mac 与 Windows 多账号切换 |
-| Multiple-account guide | How to switch Codex accounts on Mac | Mac 如何切换 Codex 多账号 |
-| Account reference | What is a Codex account? Desktop and CLI behavior | Codex Account 是什么、账号与工作区的区别 |
+| Multiple-account guide | Switch Codex accounts on Mac and Windows; install, update and troubleshoot | Mac 与 Windows 多账号切换、安装更新、auth.json 与额度错误 |
+| Account reference | Codex accounts vs workspaces; Desktop and CLI behavior | Codex Account 是什么、账号与工作区的区别 |
 | Project facts and creator | Codex Account Switcher author and official download | Codex Account Switcher 作者、官方仓库与下载 |
 
 The homepage explains the product and platform. The guide documents the actual installation and switching actions. Keep each title and description specific to that page. Use ordinary language in the visible content and link answers to the relevant guide or source.
@@ -87,6 +87,16 @@ The observed failure combines missed first-party sources and incorrect project a
 Use the existing static bilingual pages, source links, reciprocal language links and host-root crawl policy. No additional crawler-specific pages, fabricated citations or instruction text aimed at manipulating an answer are required. Keep the existing `#facts` and `#npm-and-similar-names` anchors stable. The pages already carried September 27 modification dates, so their sitemap dates remain accurate for this same-day update.
 
 For a later comparison, repeat each exact input in a fresh Doubao chat with the same visible model/search settings; add `liuzhao1225 Codex Account Switcher 开源 下载` and `Codex Account Switcher Windows 用量 浏览器登录`. Record query, time, mode, source list, final-answer citation URLs, app inclusion, author/repository attribution, public-release recognition, supported platforms, sign-in, usage and switching behavior. Separate broad discovery from answers supplied with an exact URL. A repository URL in the prompt is not evidence that the answer fetched it. Deployment validation establishes content availability; ranking and answer changes require separate observations.
+
+## Guide coverage and language-link repair
+
+The September 27 follow-up extends the existing switching guide to both supported platforms, with direct installation anchors and practical troubleshooting for missing credentials, stale usage, missing 5-hour windows and runtime discovery. The account reference explains personal and organization workspaces separately from saved login identities. Both language versions cite the same implementation and retain their original URLs. The homepage and `llms.txt` link directly to these answers.
+
+Legacy `?lang=` links previously constructed a relative child or parent path. On nested pages this could produce a missing URL or the wrong page. They now resolve the page's existing `hreflang` counterpart, remove the language parameter and retain other query parameters and the fragment. Regression checks exercise every canonical page in both directions, including the differently named English and Chinese switching-guide paths.
+
+The visible privacy applicability label still named v0.1.12 while the current release was v0.1.16. After checking the existing storage, network and update descriptions against the current implementation, the label and visible review date were synchronized. The site checker now verifies this visible version against `CITATION.cff`.
+
+Search Console sitemap errors require a separate operational check: verify the public XML URL and host-root crawl policy, then resubmit the current sitemap and read back Google's result. An accepted submission does not establish successful processing or indexing. Keep account-specific Search Console statistics and screenshots outside the public repository.
 
 ## Measure after publication
 

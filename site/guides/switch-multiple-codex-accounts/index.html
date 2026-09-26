@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>How to Switch Codex Accounts on Mac | Setup Guide</title>
-    <meta name="description" content="Install Codex Account Switcher, save your current login, add accounts, and confirm a switch. Learn what happens to local history and running CLI sessions.">
+    <title>Switch Codex Accounts on Mac & Windows | Setup Guide</title>
+    <meta name="description" content="Install Codex Account Switcher on Mac or Windows, add accounts, check weekly and 5-hour usage, and fix missing auth.json or stale-usage warnings.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -22,8 +22,8 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="en_US">
     <meta property="og:locale:alternate" content="zh_CN">
-    <meta property="og:title" content="How to Switch Codex Accounts on Mac | Setup Guide">
-    <meta property="og:description" content="Install Codex Account Switcher, save your current login, add accounts, and confirm a switch. Learn what happens to local history and running CLI sessions.">
+    <meta property="og:title" content="Switch Codex Accounts on Mac & Windows | Setup Guide">
+    <meta property="og:description" content="Install Codex Account Switcher on Mac or Windows, add accounts, check weekly and 5-hour usage, and fix missing auth.json or stale-usage warnings.">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
@@ -32,12 +32,12 @@
     <meta property="article:published_time" content="2026-08-26">
     <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="How to Switch Codex Accounts on Mac | Setup Guide">
-    <meta name="twitter:description" content="Install Codex Account Switcher, save your current login, add accounts, and confirm a switch. Learn what happens to local history and running CLI sessions.">
+    <meta name="twitter:title" content="Switch Codex Accounts on Mac & Windows | Setup Guide">
+    <meta name="twitter:description" content="Install Codex Account Switcher on Mac or Windows, add accounts, check weekly and 5-hour usage, and fix missing auth.json or stale-usage warnings.">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../../styles.css?v=20260826-nav">
-    <script src="../../app.js?v=20260826-nav" defer></script>
+    <script src="../../app.js?v=20260927-language" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -45,8 +45,8 @@
           {
             "@type": "TechArticle",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#article",
-            "headline": "How to Switch Codex Accounts on Mac | Setup Guide",
-            "description": "Install Codex Account Switcher, save your current login, add accounts, and confirm a switch. Learn what happens to local history and running CLI sessions.",
+            "headline": "Switch Codex Accounts on Mac & Windows | Setup Guide",
+            "description": "Install Codex Account Switcher on Mac or Windows, add accounts, check weekly and 5-hour usage, and fix missing auth.json or stale-usage warnings.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "datePublished": "2026-08-26",
@@ -57,7 +57,7 @@
               "@type": "SoftwareApplication",
               "@id": "https://liuzhao1225.github.io/codex-account-switcher/#software",
               "name": "Codex Account Switcher",
-              "operatingSystem": "macOS 14 or later",
+              "operatingSystem": ["macOS 14 or later (Apple Silicon)", "Windows 10/11 x64"],
               "applicationCategory": "UtilitiesApplication"
             },
             "author": {
@@ -77,10 +77,10 @@
           {
             "@type": "HowTo",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#howto",
-            "name": "How to switch multiple Codex accounts on Mac",
-            "description": "Add authorized Codex accounts through browser sign-in, compare their usage, then choose and confirm the active account from the macOS menu bar.",
+            "name": "How to switch multiple Codex accounts on Mac and Windows",
+            "description": "Install the native Mac or Windows app, add accounts through browser sign-in, compare usage, then choose and confirm the active account.",
             "inLanguage": "en",
-            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher for macOS"},
+            "tool": {"@type": "HowToTool", "name": "Codex Account Switcher for macOS and Windows"},
             "step": [
               {
                 "@type": "HowToStep",
@@ -93,7 +93,7 @@
                 "@type": "HowToStep",
                 "position": 2,
                 "name": "Compare Codex usage",
-                "text": "Open the menu-bar app to see the active account, weekly remaining percentage, reset time, and the optional exact 300-minute service window when available.",
+                "text": "Open the app to see the active account, weekly remaining percentage, reset time, and the optional exact 300-minute service window when available.",
                 "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/#usage"
               },
               {
@@ -109,7 +109,7 @@
             "@type": "BreadcrumbList",
             "itemListElement": [
               {"@type": "ListItem", "position": 1, "name": "Codex Account Switcher", "item": "https://liuzhao1225.github.io/codex-account-switcher/"},
-              {"@type": "ListItem", "position": 2, "name": "Switch Codex accounts on Mac without Terminal setup", "item": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"}
+              {"@type": "ListItem", "position": 2, "name": "Switch Codex accounts on Mac and Windows", "item": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/"}
             ]
           }
         ]
@@ -150,11 +150,11 @@
             <nav class="breadcrumbs" aria-label="Breadcrumb">
               <a href="../../">Codex Account Switcher</a><span>/</span><span>Multiple accounts</span>
             </nav>
-            <p class="eyebrow">Plain-language Mac guide</p>
-            <h1>Switch Codex accounts on Mac without Terminal setup</h1>
-            <p class="article-lede">Download the app, add personal, work, or client accounts through browser sign-in once, then choose from the Mac menu bar. No coding knowledge or config-file editing is required.</p>
-            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated September 9, 2026 · For macOS 14+ on Apple Silicon</p>
-            <p>This guide uses the macOS menu-bar interface. Windows uses a native window and tray entry point. Find requirements and both downloads on the <a href="../../#download">product homepage</a>.</p>
+            <p class="eyebrow">Mac and Windows guide</p>
+            <h1>Switch Codex accounts on Mac and Windows</h1>
+            <p class="article-lede">Download the native app for Mac or Windows, add authorized accounts through browser sign-in, then select and confirm. This guide covers installation, usage limits, updates and common errors.</p>
+            <p class="article-meta">By <a href="../../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Updated September 27, 2026 · macOS 14+ on Apple Silicon; Windows 10/11 x64</p>
+            <p>Jump to <a href="#install-macos">Mac installation</a>, <a href="#install-windows">Windows installation</a>, <a href="#usage">usage limits</a>, or <a href="#troubleshooting">error help</a>. The screenshot below shows the Mac interface.</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.webp" width="1774" height="887" alt="Codex Account Switcher menu showing three fictional local accounts, weekly usage bars, and reset times">
             </figure>
@@ -167,7 +167,7 @@
               <section id="overview">
                 <h2>Why multiple Codex accounts become difficult</h2>
                 <p>People often keep personal work, company workspaces, or authorized client projects in separate ChatGPT accounts. Codex Desktop has no built-in account switcher, so changing identities can mean logging out, opening a browser, signing in again, and checking which account is active.</p>
-                <p>Codex Account Switcher keeps each saved account ready on the Mac. The menu shows the active account and lets you check weekly usage before choosing.</p>
+                <p>Codex Account Switcher keeps each saved account ready on your computer. The app shows the active account and lets you check weekly usage before choosing.</p>
                 <div class="article-callout">
                   <p><strong>Use only accounts you own or are authorized to access.</strong> The app provides a local account-selection workflow. It does not change OpenAI account permissions, billing, workspace policy, or usage limits.</p>
                 </div>
@@ -175,19 +175,18 @@
 
               <section id="official-context">
                 <h2>What OpenAI currently supports</h2>
-                <p><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI documents account switching for ChatGPT on the web</a> and says that feature is not yet supported in Codex desktop. A macOS Codex user therefore needs to repeat authentication, manage separate local profiles, or use an independent switcher.</p>
+                <p><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI documents account switching for ChatGPT on the web</a> and says that feature is not yet supported in Codex desktop. A Codex Desktop user therefore needs to repeat authentication, manage separate local profiles, or use an independent switcher.</p>
                 <p>The <a href="../codex-account/">source-backed Codex account guide</a> explains how account identity, <code>CODEX_HOME</code>, <code>auth.json</code>, Desktop sessions, and CLI sessions relate. The <a href="../../about/">official project facts page</a> identifies this app, its creator, and its canonical repository.</p>
               </section>
 
               <section id="requirements">
-                <h2>What you need before starting</h2>
-                <ul>
-                  <li>A Mac with Apple Silicon running macOS 14 Sonoma or later.</li>
-                  <li>Codex Desktop. Codex CLI support is available for people who also use it.</li>
-                  <li>At least two ChatGPT accounts that can use Codex.</li>
-                  <li>The latest signed and Apple-notarized Codex Account Switcher DMG from GitHub Releases.</li>
-                </ul>
-                <p>Install the app in Applications and launch it once. The switcher appears in the macOS menu bar and can optionally start when you log in to your Mac.</p>
+                <h2>Install Codex Account Switcher on Mac or Windows</h2>
+                <p>Use accounts you own or are authorized to access. Both apps need a working Codex runtime and the same active Codex home as Codex Desktop.</p>
+                <h3 id="install-macos">Mac: macOS 14+ on Apple Silicon</h3>
+                <p>Download the <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">signed, Apple-notarized DMG</a>, open it and drag Codex Account Switcher into Applications. Launch it and use its menu-bar icon. The published Mac build targets Apple Silicon.</p>
+                <h3 id="install-windows">Windows: Windows 10/11 x64</h3>
+                <p>Download <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a> and run it from a folder you intend to keep. This portable EXE includes its .NET and Swift runtimes; you do not need developer SDKs. The current Windows EXE is unsigned.</p>
+                <p>The native window shows your accounts. Closing its title bar hides it; left-click the system-tray icon to reopen it. Right-click the tray icon and choose Quit to exit. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/windows/README.md">Windows interface and packaging record</a>.</p>
               </section>
 
               <section id="add-accounts">
@@ -196,12 +195,12 @@
                 <p>Open <strong>Manage Accounts</strong> and choose <strong>Register Current Account</strong> to save the login already active in Codex. The app reads its identity and associates it with a saved account or creates a local profile.</p>
                 <h3>Add another personal, work, or client account</h3>
                 <p>Choose <strong>Add Account</strong> and complete the browser sign-in. The app saves the account in its own local profile and derives its display name from the login identity. The active account stays in place during authorization.</p>
-                <p>Repeat this step for every authorized identity you need. The menu will show all saved accounts together and highlight the active row.</p>
+                <p>Repeat this step for every authorized identity you need. The account list will show all saved accounts together and highlight the active row.</p>
               </section>
 
               <section id="usage">
                 <h2>2. Compare Codex usage</h2>
-                <p>Open the menu before beginning a long Codex task. Each saved account row shows its remaining weekly percentage and the corresponding reset time. In Settings, you can also enable the exact 300-minute (5-hour) window when the Codex service provides it; this optional row is off by default. Successful usage values are cached locally, remain visible while a refresh runs, and update when fresh data arrives.</p>
+                <p>Open the app before beginning a long Codex task. Each saved account row shows its remaining weekly percentage and the corresponding reset time. In Settings, you can also enable the exact 300-minute (5-hour) window when the Codex service provides it; this optional row is off by default. Successful usage values are cached locally, remain visible while a refresh runs, and update when fresh data arrives.</p>
                 <p>This gives you context before switching. The app does not recommend an account or rotate profiles automatically; the final choice remains yours.</p>
               </section>
 
@@ -224,14 +223,34 @@
               </section>
 
               <section id="privacy">
-                <h2>Where the account profiles are stored</h2>
-                <p>The active Codex credential remains at <code>~/.codex/auth.json</code>. OpenAI's public <a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">Codex authentication-storage source</a> shows that the file backend reads and writes <code>auth.json</code> beneath the active <code>CODEX_HOME</code>. Saved switcher profiles and metadata live under <code>~/Library/Application Support/Codex Account Switcher/</code>.</p>
-                <p>The app runs locally, keeps profile directories user-only, and does not use an account proxy, traffic router, cloud profile sync, or automatic account rotation. Removing an inactive profile deletes its local switcher copy; it does not claim to revoke every server-side session.</p>
+                <h2>Where Codex account files are stored</h2>
+                <p>Codex reads file credentials from <code>auth.json</code> inside the active <code>CODEX_HOME</code>. Without a custom home, the usual paths are <code>~/.codex/auth.json</code> on macOS and <code>%USERPROFILE%\.codex\auth.json</code> on Windows. Desktop and Switcher must use the same active home.</p>
+                <p>Saved Switcher profiles are under <code>~/Library/Application Support/Codex Account Switcher/</code> on macOS or <code>%LOCALAPPDATA%\Codex Account Switcher\</code> on Windows. Credentials use user-only file permissions or Windows ACLs. Read the <a href="../../privacy/">privacy and deletion details</a> and <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">storage implementation</a>.</p>
+              </section>
+
+              <section id="updates">
+                <h2>How to update on Mac and Windows</h2>
+                <p>Both platforms use one version and <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">one latest Release</a>. macOS uses Sparkle to download and install a chosen update. Windows checks for updates and opens the download page: quit Switcher from its tray menu, replace the portable EXE, then reopen it. The account data directory is separate from the EXE.</p>
+                <p>Release assets include SHA-256 checksum files for both downloads. See <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/platform-releases.md">release and update behavior</a>.</p>
+              </section>
+
+              <section id="troubleshooting">
+                <h2>Common Codex account-switching errors</h2>
+                <h3 id="missing-auth">Register Current Account reports missing auth.json</h3>
+                <p>This action reads an existing file-based login from the active Codex home. First complete Codex sign-in and confirm Desktop and Switcher use the same home. To create a saved account through browser sign-in, use Add Account. Check a custom <code>CODEX_HOME</code> when the login you expect is not found; see the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">registration implementation</a>.</p>
+                <h3 id="usage-warning">A warning appears beside a remaining percentage</h3>
+                <p>A failed refresh can leave the last successful usage value visible. The percentage can therefore be stale. Hover the warning to read its error; distinguish authentication, runtime and network failures from the message. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/Models.swift">usage states</a> and <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountRow.swift">Mac warning display</a>.</p>
+                <h3 id="missing-five-hour">The 5-hour usage row is missing</h3>
+                <p>Turn on 5-hour usage in Settings. The row appears only when Codex supplies an exact 300-minute window; weekly usage is a separate value. See <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/WeeklyUsageNormalizer.swift">window normalization</a>.</p>
+                <h3 id="runtime-not-found">Codex cannot be found after a Desktop update</h3>
+                <p>Check the Switcher version and the exact error, then use the latest <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">release</a>. The runtime locator checks both current and older bundled Mac locations; Windows rediscovers its Desktop installation during handoff. If discovery still fails, report the OS, Desktop version and error through <a href="../../contact/">support</a>.</p>
+                <h3 id="switch-stage">A switch stops before Desktop reopens</h3>
+                <p>Read the reported stage before trying again. Complete any normal Desktop quit dialog. After a credential or identity mismatch, verify the account in Codex before registering it again. The <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">ordered handoff</a> stops on errors; include the visible stage in a report without sharing credential files.</p>
               </section>
 
               <section id="choice">
                 <h2>Choose the workflow that matches your use case</h2>
-                <p>A menu-bar switcher works well when one Codex Desktop instance should use one clearly selected identity at a time. Separate <code>CODEX_HOME</code> directories or isolated app environments may be more suitable when you need multiple Codex processes running concurrently under different accounts.</p>
+                <p>A desktop account switcher works well when one Codex Desktop instance should use one clearly selected identity at a time. Separate <code>CODEX_HOME</code> directories or isolated app environments may be more suitable when you need multiple Codex processes running concurrently under different accounts.</p>
                 <p>Codex Account Switcher focuses on the first workflow: a small, visible, manual handoff with weekly usage context and no background account routing.</p>
                 <div class="fact-table-wrap">
                   <table class="fact-table">
@@ -239,18 +258,19 @@
                     <tbody>
                       <tr><th scope="row">Manual sign-out and sign-in</th><td>Standard Codex and browser authentication</td><td>Sign out, authenticate, and verify the active identity again</td><td>Occasional account changes</td></tr>
                       <tr><th scope="row">Separate <code>CODEX_HOME</code> profiles</th><td>Terminal commands and environment configuration</td><td>Launch Codex with the intended profile directory</td><td>Technical users who need isolated CLI contexts</td></tr>
-                      <tr><th scope="row">Codex Account Switcher</th><td>Install the DMG and add each account through browser sign-in once</td><td>Choose an account from the menu bar and confirm</td><td>Ordinary Mac users with one active Codex Desktop identity at a time</td></tr>
+                      <tr><th scope="row">Codex Account Switcher</th><td>Download the DMG or EXE and add each account through browser sign-in once</td><td>Choose an account in the app and confirm</td><td>Mac and Windows users with one active Codex Desktop identity at a time</td></tr>
                     </tbody>
                   </table>
                 </div>
               </section>
 
               <div class="article-cta">
-                <p class="eyebrow">Open source for macOS</p>
-                <h2>Keep every authorized Codex account one menu away.</h2>
-                <p>Download the signed Apple Silicon DMG or inspect the Swift source and product decisions on GitHub.</p>
+                <p class="eyebrow">Open source for macOS and Windows</p>
+                <h2>Keep every authorized Codex account within reach.</h2>
+                <p>Download the macOS DMG or portable Windows EXE from the same release, or inspect the shared core and native interfaces on GitHub.</p>
                 <div class="download-actions">
                   <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Download free for Mac</a>
+                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Download free for Windows</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">View source</a>
                 </div>
               </div>
@@ -267,6 +287,8 @@
                 <a href="#switch">Switch accounts</a>
                 <a href="#cli">Desktop and CLI</a>
                 <a href="#privacy">Local storage</a>
+                <a href="#updates">Updates</a>
+                <a href="#troubleshooting">Error help</a>
                 <a href="#choice">Choose a workflow</a>
               </nav>
             </aside>
