@@ -61,15 +61,7 @@ open class AccountController {
             if registry.accounts.isEmpty, await store.activeCredentialExists() {
                 let activeHome = await store.activeCodexHome()
                 let identity = try await codex.readIdentity(profileHome: activeHome)
-                let profile = AccountProfile(
-                    id: UUID(),
-                    displayName: identity.suggestedDisplayName,
-                    email: identity.email,
-                    accountID: identity.accountID,
-                    createdAt: Date(),
-                    lastUsedAt: Date()
-                )
-                try await store.importCurrentProfile(profile)
+                try await store.registerActiveIdentity(identity)
                 registry = try await store.loadRegistry()
             }
             apply(registry)
@@ -142,25 +134,16 @@ open class AccountController {
                 return
             }
         }
-        let targets = await withTaskGroup(of: (UUID, URL).self, returning: [(UUID, URL)].self) { group in
-            for account in accounts {
-                group.addTask { [store] in
-                    (account.id, await store.profileHome(id: account.id))
-                }
-            }
-            var values: [(UUID, URL)] = []
-            for await value in group { values.append(value) }
-            return values
-        }
-
         guard !Task.isCancelled else { return }
         await withTaskGroup(of: UsageRefreshResult.self) { group in
-            for (id, home) in targets {
-                group.addTask { [codex] in
+            for account in accounts {
+                group.addTask { [store, codex] in
                     do {
-                        return .success(id, try await codex.readWeeklyUsage(profileHome: home))
+                        let home = await store.profileHome(id: account.id)
+                        try Task.checkCancellation()
+                        return .success(account.id, try await codex.readWeeklyUsage(profileHome: home))
                     } catch {
-                        return .failure(id, error.localizedDescription)
+                        return .failure(account.id, error.localizedDescription)
                     }
                 }
             }

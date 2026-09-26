@@ -145,7 +145,7 @@ Verify:
 - progress-bar accessibility value equals `NN% left`;
 - footer contains equal-width Manage Accounts, Settings, and Quit actions;
 - Manage Accounts and Settings navigate inside the popover;
-- reopening after closing a secondary page starts on the account list;
+- reopening after closing a secondary page starts on the account list, or Manage Accounts while sign-in is pending;
 - Settings contains Launch at Login, Show Percentage in Menu Bar, Show 5-hour Usage, and Language in that order;
 - Login Item status maps `notRegistered`, `enabled`, `requiresApproval`, and `notFound` to disabled, enabled, approval-required, and unavailable UI states;
 - all three Settings toggles expose localized accessibility labels;
@@ -215,9 +215,9 @@ The release workflow runs only on `v*` tag pushes under one repository-wide rele
 - ordinary `main` pushes do not start the release workflow and the workflow never creates or pushes a tag;
 - `CITATION.cff`, the package default, and CodexClient declare the same semantic version;
 - the derived `RELEASE_TAG` identifies the GitHub Release, while the DMG and checksum use fixed asset names compatible with `releases/latest/download/...`;
-- tag events require the event tag, repository version, checked-out commit, and `origin/main` commit to match;
-- an existing GitHub Release sets `SHOULD_RELEASE=false` and all tests, signing, notarization, packaging, and publication steps skip successfully;
-- a missing Release sets `SHOULD_RELEASE=true`, then the tag workflow runs tests, signing, notarization, packaging, checksum generation, and `gh release create --latest --verify-tag`;
+- tag events require the event tag and repository version to match, the checkout to equal the tagged commit, and that commit to be an ancestor of `origin/main`;
+- an existing GitHub Release fails validation before build or publication so published assets cannot be replaced;
+- a missing Release proceeds through both platforms' tests and packaging, macOS signing and notarization, artifact verification, and `gh release create --latest --verify-tag`;
 - conflicting tags and API failures stop with the original values visible.
 
 ## 9. Whole-project ablation and integrity regression

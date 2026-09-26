@@ -69,46 +69,32 @@ struct ManageAccountsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 3) {
-                if model.isAddingAccount {
-                    Button {
+                Button {
+                    if model.isAddingAccount {
                         model.cancelAddingAccount()
-                    } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: "xmark")
-                                .frame(width: 14)
-                            Text(model.text("cancel_add_account"))
-                                .fixedSize()
-                            Spacer(minLength: 4)
-                            signInHint
+                    } else {
+                        model.addAccount()
+                    }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: model.isAddingAccount ? "xmark" : "plus")
+                            .frame(width: 14)
+                        Text(model.text(model.isAddingAccount ? "cancel_add_account" : "add_account"))
+                            .fixedSize()
+                        Spacer(minLength: 4)
+                        signInHint
+                        if model.isAddingAccount {
                             ProgressView()
                                 .controlSize(.small)
                         }
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .frame(height: 30)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    Button {
-                        model.addAccount()
-                    } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: "plus")
-                                .frame(width: 14)
-                            Text(model.text("add_account"))
-                                .fixedSize()
-                            Spacer(minLength: 4)
-                            signInHint
-                        }
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .frame(height: 30)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(model.isMutating)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .frame(height: 30)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating && !model.isAddingAccount)
 
                 Button {
                     Task { await model.registerCurrentAccount() }
