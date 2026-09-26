@@ -113,6 +113,14 @@ internal static class Program
             Assert(client.Commands.Count == beforeClose, "Hiding must not send account commands.");
             window.OpenWindow();
             Assert(window.IsVisible && !closed, "The tray must be able to reopen the same window.");
+            client.State = client.State with { IsAddingAccount = true };
+            window.Navigate("accounts");
+            window.Hide();
+            window.OpenWindow();
+            Assert(window.CurrentPage == "manage", "Reopening a pending login must restore its cancellation page.");
+            Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("cancel_add_account") && button.IsEnabled),
+                "The pending login must remain cancellable after reopening.");
+            client.State = client.State with { IsAddingAccount = false };
             client.State = client.State with { IsMutating = true };
             window.Close();
             Assert(!window.IsVisible && !closed, "An active operation can continue while the window is hidden.");

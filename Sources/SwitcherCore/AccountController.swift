@@ -53,6 +53,8 @@ open class AccountController {
     public func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        isMutating = true
+        defer { isMutating = false }
         do {
             settings = try await store.loadSettings()
             var registry = try await store.loadRegistry()
@@ -86,7 +88,7 @@ open class AccountController {
         if isBackgroundUsageRefreshEnabled {
             scheduleNextWeeklyUsageRefresh()
         }
-        guard !accounts.isEmpty, usageRefreshTask == nil else { return }
+        guard !isMutating, !accounts.isEmpty, usageRefreshTask == nil else { return }
         usageRefreshTask = Task { [weak self] in
             guard let self else { return }
             await self.performWeeklyUsageRefresh()
@@ -127,6 +129,19 @@ open class AccountController {
     }
 
     private func performWeeklyUsageRefresh() async {
+        guard !Task.isCancelled else { return }
+        if let id = activeAccountID {
+            do {
+                let matches = try await store.syncActiveCredentialIfMatching(id: id)
+                guard !Task.isCancelled else { return }
+                activeIdentityConfirmed = matches
+            } catch {
+                guard !Task.isCancelled else { return }
+                activeIdentityConfirmed = false
+                showError(error)
+                return
+            }
+        }
         let targets = await withTaskGroup(of: (UUID, URL).self, returning: [(UUID, URL)].self) { group in
             for account in accounts {
                 group.addTask { [store] in
@@ -138,6 +153,7 @@ open class AccountController {
             return values
         }
 
+        guard !Task.isCancelled else { return }
         await withTaskGroup(of: UsageRefreshResult.self) { group in
             for (id, home) in targets {
                 group.addTask { [codex] in
@@ -149,6 +165,7 @@ open class AccountController {
                 }
             }
             for await result in group {
+                guard !Task.isCancelled else { continue }
                 switch result {
                 case let .success(id, usage):
                     guard accounts.contains(where: { $0.id == id }) else { continue }
@@ -173,7 +190,8 @@ open class AccountController {
     public func switchAccount(to id: UUID) async {
         guard id != activeAccountID, !isMutating else { return }
         isMutating = true
-        defer { isMutating = false }
+        await cancelUsageRefresh()
+        defer { isMutating = false; refreshWeeklyUsage() }
         do {
             try await switchService.switchAccount(to: id)
             apply(try await store.loadRegistry())
@@ -205,6 +223,7 @@ open class AccountController {
 
     public func addAccount() {
         guard !isMutating, !isAddingAccount else { return }
+        visibleError = nil
         isAddingAccount = true
         addAccountTask = Task { [weak self] in
             guard let self else { return }
@@ -252,7 +271,8 @@ open class AccountController {
     public func registerCurrentAccount() async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        defer { isMutating = false }
+        await cancelUsageRefresh()
+        defer { isMutating = false; refreshWeeklyUsage() }
         do {
             let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
             try await store.registerActiveIdentity(identity)
@@ -265,7 +285,8 @@ open class AccountController {
     public func removeAccount(id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
-        defer { isMutating = false }
+        await cancelUsageRefresh()
+        defer { isMutating = false; refreshWeeklyUsage() }
         do {
             try await store.removeAccount(id: id)
             apply(try await store.loadRegistry())
@@ -304,6 +325,11 @@ open class AccountController {
 
     public func dismissError() {
         visibleError = nil
+    }
+
+    private func cancelUsageRefresh() async {
+        usageRefreshTask?.cancel()
+        await usageRefreshTask?.value
     }
 
     private func apply(_ registry: AccountRegistry) {

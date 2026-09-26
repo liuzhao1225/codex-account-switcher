@@ -483,7 +483,7 @@ public struct CodexClient: AccountClient {
     private let openBrowser: @Sendable (URL) async throws -> Void
 
     public init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20),
-                clientVersion: String = "0.1.15",
+                clientVersion: String = "0.1.16",
                 openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser) {
         self.locator = locator
         self.requestTimeout = requestTimeout
@@ -510,7 +510,7 @@ public struct CodexClient: AccountClient {
                 timeout: requestTimeout
             )
         }
-        return try parseIdentity(result)
+        return try parseIdentity(result, profileHome: profileHome)
     }
 
     public func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
@@ -562,7 +562,7 @@ public struct CodexClient: AccountClient {
                     params: ["refreshToken": false],
                     timeout: requestTimeout
                 )
-                let identity = try parseIdentity(identityValue)
+                let identity = try parseIdentity(identityValue, profileHome: profileHome)
                 await session.stop()
                 return identity
             } catch {
@@ -581,26 +581,40 @@ public struct CodexClient: AccountClient {
     ) async throws -> T {
         let launch = try locator.launchConfiguration()
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment)
-        do {
-            try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
-            let result = try await operation(session)
-            await session.stop()
-            return result
-        } catch {
-            await session.stop()
-            throw error
+        return try await withTaskCancellationHandler {
+            do {
+                try Task.checkCancellation()
+                try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
+                let result = try await operation(session)
+                await session.stop()
+                try Task.checkCancellation()
+                return result
+            } catch {
+                await session.stop()
+                if Task.isCancelled { throw CancellationError() }
+                throw error
+            }
+        } onCancel: {
+            Task { await session.stop() }
         }
     }
 
-    private func parseIdentity(_ value: JSONValue) throws -> AccountIdentity {
+    private func parseIdentity(_ value: JSONValue, profileHome: URL) throws -> AccountIdentity {
         guard let account = value["account"]?.objectValue else {
             throw CodexClientError.identityUnavailable
         }
-        let accountID = account["accountId"]?.stringValue
+        var accountID = account["accountId"]?.stringValue
             ?? account["accountID"]?.stringValue
             ?? account["chatgptAccountId"]?.stringValue
             ?? account["id"]?.stringValue
         let email = account["email"]?.stringValue
+        if accountID == nil, let credential = try CredentialIdentity.read(from: profileHome) {
+            if let email, let credentialEmail = credential.email,
+               email.caseInsensitiveCompare(credentialEmail) != .orderedSame {
+                throw CodexClientError.identityUnavailable
+            }
+            accountID = credential.accountID
+        }
         guard accountID != nil || email != nil else {
             throw CodexClientError.identityUnavailable
         }

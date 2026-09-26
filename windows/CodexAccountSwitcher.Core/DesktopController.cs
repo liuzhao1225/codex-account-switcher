@@ -1,12 +1,20 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 
 namespace CodexAccountSwitcher.Core;
 
 public sealed record DesktopInstallation(string Executable, string? AppUserModelId = null);
 
-public sealed class DesktopController(DesktopInstallation installation)
+public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstallation>> discover)
 {
+    private const int ErrorInsufficientBuffer = 122;
+    private const int ErrorSuccess = 0;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetApplicationUserModelId(IntPtr process, ref uint length, StringBuilder? appUserModelId);
+
     public static async Task<DesktopInstallation> DiscoverAsync(string? explicitPath, CancellationToken ct = default)
     {
         if (!string.IsNullOrWhiteSpace(explicitPath))
@@ -48,14 +56,14 @@ public sealed class DesktopController(DesktopInstallation installation)
         throw new FileNotFoundException("Codex Desktop was not found. Install Codex Desktop before switching.");
     }
 
-    private List<Process> FindDesktopProcesses()
+    private static List<Process> FindDesktopProcesses(DesktopInstallation installation)
     {
         var result = new List<Process>();
         foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(installation.Executable)))
         {
             try
             {
-                if (!process.HasExited && string.Equals(process.MainModule?.FileName, installation.Executable, StringComparison.OrdinalIgnoreCase))
+                if (!process.HasExited && MatchesInstallation(process, installation))
                 { result.Add(process); continue; }
             }
             catch (System.ComponentModel.Win32Exception)
@@ -70,9 +78,32 @@ public sealed class DesktopController(DesktopInstallation installation)
         return result;
     }
 
+    internal static bool MatchesInstallation(Process process, DesktopInstallation installation)
+    {
+        // AUMIDs stay stable across Store package versions; a running app can retain its old install path after an update.
+        if (installation.AppUserModelId is { } expectedAppUserModelId &&
+            ReadApplicationUserModelId(process) is { } actualAppUserModelId)
+            return string.Equals(actualAppUserModelId, expectedAppUserModelId, StringComparison.OrdinalIgnoreCase);
+
+        return string.Equals(process.MainModule?.FileName, installation.Executable, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ReadApplicationUserModelId(Process process)
+    {
+        uint length = 0;
+        var result = GetApplicationUserModelId(process.Handle, ref length, null);
+        if (result != ErrorInsufficientBuffer || length == 0) return null;
+
+        var value = new StringBuilder((int)length);
+        result = GetApplicationUserModelId(process.Handle, ref length, value);
+        return result == ErrorSuccess ? value.ToString() : null;
+    }
+
     public async Task CloseAsync(CancellationToken cancellationToken)
     {
-        var initial = FindDesktopProcesses();
+        // Store package paths are versioned, so resolve the executable for every handoff.
+        var installation = await discover(cancellationToken);
+        var initial = FindDesktopProcesses(installation);
         try
         {
             if (initial.Count == 0) return;
@@ -91,7 +122,7 @@ public sealed class DesktopController(DesktopInstallation installation)
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var remaining = FindDesktopProcesses();
+                var remaining = FindDesktopProcesses(installation);
                 var count = remaining.Count;
                 foreach (var process in remaining) process.Dispose();
                 if (count == 0) return;
@@ -106,6 +137,7 @@ public sealed class DesktopController(DesktopInstallation installation)
     public async Task OpenAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var installation = await discover(cancellationToken);
         var info = installation.AppUserModelId == null
             ? new ProcessStartInfo(installation.Executable) { UseShellExecute = true }
             : new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"))
@@ -116,7 +148,7 @@ public sealed class DesktopController(DesktopInstallation installation)
         while (stopwatch.Elapsed < TimeSpan.FromSeconds(15))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var running = FindDesktopProcesses();
+            var running = FindDesktopProcesses(installation);
             var count = running.Count;
             foreach (var process in running) process.Dispose();
             if (count > 0) return;

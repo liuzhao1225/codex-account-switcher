@@ -1,3 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Native Windows adapters and presentation transport only. Business logic is SwitcherCore (Swift). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CodexAccountSwitcher.Checks" />
+  </ItemGroup>
 </Project>

@@ -50,7 +50,7 @@ struct MenuBarPopover: View {
         }
         .frame(width: 326)
         .onAppear {
-            page = .accounts
+            page = model.isAddingAccount ? .manageAccounts : .accounts
         }
         .task {
             await model.start()
@@ -66,7 +66,7 @@ struct MenuBarPopover: View {
                     Button(model.text("manage")) {
                         page = .manageAccounts
                     }
-                    .disabled(model.isMutating || model.isAddingAccount || updater.isInstalling)
+                    .disabled(model.isMutating || updater.isInstalling)
                 }
                     .font(.caption)
                     .foregroundStyle(.orange)

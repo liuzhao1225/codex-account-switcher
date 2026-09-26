@@ -50,6 +50,7 @@ public sealed class MainWindow : Window
 
     public void OpenWindow()
     {
+        if (State.IsAddingAccount) Navigate("manage");
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();

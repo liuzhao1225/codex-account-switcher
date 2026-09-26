@@ -69,6 +69,13 @@ jobs:
         run: node --test scripts/tests/*.test.mjs
       - name: Build Windows application
         run: dotnet build windows/CodexAccountSwitcher -c Release --nologo
+      - name: Check normal close and Store package path refresh
+        shell: pwsh
+        run: |
+          dotnet build windows/CodexAccountSwitcher.CloseFixture -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop close fixture build failed.' }
+          dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- desktop-close "$pwd/windows/CodexAccountSwitcher.CloseFixture/bin/Release/net10.0-windows/ChatGPT.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop close and package update check failed.' }
       - name: Test the same Swift core used by macOS
         shell: pwsh
         run: |

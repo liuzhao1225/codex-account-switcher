@@ -6,6 +6,15 @@ if (args.FirstOrDefault() == "app-server") {
     return 0;
 }
 
+if (args.FirstOrDefault() == "desktop-close") {
+    var fixture = args.ElementAtOrDefault(1);
+    if (string.IsNullOrWhiteSpace(fixture) || !File.Exists(fixture)) {
+        Console.Error.WriteLine("Pass the built ChatGPT.exe desktop fixture path to run the isolated close and update check.");
+        return 1;
+    }
+    return await DesktopCloseChecks.RunAsync(fixture);
+}
+
 var host = args.FirstOrDefault() ?? Environment.GetEnvironmentVariable("CODEX_SWITCHER_HOST_PATH");
 if (string.IsNullOrEmpty(host) || !File.Exists(host)) {
     Console.Error.WriteLine("Pass the built SwitcherHost.exe path to run native/shared-core integration checks.");
