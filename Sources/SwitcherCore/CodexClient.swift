@@ -412,12 +412,19 @@ public struct CodexExecutableLocator: Sendable {
         {
             return URL(fileURLWithPath: path)
         }
+        #if os(macOS)
         if command == nil || command == "" {
             for applicationURL in desktopApplicationURLs {
-                let bundledCLI = applicationURL.appendingPathComponent("Contents/Resources/codex")
-                if isExecutable(bundledCLI.path) { return bundledCLI }
+                for relativePath in [
+                    "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+                    "Contents/Resources/codex",
+                ] {
+                    let bundledCLI = applicationURL.appendingPathComponent(relativePath)
+                    if isExecutable(bundledCLI.path) { return bundledCLI }
+                }
             }
         }
+        #endif
         #endif
         throw CodexClientError.executableNotFound
     }

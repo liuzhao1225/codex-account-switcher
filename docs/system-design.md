@@ -266,9 +266,10 @@ Lookup order:
 
 1. test-only explicit URL;
 2. the login shell's shared `CODEX_CLI_PATH`, resolved through its `PATH` when it is a command name;
-3. the login shell's `codex` command when no shared override is set.
+3. the login shell's `codex` command when no shared override is set;
+4. on macOS, the bundled CLI in `/Applications/ChatGPT.app`, then `/Applications/Codex.app`, when no shared override is set and PATH has no executable `codex`. Within each app, check `Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex` before the older `Contents/Resources/codex` layout.
 
-The runtime version is never pinned. Each operation resolves the current system command. The same login-shell PATH is passed to app-server so npm launchers can resolve Node. A missing command or invalid explicit path is an error; the switcher does not silently start another bundled version.
+The runtime version is never pinned. Each operation resolves the executable again, including after Desktop updates invalidate a PATH symlink. The same login-shell PATH is passed to app-server so npm launchers can resolve Node. An invalid explicit `CODEX_CLI_PATH` remains an error, including when it names a missing command.
 
 If not found, show one direct error:
 
@@ -402,7 +403,7 @@ Use `NSRunningApplication` for the Codex Desktop bundle identifier and call `ter
 
 Codex Desktop can display a quit confirmation while work is active. Allow up to 30 seconds for its normal exit, including its history and settings flush. Never force-terminate Desktop. If the quit request is rejected or Desktop remains running, report a close-stage error before saving or replacing credentials. The user can finish or stop active tasks, close Desktop, and switch again. Cancellation also stops the wait.
 
-The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. There is no switcher-specific override or automatic selection of another bundled CLI.
+The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. Without an override or executable PATH command, macOS checks the installed Desktop app layouts described in section 8.
 
 If Desktop is not running, `close()` succeeds immediately.
 

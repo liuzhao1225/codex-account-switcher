@@ -3,22 +3,50 @@ import Testing
 @testable import SwitcherCore
 
 struct CodexExecutableLocatorTests {
-    @Test func findsCLIInsideDesktopApplicationWhenPATHHasNoCodex() throws {
+    @Test(arguments: [
+        "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+        "Contents/Resources/codex",
+    ])
+    func findsBundledCLIWithMissingOrBrokenPATHCommand(relativePath: String) throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("codex-desktop-tests-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let application = root.appendingPathComponent("ChatGPT.app")
-        let executable = application.appendingPathComponent("Contents/Resources/codex")
+        let executable = application.appendingPathComponent(relativePath)
         try FileManager.default.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: executable)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
 
+        let bin = root.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        let pathCommand = bin.appendingPathComponent("codex")
+        try FileManager.default.createSymbolicLink(at: pathCommand, withDestinationURL: root.appendingPathComponent("missing-codex"))
         let locator = CodexExecutableLocator(desktopApplicationURLs: [application])
-        #expect(try locator.locate(environment: ["PATH": "/nonexistent"]) == executable)
-        #expect(throws: CodexClientError.self) {
-            try locator.locate(environment: [
-                "PATH": "/nonexistent", "CODEX_CLI_PATH": "custom-codex",
-            ])
+        for path in ["/nonexistent", bin.path] {
+            #expect(try locator.locate(environment: ["PATH": path]) == executable)
         }
+        #expect(try locator.locate(environment: ["PATH": bin.path, "CODEX_CLI_PATH": " "]) == executable)
+        for override in ["custom-codex", root.appendingPathComponent("missing-codex").path] {
+            #expect(throws: CodexClientError.self) {
+                try locator.locate(environment: ["PATH": bin.path, "CODEX_CLI_PATH": override])
+            }
+        }
+
+        try FileManager.default.removeItem(at: pathCommand)
+        try FileManager.default.copyItem(at: executable, to: pathCommand)
+        #expect(try locator.locate(environment: ["PATH": bin.path]) == pathCommand)
+    }
+
+    @Test func prefersModernBundledLayoutWhenBothExist() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("codex-desktop-tests-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let modern = root.appendingPathComponent("Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+        let legacy = root.appendingPathComponent("Contents/Resources/codex")
+        try FileManager.default.createDirectory(at: modern.deletingLastPathComponent(), withIntermediateDirectories: true)
+        for executable in [modern, legacy] {
+            try Data("#!/bin/sh\nexit 0\n".utf8).write(to: executable)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        }
+        #expect(try CodexExecutableLocator(desktopApplicationURLs: [root]).locate(environment: [:]) == modern)
     }
 
     @Test(arguments: ["/bin/sh", "/bin/bash", "/bin/zsh"])

@@ -118,6 +118,8 @@ Assert that the client does not retry, makes one rate-limit request per read, an
 Install fish to enable the fish regression check (it is explicitly skipped when fish is unavailable).
 Each shell covers unset and empty `CODEX_CLI_PATH`, shell-local command and absolute-path overrides,
 invalid overrides, startup output, paths containing spaces, and PATH inheritance by the launched child.
+Bundled CLI checks cover both ChatGPT app layouts, an absent PATH command, a broken PATH symlink,
+PATH precedence, modern-layout precedence, and errors for invalid explicit overrides.
 
 ## 5. UI tests
 
