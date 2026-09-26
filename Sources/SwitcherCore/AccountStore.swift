@@ -73,7 +73,20 @@ public actor AccountStore: AccountStoring {
             registry = .empty
             return .empty
         }
-        let loaded = try Self.decoder.decode(AccountRegistry.self, from: readChecked(accountsURL))
+        var loaded = try Self.decoder.decode(AccountRegistry.self, from: readChecked(accountsURL))
+        var changed = false
+        for index in loaded.accounts.indices where loaded.accounts[index].accountID == nil {
+            let profile = loaded.accounts[index]
+            if let identity = try CredentialIdentity.read(from: profileHome(id: profile.id)) {
+                if let expected = profile.email, let actual = identity.email,
+                   expected.caseInsensitiveCompare(actual) != .orderedSame {
+                    throw AccountStoreError.activeCredentialMismatch
+                }
+                loaded.accounts[index].accountID = identity.accountID
+                changed = true
+            }
+        }
+        if changed { try saveRegistry(loaded) }
         registry = loaded
         return loaded
     }
@@ -177,15 +190,35 @@ public actor AccountStore: AccountStoring {
     }
 
     public func registerActiveIdentity(_ identity: AccountIdentity) throws {
-        let current = try loadRegistry()
+        var current = try loadRegistry()
+        let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
+        let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
+            email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
+        guard let credentialIdentity = try CredentialIdentity.decode(bytes), credentialIdentity.matches(candidate) else {
+            throw AccountStoreError.activeCredentialMismatch
+        }
         if let profile = current.accounts.first(where: { identity.matches($0) }) {
-            try copyCredential(from: activeHomeURL.appending(path: "auth.json"),
-                               to: profileHome(id: profile.id).appending(path: "auth.json"))
+            try secureAtomicWrite(bytes, to: profileHome(id: profile.id).appending(path: "auth.json"))
             try commitActiveAccountID(profile.id)
         } else {
-            try importCurrentProfile(AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
-                email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date()))
+            let home = try createProfileDirectory(id: candidate.id)
+            try secureAtomicWrite(bytes, to: home.appending(path: "auth.json"))
+            current.accounts.append(candidate)
+            current.activeAccountID = candidate.id
+            try saveRegistry(current)
         }
+    }
+
+    /// Verify and copy the same bytes, so an external login cannot overwrite another saved account.
+    public func syncActiveCredentialIfMatching(id: UUID) throws -> Bool {
+        let current = try loadRegistry()
+        guard current.activeAccountID == id,
+              let profile = current.accounts.first(where: { $0.id == id }) else { return false }
+        let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
+        guard let identity = try CredentialIdentity.decode(bytes), identity.matches(profile) else { return false }
+        let destination = profileHome(id: id).appending(path: "auth.json")
+        if try readChecked(destination) != bytes { try secureAtomicWrite(bytes, to: destination) }
+        return true
     }
 
     public func removeAccount(id: UUID) throws {

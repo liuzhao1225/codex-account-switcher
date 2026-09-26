@@ -4,6 +4,49 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct CodexClientTests {
+    @Test func fillsMissingWorkspaceIDFromTheSameProfileCredential() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
+            *account*read*) printf '%s\n' '{"id":1,"result":{"account":{"email":"same@example.test"}}}' ;;
+          esac
+        done
+        """#)
+        defer { fixture.remove() }
+        try Data(#"{"tokens":{"account_id":"workspace"}}"#.utf8)
+            .write(to: fixture.root.appending(path: "auth.json"))
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        let identity = try await client.readIdentity(profileHome: fixture.root)
+        #expect(identity.accountID == "workspace")
+        #expect(identity.email == "same@example.test")
+    }
+
+    @Test func usageReadCanBeCancelledBeforeItsRequestTimeout() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
+            *rateLimits*) touch "$CODEX_HOME/reading" ;;
+          esac
+        done
+        """#)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(20))
+        let read = Task { try await client.readWeeklyUsage(profileHome: fixture.root) }
+        for _ in 0..<100 {
+            if FileManager.default.fileExists(atPath: fixture.root.appending(path: "reading").path) { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(FileManager.default.fileExists(atPath: fixture.root.appending(path: "reading").path))
+        let started = ContinuousClock.now
+        read.cancel()
+        await #expect(throws: CancellationError.self) { try await read.value }
+        #expect(ContinuousClock.now - started < .seconds(2))
+    }
+
     @Test func keepsCodexQuotaSeparateFromOtherMeteredBuckets() async throws {
         let fixture = try ScriptFixture(body: #"""
         while IFS= read -r line; do

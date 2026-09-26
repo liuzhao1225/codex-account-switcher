@@ -15,7 +15,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task reader;
     private readonly Task stderr;
-    private DesktopController? desktop;
+    private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(null, ct));
     private int nextID;
     public AccountSnapshot State { get; private set; } = AccountSnapshot.Empty;
     public event Action? Changed;
@@ -110,11 +110,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
                     using (Process.Start(new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true })) { }
                     break;
                 case "closeDesktop":
-                    desktop ??= new DesktopController(await DesktopController.DiscoverAsync(null, lifetime.Token));
                     await desktop.CloseAsync(lifetime.Token);
                     break;
                 case "reopenDesktop":
-                    desktop ??= new DesktopController(await DesktopController.DiscoverAsync(null, lifetime.Token));
                     await desktop.OpenAsync(lifetime.Token);
                     break;
                 default: throw new IOException("Unknown platform operation.");

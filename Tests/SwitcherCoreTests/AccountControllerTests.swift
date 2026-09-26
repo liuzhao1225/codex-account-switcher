@@ -151,7 +151,8 @@ private struct ControllerFixture {
             switchService: SwitchService(desktop: FixtureDesktop(), store: store, codex: client))
     }
     func writeActiveCredential() throws {
-        try Data("fixture-secret-token".utf8).write(to: active.appendingPathComponent("auth.json"))
+        try Data(#"{"tokens":{"account_id":"demo-account","access_token":"fixture-secret-token"}}"#.utf8)
+            .write(to: active.appendingPathComponent("auth.json"))
     }
     func clean() { try? FileManager.default.removeItem(at: root) }
 }

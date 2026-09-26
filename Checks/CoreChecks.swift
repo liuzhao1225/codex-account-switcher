@@ -162,7 +162,7 @@ struct CoreChecks {
         let activeHome = root.appending(path: "active")
         let support = root.appending(path: "support")
         try fileManager.createDirectory(at: activeHome, withIntermediateDirectories: true)
-        try Data("first".utf8).write(to: activeHome.appending(path: "auth.json"))
+        try Data(#"{"tokens":{"account_id":"first"}}"#.utf8).write(to: activeHome.appending(path: "auth.json"))
 
         let store = AccountStore(baseURL: support, activeHomeURL: activeHome)
         let first = AccountProfile(
@@ -179,7 +179,7 @@ struct CoreChecks {
             accountID: "second", createdAt: Date(), lastUsedAt: nil
         )
         let secondHome = try await store.createProfileDirectory(id: second.id)
-        let secondBytes = Data("second".utf8)
+        let secondBytes = Data(#"{"tokens":{"account_id":"second"}}"#.utf8)
         try secondBytes.write(to: secondHome.appending(path: "auth.json"))
         try await store.addProfile(second)
         let third = AccountProfile(
@@ -187,7 +187,7 @@ struct CoreChecks {
             accountID: "third", createdAt: Date(), lastUsedAt: nil
         )
         let thirdHome = try await store.createProfileDirectory(id: third.id)
-        try Data("third".utf8).write(to: thirdHome.appending(path: "auth.json"))
+        try Data(#"{"tokens":{"account_id":"third"}}"#.utf8).write(to: thirdHome.appending(path: "auth.json"))
         try await store.addProfile(third)
         try await store.activateTargetCredential(id: second.id)
         let activeCredential = activeHome.appending(path: "auth.json")

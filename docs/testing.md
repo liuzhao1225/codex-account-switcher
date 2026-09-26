@@ -24,6 +24,12 @@ Require the `Test run with ... tests ... passed` summary before treating the sui
 
 ## 2. Unit tests
 
+### Active credential refresh and Desktop updates (v0.1.16)
+
+`CredentialSyncTests` covers refreshed live credentials, refusal to copy a different workspace with the same email, legacy IDs populated from each saved profile, registration after an external login changes, and a usage response deliberately returned after cancellation during a switch. The controller drains the old refresh before mutating credentials and starts a fresh read afterward. The quota client cancellation test also verifies that a silent pending request stops before its request timeout.
+
+Windows CI runs an isolated WinForms Desktop fixture through two versioned installation directories using the same long-lived `DesktopController`. It verifies rediscovery for every close/open operation. WPF checks reopen a pending login and require the enabled cancellation button. These checks do not verify a complete handoff of the real Store-packaged Codex app.
+
 ### 2.1 Usage windows
 
 Test:
