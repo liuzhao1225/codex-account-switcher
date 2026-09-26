@@ -1,0 +1,22 @@
+{
+  "name": "@liuzhao1225/codex-account-switcher",
+  "version": "0.1.0",
+  "description": "Official download-link helper for Zhao Liu's native Codex Account Switcher for macOS and Windows (liuzhao1225/codex-account-switcher).",
+  "type": "module",
+  "bin": {
+    "codex-account-switcher-download": "bin/download.mjs"
+  },
+  "files": ["bin/"],
+  "engines": { "node": ">=18" },
+  "author": { "name": "Zhao Liu (liuzhao1225)", "url": "https://github.com/liuzhao1225" },
+  "license": "MIT",
+  "homepage": "https://liuzhao1225.github.io/codex-account-switcher/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liuzhao1225/codex-account-switcher.git",
+    "directory": "npm"
+  },
+  "bugs": { "url": "https://github.com/liuzhao1225/codex-account-switcher/issues" },
+  "keywords": ["codex", "codex-account-switcher", "codex-desktop", "account-switcher", "multi-account", "macos", "windows", "download", "liuzhao1225"],
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" }
+}

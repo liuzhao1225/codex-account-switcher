@@ -30,7 +30,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher 在 macOS 上显示多个 Codex 账号及其每周用量">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-09">
+    <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Mac 如何切换 Codex 多账号？安装与使用指南">
     <meta name="twitter:description" content="按照实际操作安装 Codex Account Switcher、登记当前登录账号、添加其他账号并确认切换。了解本地历史记录、用量和 Desktop 与 CLI 的区别。">
@@ -50,7 +50,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-multiple-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-09",
+            "dateModified": "2026-09-27",
             "inLanguage": "zh-CN",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -220,7 +220,7 @@
                 <h2>Codex Desktop 与 CLI 会发生什么</h2>
                 <p><strong>Codex Desktop 会在确认切换后关闭并重新打开。</strong>Desktop 中正在运行的任务可能在交接时停止，因此建议在开始重要工作前完成切换。</p>
                 <p><strong>已经运行的 Codex CLI 进程会保留此前加载的状态。</strong>切换器不会终止它们。需要让终端使用新账号时，请启动一个新的 Codex CLI 进程。</p>
-                <p><strong>共享的本地 Codex 历史记录和配置会保留在原处。</strong>切换器更换当前认证，不移动或修复 Codex 历史数据库。可查看<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md#21-goals">共享历史记录设计</a>与<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/SwitchService.swift">切换实现</a>。</p>
+                <p><strong>共享的本地 Codex 历史记录和配置会保留在原处。</strong>切换器更换当前认证，不移动或修复 Codex 历史数据库。可查看<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md#21-goals">共享历史记录设计</a>与<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">切换实现</a>。</p>
               </section>
 
               <section id="privacy">

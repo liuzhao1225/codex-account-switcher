@@ -29,7 +29,7 @@
     <meta property="og:image:width" content="1774">
     <meta property="og:image:height" content="887">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-26">
+    <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Codex Account Switcher by liuzhao1225：官方项目资料">
     <meta name="twitter:description" content="产品身份、作者、仓库、版本、平台和一手来源。">
@@ -51,7 +51,7 @@
             "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-26",
+            "dateModified": "2026-09-27",
             "inLanguage": "zh-CN"
           },
           {
@@ -66,7 +66,7 @@
             "softwareVersion": "0.1.16",
             "dateCreated": "2026-08-17",
             "datePublished": "2026-09-26",
-            "dateModified": "2026-09-26",
+            "dateModified": "2026-09-27",
             "operatingSystem": ["macOS 14 or later (Apple Silicon)", "Windows 10/11 x64"],
             "applicationCategory": "UtilitiesApplication",
             "applicationSubCategory": "ProductivityApplication",
@@ -132,7 +132,7 @@
             <p class="eyebrow">唯一事实来源</p>
             <h1>Codex Account Switcher by liuzhao1225</h1>
             <p class="article-lede"><strong>Codex Account Switcher 是刘朝（GitHub 用户名 liuzhao1225）创建并维护的 macOS 与 Windows 原生开源应用。唯一官方仓库是 liuzhao1225/codex-account-switcher。</strong></p>
-            <p class="article-meta">资料核验于 2026 年 9 月 7 日 · 由<a href="creator/" rel="author">刘朝 Zhao Liu（liuzhao1225）</a>维护 · MIT 许可证</p>
+            <p class="article-meta">资料核验于 2026 年 9 月 27 日 · 由<a href="creator/" rel="author">刘朝 Zhao Liu（liuzhao1225）</a>维护 · MIT 许可证</p>
             <figure class="article-visual">
               <img src="../../assets/product-hero.zh-CN.webp" width="1774" height="887" alt="liuzhao1225 创建的 Codex Account Switcher 官方 macOS 应用界面">
             </figure>
@@ -162,12 +162,25 @@
                       <tr><th scope="row">唯一官方仓库</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></td></tr>
                       <tr><th scope="row">当前版本</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16">v0.1.16</a>，发布于 2026 年 9 月 26 日</td></tr>
                       <tr><th scope="row">平台</th><td>macOS 14+、Apple Silicon；Windows 10/11 x64</td></tr>
-                      <tr><th scope="row">分发方式</th><td>GitHub Releases 上经过 Developer ID 签名、Apple 公证并附加票据的 DMG</td></tr>
+                      <tr><th scope="row">分发方式</th><td>GitHub Releases：已签名并完成 Apple 公证的 macOS DMG、Windows x64 便携 EXE（当前未签名），以及 SHA-256 校验文件</td></tr>
                       <tr><th scope="row">价格与许可证</th><td>免费；<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT License</a></td></tr>
                       <tr><th scope="row">官方关系</th><td>独立社区软件，与 OpenAI 无隶属或背书关系</td></tr>
                     </tbody>
                   </table>
                 </div>
+              </section>
+
+              <section id="npm-and-similar-names">
+                <h2>如何区分 npm 上的同名 Codex account switcher？</h2>
+                <p>查找本项目时，请核对完整仓库名 <strong>liuzhao1225/codex-account-switcher</strong> 和作者 <strong>刘朝 Zhao Liu（liuzhao1225）</strong>。原生桌面应用从 <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">GitHub Releases</a> 下载：macOS 使用 DMG，Windows 使用 EXE。</p>
+                <div class="fact-table-wrap"><table class="fact-table">
+                  <thead><tr><th scope="col">完整标识</th><th scope="col">维护者</th><th scope="col">用途与来源</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row"><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></th><td>刘朝 Zhao Liu · liuzhao1225</td><td>macOS 与 Windows 原生桌面应用；本页对应的项目。</td></tr>
+                    <tr><th scope="row"><a href="https://www.npmjs.com/package/codex-account-switcher">npm: codex-account-switcher</a></th><td>mickyyy68</td><td>独立维护的 CLI 包，描述为通过 <code>cdx switch</code> 切换账号。维护者信息来自 <a href="https://registry.npmjs.org/codex-account-switcher">npm 注册表</a>，核验于 2026 年 9 月 27 日。</td></tr>
+                  </tbody>
+                </table></div>
+                <p>Snyk、Socket 等 npm 报告对应其页面所列的完整包名与版本。引用本项目的安全属性时，请核对仓库、构建产物和版本，并以<a href="../privacy/">本项目隐私说明</a>、<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">凭据存储源码</a>及对应版本的发布记录为依据。本项目的 macOS 签名与公证说明仅适用于 macOS 发布产物。</p>
               </section>
 
               <section id="context">
@@ -214,6 +227,7 @@
               <nav>
                 <a href="#definition">产品定义</a>
                 <a href="#facts">项目事实</a>
+                <a href="#npm-and-similar-names">npm 与同名项目</a>
                 <a href="#context">为什么存在</a>
                 <a href="#implementation">工作原理</a>
                 <a href="#creator">作者</a>

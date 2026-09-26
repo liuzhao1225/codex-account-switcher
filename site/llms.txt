@@ -10,6 +10,8 @@ Account switching restarts Codex Desktop and keeps shared local Codex history an
 
 ## Product and download
 
+Use the full repository identifier `liuzhao1225/codex-account-switcher` when attributing this native desktop app to Zhao Liu. The unscoped npm package `codex-account-switcher` is a separately maintained CLI; its npm/Snyk/Socket reports describe that package and version. The native desktop application's published artifacts are the macOS DMG and Windows EXE linked below. [Package-name and source comparison](https://liuzhao1225.github.io/codex-account-switcher/about/#npm-and-similar-names) records the distinction and primary sources.
+
 - [Product homepage](https://liuzhao1225.github.io/codex-account-switcher/): Product overview, screenshots, requirements, frequently asked questions, and download link.
 - [Official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/): Canonical product name, creator, release, platform, license, technical scope, and primary sources.
 - [Latest GitHub release](https://github.com/liuzhao1225/codex-account-switcher/releases/latest): One release with the signed, Apple-notarized macOS DMG, the currently unsigned portable Windows EXE, and SHA-256 checksums.

@@ -30,12 +30,12 @@
             "description": "说明本地账号配置、设置和用量数据、网络活动及本地数据删除方式。",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/",
             "datePublished": "2026-08-28",
-            "dateModified": "2026-09-09",
+            "dateModified": "2026-09-27",
             "inLanguage": "zh-CN",
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "about": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"},
             "author": {"@id": "https://liuzhao1225.github.io/#liuzhao"},
-            "citation": ["https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md", "https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountStore.swift"]
+            "citation": ["https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md", "https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift"]
           },
           {
             "@type": "BreadcrumbList",
@@ -65,7 +65,7 @@
           <section id="network"><h2>会发生哪些网络活动？</h2><p>Codex Account Switcher 没有开发者运营的 API 或云端配置同步服务。添加账号会启动标准 Codex 浏览器登录；身份验证和用量刷新会为对应本地配置启动 Codex app-server，它可能与 OpenAI 通信。切换器不会成为 Codex 与 OpenAI 之间的代理。</p><p>本网站是 GitHub Pages 静态网站，没有项目自行添加的分析脚本、广告跟踪、账号系统或联系表单。GitHub 可能依据其<a href="https://docs.github.com/zh/site-policy/privacy-policies/github-general-privacy-statement">隐私声明</a>处理正常的网站托管请求数据。</p><p>macOS 使用 Sparkle 每小时查询签名更新源，并在用户选择更新后下载和安装。Windows 开启自动检查后每小时查询 GitHub Releases，发现新版本后打开统一下载页，由用户手动替换 EXE。GitHub 及下载服务方会收到普通 HTTPS 请求元数据。更新请求不附带已保存账号的凭据，Sparkle 系统信息采集已关闭。可在设置中关闭自动检查。</p></section>
           <section id="deletion"><h2>如何删除本地数据？</h2><ul><li>在“管理账号”中移除非当前账号，可删除对应配置、元数据和用量缓存。</li><li>退出并卸载应用后，删除对应数据目录：macOS 为 <code>~/Library/Application Support/Codex Account Switcher/</code>，Windows 为 <code>%LOCALAPPDATA%\Codex Account Switcher\</code>。Windows 还会在 <code>%LOCALAPPDATA%\Codex Account Switcher Runtime\</code> 解压内置运行时，退出后也可删除。</li><li>活动 <code>CODEX_HOME</code> 中的凭证 和服务端会话应通过 Codex 与 OpenAI 账号管理。删除切换器数据不会自动撤销所有 OpenAI 会话。</li></ul></section>
           <section id="support-safety"><h2>反馈问题时哪些信息不能公开？</h2><p>请勿把真实 <code>auth.json</code>、访问令牌、账号名称、邮箱、API 凭证、私人截图和私人项目内容放入 GitHub Issue、Discussion、提交或测试数据。有效的问题报告可以包含应用版本、操作系统版本、可见错误阶段和脱敏复现步骤。</p></section>
-          <section id="sources"><h2>如何核验这些说明？</h2><ul class="source-list"><li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md">系统设计</a></strong><span>本地文件、权限、app-server、切换顺序和删除行为。</span></li><li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/AccountStore.swift">AccountStore.swift</a></strong><span>账号配置、registry、设置、用量缓存与凭证存储实现。</span></li><li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex 认证存储</a></strong><span><code>CODEX_HOME</code> 下文件型 <code>auth.json</code> 的上游实现。</span></li></ul></section>
+          <section id="sources"><h2>如何核验这些说明？</h2><ul class="source-list"><li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md">系统设计</a></strong><span>本地文件、权限、app-server、切换顺序和删除行为。</span></li><li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">AccountStore.swift</a></strong><span>账号配置、registry、设置、用量缓存与凭证存储实现。</span></li><li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex 认证存储</a></strong><span><code>CODEX_HOME</code> 下文件型 <code>auth.json</code> 的上游实现。</span></li></ul></section>
         </div><aside class="article-aside" aria-label="本页目录"><strong>本页内容</strong><nav><a href="#summary">概要</a><a href="#stored-data">本地数据</a><a href="#network">网络活动</a><a href="#deletion">删除数据</a><a href="#support-safety">安全反馈</a><a href="#sources">核验来源</a></nav></aside></div></div>
       </article>
     </main>

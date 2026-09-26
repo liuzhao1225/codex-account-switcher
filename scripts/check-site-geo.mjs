@@ -25,6 +25,12 @@ function validDate(value) {
 
 function checkTarget(href, sourceURL, label) {
   const url = new URL(href, sourceURL);
+  const repositoryPrefix = "https://github.com/liuzhao1225/codex-account-switcher/blob/main/";
+  if (url.href.startsWith(repositoryPrefix)) {
+    const relative = decodeURIComponent(url.pathname.split("/blob/main/")[1]);
+    if (!fs.existsSync(path.join(root, relative))) fail(`${label}: missing repository source ${relative}`);
+    return;
+  }
   if (!url.href.startsWith(baseURL)) return;
   const target = siteFileForURL(url.href);
   if (!target || !fs.existsSync(target)) {
@@ -215,6 +221,8 @@ for (const url of sitemapURLs) {
 }
 
 const llms = fs.readFileSync(path.join(siteRoot, "llms.txt"), "utf8");
+const identity = fs.readFileSync(path.join(root, "docs/project-identity.md"), "utf8");
+if (!identity.includes(`| Current release | [v${releaseVersion}]`)) fail("docs/project-identity.md: current release differs from CITATION.cff");
 if (!/^# Codex Account Switcher\r?\n/.test(llms)) fail("site/llms.txt: must start with the canonical project H1");
 if (!llms.includes("> Codex Account Switcher is")) fail("site/llms.txt: missing concise project summary");
 if (!llms.includes(`current release is v${releaseVersion}`)) fail("site/llms.txt: current release differs from CITATION.cff");
