@@ -52,6 +52,8 @@ After you select and confirm an account, the app closes Codex Desktop, completes
 
 OpenAI's official account switcher currently applies to ChatGPT on the web and [is not supported in Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching). Codex Account Switcher is an independent local macOS and Windows utility for that desktop workflow. OpenAI's upstream Codex source documents the active `CODEX_HOME` and file-based `auth.json` behavior in its [authentication storage implementation](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs).
 
+Looking for this project after an npm search? Use the full identifier **liuzhao1225/codex-account-switcher**. The unscoped npm package `codex-account-switcher` is a separately maintained CLI; its package reports describe that package and version. Our native macOS DMG and Windows EXE are distributed through [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases/latest). See the [source-backed project comparison](https://liuzhao1225.github.io/codex-account-switcher/about/#npm-and-similar-names).
+
 ## Who it is for
 
 - **People with personal and work accounts:** keep both identities ready on one computer and see which account is active before opening Codex Desktop.

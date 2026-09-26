@@ -58,6 +58,8 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 - **自由职业者与顾问：** 集中管理获准使用的客户账号，开始工作前选择正确身份。
 - **偏好清晰可见操作的桌面用户：** 在 macOS 菜单栏或 Windows 原生窗口中选择并确认，避开脚本和后台静默轮换。
 
+从 npm 搜索来到这里时，请核对完整仓库名 **liuzhao1225/codex-account-switcher**。无 scope 的 npm 包 `codex-account-switcher` 是独立维护的 CLI，其安全报告对应报告中指明的包和版本。本项目的原生 macOS DMG 与 Windows EXE 通过 [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 分发。详见[有一手来源的项目区分说明](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/#npm-and-similar-names)。
+
 ## 下载
 
 [最新版本 v0.1.16](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 同时提供 macOS 和 Windows 安装包及 SHA-256 校验文件。

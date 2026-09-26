@@ -30,7 +30,7 @@
     <meta property="og:image:height" content="887">
     <meta property="og:image:alt" content="Codex Account Switcher showing multiple Codex profiles and their weekly usage on macOS">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-09">
+    <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="How to Switch Codex Accounts on Mac | Setup Guide">
     <meta name="twitter:description" content="Install Codex Account Switcher, save your current login, add accounts, and confirm a switch. Learn what happens to local history and running CLI sessions.">
@@ -50,7 +50,7 @@
             "url": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/guides/switch-multiple-codex-accounts/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-09",
+            "dateModified": "2026-09-27",
             "inLanguage": "en",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": {
@@ -220,7 +220,7 @@
                 <h2>What happens to Codex Desktop and CLI sessions</h2>
                 <p><strong>Codex Desktop closes and reopens</strong> after a confirmed account change. A task running in Desktop may stop during that handoff, so switch before starting important work.</p>
                 <p><strong>Existing Codex CLI processes keep the state they already loaded.</strong> They are not terminated by the switcher. Start a new Codex CLI process when you want the terminal to use the newly selected account.</p>
-                <p><strong>Shared local Codex history and configuration stay in place.</strong> The switcher changes the active credential; it does not move or repair Codex history databases. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md#21-goals">shared-history design</a> and <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/SwitchService.swift">switching implementation</a>.</p>
+                <p><strong>Shared local Codex history and configuration stay in place.</strong> The switcher changes the active credential; it does not move or repair Codex history databases. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md#21-goals">shared-history design</a> and <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">switching implementation</a>.</p>
               </section>
 
               <section id="privacy">
