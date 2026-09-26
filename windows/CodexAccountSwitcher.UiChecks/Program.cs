@@ -118,6 +118,7 @@ internal static class Program
             window.Hide();
             window.OpenWindow();
             Assert(window.CurrentPage == "manage", "Reopening a pending login must restore its cancellation page.");
+            Render(window, Path.Combine(output, "pending-sign-in-reopened-zh.png"));
             Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("cancel_add_account") && button.IsEnabled),
                 "The pending login must remain cancellable after reopening.");
             client.State = client.State with { IsAddingAccount = false };
