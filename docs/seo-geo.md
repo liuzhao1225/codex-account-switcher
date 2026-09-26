@@ -66,6 +66,28 @@ Until registry publication is verified, public download instructions continue to
 
 For later DeepSeek comparison, reuse the exact three inputs above in fresh chats with web search, plus `codex account switcher npm` and `Windows Codex 多账号切换 原生应用`. Record the date, exact query, whether the app appeared, creator/repository attribution, source URLs and security-claim scope. Evaluate unbranded discovery separately from answers seeded with the repository URL. A single improved answer is a sample, not a measured visibility trend.
 
+## Doubao sample and primary-source retrieval
+
+Reviewed September 27, 2026 in the user's existing logged-in Doubao conversation. The page displayed the “豆包 快速” mode. The three answers below predate this update. The conversation URL is account-specific; retain only the relevant queries, observations and public source links in this repository.
+
+| Input | Observed answer and search sources | Change |
+| --- | --- | --- |
+| `codex account switcher` | Eight listed sources included npm packages, two VS Code extensions and other tools. The answer treated several independently maintained projects as versions of one tool and omitted this app. | Extend the existing identity comparison with exact VS Code publisher IDs and the separate repository named in the cited V2EX post. |
+| `codex account switcher liuzhao1225` | Sixteen listed sources omitted this repository and website. The answer said the app had no public repository and described macOS only, manual Desktop restart and no usage polling. | Link supported platforms, browser login, periodic usage reads and confirmed Desktop handoff to their actual implementation in the existing facts table. |
+| `https://github.com/liuzhao1225/codex-account-switcher` | Sixteen listed sources again omitted the supplied repository and website. The answer called the repository empty with no source or releases, then suggested recreating the app with a script. | Add direct questions about source/download availability and usage monitoring, with matching visible answers and FAQ structured data; link the published source tag and artifacts. |
+
+The sample's primary-source checks:
+
+- [v0.1.16 source](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16) is public. [Its Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16) was published on September 26, 2026, with macOS DMG, Windows EXE and both SHA-256 files; the GitHub release API confirmed uploaded assets and a non-draft, non-prerelease record.
+- The listed [nekiro extension](https://marketplace.visualstudio.com/items?itemName=nekiro.codex-acc-switcher) and [DondakeLtd extension](https://marketplace.visualstudio.com/items?itemName=DondakeLtd.vscode-codex-switcher) are separate VS Code projects.
+- The listed [V2EX introduction](https://v2ex.com/t/1200427) is by `aikilan` and links to `aikilan/CodexAccountSwitcher`. It provides evidence about that project. Another cited V2EX URL, `/t/1201154`, could not be retrieved during verification; its content remains unverified.
+
+The observed failure combines missed first-party sources and incorrect project attribution. This sample does not identify Doubao's search provider, index freshness or ranking weights. Its sources span npm, Visual Studio Marketplace, V2EX, PyPI, GitHub/raw content and other sites. Do not infer a general preference for ByteDance content platforms or npm from this conversation.
+
+Use the existing static bilingual pages, source links, reciprocal language links and host-root crawl policy. No additional crawler-specific pages, fabricated citations or instruction text aimed at manipulating an answer are required. Keep the existing `#facts` and `#npm-and-similar-names` anchors stable. The pages already carried September 27 modification dates, so their sitemap dates remain accurate for this same-day update.
+
+For a later comparison, repeat each exact input in a fresh Doubao chat with the same visible model/search settings; add `liuzhao1225 Codex Account Switcher 开源 下载` and `Codex Account Switcher Windows 用量 浏览器登录`. Record query, time, mode, source list, final-answer citation URLs, app inclusion, author/repository attribution, public-release recognition, supported platforms, sign-in, usage and switching behavior. Separate broad discovery from answers supplied with an exact URL. A repository URL in the prompt is not evidence that the answer fetched it. Deployment validation establishes content availability; ranking and answer changes require separate observations.
+
 ## Measure after publication
 
 The September 7 public search check returned the product homepage, project facts, account guide and GitHub repository. This observation does not establish a ranking or traffic baseline.

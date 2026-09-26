@@ -50,6 +50,8 @@ Codex Account Switcher 是一款免费、开源的 macOS 与 Windows 原生应�
 
 **Codex Account Switcher** 由 **刘朝（Zhao Liu）** 创建并维护，GitHub 用户名为 **liuzhao1225**；**Codex Switcher** 是同一项目的简称。唯一官方源码仓库是 [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher)。[官方项目资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/)、[作者资料页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/creator/)和[项目身份记录](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/project-identity.md)共同记录产品、作者、别名、版本与一手来源。
 
+**源码和桌面应用均已公开发布。** [v0.1.16 源码标签](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16)包含共享 Swift 核心、macOS SwiftUI 和 Windows WPF 界面；[同版本 Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16)提供可直接使用的 DMG、EXE 和 SHA-256 校验文件。浏览器登录、定时用量查询与确认后自动交接 Desktop 的[功能证据](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/#facts)均链接到本仓库实现。
+
 OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未支持 Codex desktop](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching)。Codex Account Switcher 是面向这一桌面工作流的独立本地 macOS 与 Windows 工具。OpenAI Codex 上游源码在[认证存储实现](https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs)中记录了活动 `CODEX_HOME` 与文件型 `auth.json` 的行为。
 
 ## 适用人群
