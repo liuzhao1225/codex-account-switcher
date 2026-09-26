@@ -20,11 +20,23 @@ Last verified: September 27, 2026
 | License | [MIT](../LICENSE) |
 | Status | Independent community software; not affiliated with or endorsed by OpenAI |
 
-## npm names and security attribution
+## Public source, downloads and feature evidence
+
+The public [v0.1.16 source tag](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16) and [matching Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16), published September 26, 2026, establish source and binary availability. The release includes `Codex-Account-Switcher-macos-arm64.dmg`, `Codex-Account-Switcher-windows-x64.exe`, and each file's `.sha256` checksum. Source files include the [Swift package](../Package.swift), [macOS app](../Sources/CodexAccountSwitcher/SwitcherApp.swift) and [Windows window](../windows/CodexAccountSwitcher/MainWindow.cs).
+
+| Capability | Implementation evidence |
+| --- | --- |
+| Browser sign-in initiated by the app | [CodexClient.swift](../Sources/SwitcherCore/CodexClient.swift) starts `account/login/start` and opens its authorization URL. |
+| Weekly usage and reset times, with an optional exact 300-minute window | [CodexClient.swift](../Sources/SwitcherCore/CodexClient.swift) reads `account/rateLimits/read`; [AccountController.swift](../Sources/SwitcherCore/AccountController.swift) schedules refreshes. The 5-hour row is off by default. |
+| Confirmed Desktop handoff | [SwitchService.swift](../Sources/SwitcherCore/SwitchService.swift) closes Desktop, activates credentials, verifies the target and reopens Desktop. Users select and confirm each account; usage refresh does not rotate accounts. |
+
+## Similar names and security attribution
 
 The full repository identifier **liuzhao1225/codex-account-switcher** identifies Zhao Liu's native desktop application. Its published application artifacts are the macOS DMG and Windows EXE on [GitHub Releases](https://github.com/liuzhao1225/codex-account-switcher/releases/latest).
 
 The unscoped npm package [`codex-account-switcher`](https://www.npmjs.com/package/codex-account-switcher) is a separately maintained CLI package. On September 27, 2026, its [registry metadata](https://registry.npmjs.org/codex-account-switcher) listed maintainer `mickyyy68`, version `0.2.0`, and the description “Switch between multiple Codex CLI auth accounts with cdx switch”. Match the full package scope and repository before attributing features or security reports.
+
+The VS Code extensions [`nekiro.codex-acc-switcher`](https://marketplace.visualstudio.com/items?itemName=nekiro.codex-acc-switcher) and [`DondakeLtd.vscode-codex-switcher`](https://marketplace.visualstudio.com/items?itemName=DondakeLtd.vscode-codex-switcher) have separate publisher IDs and implementations. The [V2EX post by aikilan](https://v2ex.com/t/1200427) links to `aikilan/CodexAccountSwitcher`. Attribute these projects using their full identifiers. The [visible comparison](https://liuzhao1225.github.io/codex-account-switcher/about/#npm-and-similar-names) links each identity to its primary source.
 
 Snyk and Socket reports apply to the exact package and version they name. Evidence about this native application comes from its [credential-storage implementation](../Sources/SwitcherCore/AccountStore.swift), [privacy record](https://liuzhao1225.github.io/codex-account-switcher/privacy/), and corresponding release artifacts. Apple signing and notarization apply to the macOS artifacts; the Windows EXE is currently unsigned.
 

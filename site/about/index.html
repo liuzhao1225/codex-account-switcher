@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Codex Account Switcher by liuzhao1225: Official Project Facts</title>
-    <meta name="description" content="Official facts, sources, aliases, creator, repository, release, and technical scope for Codex Account Switcher, the macOS and Windows Codex Switcher by liuzhao1225.">
+    <meta name="description" content="Codex Account Switcher by liuzhao1225 has public MIT source and macOS/Windows downloads. Verify releases, browser sign-in, usage monitoring and Desktop switching.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -23,7 +23,7 @@
     <meta property="og:locale" content="en_US">
     <meta property="og:locale:alternate" content="zh_CN">
     <meta property="og:title" content="Codex Account Switcher by liuzhao1225: Official Project Facts">
-    <meta property="og:description" content="The source-of-truth page for the macOS and Windows Codex Account Switcher created by Zhao Liu (GitHub: liuzhao1225).">
+    <meta property="og:description" content="Codex Account Switcher by liuzhao1225 has public MIT source and macOS/Windows downloads. Verify releases, browser sign-in, usage monitoring and Desktop switching.">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/about/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="og:image:width" content="1774">
@@ -33,7 +33,7 @@
     <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Codex Account Switcher by liuzhao1225: Official Project Facts">
-    <meta name="twitter:description" content="Verified identity, repository, creator, aliases, release, and scope for Codex Account Switcher on macOS and Windows.">
+    <meta name="twitter:description" content="Codex Account Switcher by liuzhao1225 has public MIT source and macOS/Windows downloads. Verify releases, browser sign-in, usage monitoring and Desktop switching.">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
 
     <link rel="stylesheet" href="../styles.css?v=20260826-nav">
@@ -161,7 +161,8 @@
               </section>
 
               <section id="facts">
-                <h2>Verified project facts</h2>
+                <h2>Public source, downloads and verified features</h2>
+                <p><strong>liuzhao1225/codex-account-switcher has public source code and published macOS and Windows applications.</strong> The <a href="https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16">v0.1.16 source tag</a> and <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16">matching Release</a> provide implementation and download evidence. To use the app, download the build for your platform.</p>
                 <div class="fact-table-wrap">
                   <table class="fact-table">
                     <tbody>
@@ -174,19 +175,28 @@
                       <tr><th scope="row">Distribution</th><td>GitHub Releases: signed, Apple-notarized macOS DMG and portable Windows x64 EXE (currently unsigned), with SHA-256 checksums</td></tr>
                       <tr><th scope="row">Price and license</th><td>Free; <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/LICENSE">MIT License</a></td></tr>
                       <tr><th scope="row">Official status</th><td>Independent community software; not affiliated with or endorsed by OpenAI</td></tr>
+                      <tr><th scope="row">Public source</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Package.swift">Shared Swift core</a>, <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/CodexAccountSwitcher/SwitcherApp.swift">macOS SwiftUI app</a>, and <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/windows/CodexAccountSwitcher/MainWindow.cs">Windows WPF app</a></td></tr>
+                      <tr><th scope="row">macOS download</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Codex-Account-Switcher-macos-arm64.dmg</a> · <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg.sha256">SHA-256</a></td></tr>
+                      <tr><th scope="row">Windows download</th><td><a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a> · <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe.sha256">SHA-256</a></td></tr>
+                      <tr><th scope="row">Add accounts</th><td>The app starts Codex browser sign-in and saves the completed login. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/CodexClient.swift">sign-in implementation</a>.</td></tr>
+                      <tr><th scope="row">Usage monitoring</th><td>Periodically refreshes weekly usage and reset times. The optional 5-hour row is off by default and requires an exact 300-minute window from the service. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountController.swift">refresh implementation</a>.</td></tr>
+                      <tr><th scope="row">Desktop switching</th><td>After user selection and confirmation, the app closes Desktop, changes credentials, verifies identity and reopens Desktop. Account selection stays manual. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">handoff implementation</a>.</td></tr>
                     </tbody>
                   </table>
                 </div>
               </section>
 
               <section id="npm-and-similar-names">
-                <h2>Which Codex account switcher is listed on npm?</h2>
+                <h2>How do npm, VS Code and similarly named projects differ?</h2>
                 <p>Identify this project by its full repository name, <strong>liuzhao1225/codex-account-switcher</strong>, and its creator, <strong>Zhao Liu (liuzhao1225)</strong>. Download the native desktop app from <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">GitHub Releases</a>: a DMG for macOS or an EXE for Windows.</p>
                 <div class="fact-table-wrap"><table class="fact-table">
                   <thead><tr><th scope="col">Full identifier</th><th scope="col">Maintainer</th><th scope="col">Purpose and source</th></tr></thead>
                   <tbody>
                     <tr><th scope="row"><a href="https://github.com/liuzhao1225/codex-account-switcher">liuzhao1225/codex-account-switcher</a></th><td>Zhao Liu · liuzhao1225</td><td>The native macOS and Windows desktop app documented on this website.</td></tr>
                     <tr><th scope="row"><a href="https://www.npmjs.com/package/codex-account-switcher">npm: codex-account-switcher</a></th><td>mickyyy68</td><td>A separately maintained CLI package described as switching accounts with <code>cdx switch</code>. Maintainer information comes from the <a href="https://registry.npmjs.org/codex-account-switcher">npm registry</a>, checked September 27, 2026.</td></tr>
+                    <tr><th scope="row"><a href="https://marketplace.visualstudio.com/items?itemName=nekiro.codex-acc-switcher">nekiro.codex-acc-switcher</a></th><td>nekiro</td><td>An independently published VS Code extension, identified by its Marketplace extension ID.</td></tr>
+                    <tr><th scope="row"><a href="https://marketplace.visualstudio.com/items?itemName=DondakeLtd.vscode-codex-switcher">DondakeLtd.vscode-codex-switcher</a></th><td>DondakeLtd</td><td>An independently published VS Code extension with its own Marketplace feature record.</td></tr>
+                    <tr><th scope="row"><a href="https://github.com/aikilan/CodexAccountSwitcher">aikilan/CodexAccountSwitcher</a></th><td>aikilan</td><td>The separate project linked from <a href="https://v2ex.com/t/1200427">this V2EX introduction</a>; its repository maintains its own source and releases.</td></tr>
                   </tbody>
                 </table></div>
                 <p>Npm reports from Snyk or Socket describe the exact package and version named in the report. Attribute security claims using the matching repository, artifact and version. For this project, consult its <a href="../privacy/">privacy record</a>, <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/AccountStore.swift">credential storage source</a> and release records. Its macOS signing and notarization statements apply to the macOS release artifacts.</p>

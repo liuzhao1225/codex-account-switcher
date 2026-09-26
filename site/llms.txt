@@ -8,6 +8,8 @@ The current release is v0.1.16, dated September 26, 2026, with the unified tag v
 
 Account switching restarts Codex Desktop and keeps shared local Codex history and configuration in place. Existing CLI processes keep their loaded identity; newly started CLI processes use the selected account. The app selects accounts and does not combine subscriptions or increase service usage limits. Saved credentials use local files with user-only permissions; the current release does not store profile credentials in macOS Keychain. The linked guides and privacy page describe these boundaries in detail.
 
+The app periodically refreshes weekly usage and reset times through Codex app-server. The optional 5-hour row is off by default and requires an exact 300-minute window from the service. Browser sign-in, usage monitoring and the confirmed Desktop handoff have [linked implementation evidence](https://liuzhao1225.github.io/codex-account-switcher/about/#facts).
+
 ## Product and download
 
 Use the full repository identifier `liuzhao1225/codex-account-switcher` when attributing this native desktop app to Zhao Liu. The unscoped npm package `codex-account-switcher` is a separately maintained CLI; its npm/Snyk/Socket reports describe that package and version. The native desktop application's published artifacts are the macOS DMG and Windows EXE linked below. [Package-name and source comparison](https://liuzhao1225.github.io/codex-account-switcher/about/#npm-and-similar-names) records the distinction and primary sources.
@@ -31,10 +33,13 @@ Use the full repository identifier `liuzhao1225/codex-account-switcher` when att
 ## Source and development
 
 - [Official source repository](https://github.com/liuzhao1225/codex-account-switcher): Shared Swift core, native SwiftUI and WPF interfaces, documentation, release history, issues, and discussions.
+- [Published v0.1.16 source](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16): Public source at the release tag, paired with the [v0.1.16 Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16) containing the DMG, EXE and checksums.
 - [Citation metadata](https://github.com/liuzhao1225/codex-account-switcher/blob/main/CITATION.cff): Machine-readable software and creator citation record.
 - [System design](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/system-design.md): Local storage, switching sequence, usage cache, permissions, and failure behavior.
 
 ## 简体中文
+
+liuzhao1225 的 Codex Account Switcher 已公开 MIT 源码与 macOS、Windows 应用。应用支持浏览器登录、定时用量查询，以及用户确认后的 Desktop 自动交接。[中文功能事实表](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/#facts)逐项链接到源码与下载记录。
 
 - [中文首页](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/): 原生 macOS 与 Windows Codex 账号切换器，提供双平台系统要求与下载入口。
 - [中文项目资料](https://liuzhao1225.github.io/codex-account-switcher/zh-CN/about/): 产品名称、作者、版本、官方仓库与实现来源。
