@@ -159,8 +159,12 @@ public actor AccountStore: AccountStoring {
         guard fileManager.fileExists(atPath: source.path) else {
             throw AccountStoreError.activeCredentialMissing
         }
-        _ = try createProfileDirectory(id: profile.id)
-        try copyCredential(from: source, to: profileHome(id: profile.id).appending(path: "auth.json"))
+        try importProfile(profile, credential: readChecked(source))
+    }
+
+    private func importProfile(_ profile: AccountProfile, credential: Data) throws {
+        let home = try createProfileDirectory(id: profile.id)
+        try secureAtomicWrite(credential, to: home.appending(path: "auth.json"))
 
         var current = try loadRegistry()
         current.accounts.append(profile)
@@ -190,7 +194,7 @@ public actor AccountStore: AccountStoring {
     }
 
     public func registerActiveIdentity(_ identity: AccountIdentity) throws {
-        var current = try loadRegistry()
+        let current = try loadRegistry()
         let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
         let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
             email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
@@ -201,11 +205,7 @@ public actor AccountStore: AccountStoring {
             try secureAtomicWrite(bytes, to: profileHome(id: profile.id).appending(path: "auth.json"))
             try commitActiveAccountID(profile.id)
         } else {
-            let home = try createProfileDirectory(id: candidate.id)
-            try secureAtomicWrite(bytes, to: home.appending(path: "auth.json"))
-            current.accounts.append(candidate)
-            current.activeAccountID = candidate.id
-            try saveRegistry(current)
+            try importProfile(candidate, credential: bytes)
         }
     }
 
@@ -290,8 +290,7 @@ public actor AccountStore: AccountStoring {
         try checkPath(activeHomeURL)
         try fileManager.createDirectory(at: activeHomeURL, withIntermediateDirectories: true)
         let destination = activeHomeURL.appending(path: "auth.json")
-        let bytes = try readChecked(source)
-        try secureAtomicWrite(bytes, to: destination)
+        try copyCredential(from: source, to: destination)
     }
 
     public func commitActiveAccountID(_ id: UUID) throws {

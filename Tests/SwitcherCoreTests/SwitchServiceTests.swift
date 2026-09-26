@@ -195,13 +195,8 @@ private actor FakeStore: AccountStoring {
         return target
     }
 
-    func profileHome(id: UUID) -> URL { URL(fileURLWithPath: "/tmp/target") }
     func activeCodexHome() -> URL { URL(fileURLWithPath: "/tmp/active") }
     func activeCredentialExists() -> Bool { true }
-    func createProfileDirectory(id: UUID) -> URL { URL(fileURLWithPath: "/tmp/target") }
-    func importCurrentProfile(_ profile: AccountProfile) {}
-    func addProfile(_ profile: AccountProfile) {}
-    func removeAccount(id: UUID) {}
 
     func saveCurrentCredential() async throws {
         await recorder.append(.saveCurrentCredential)

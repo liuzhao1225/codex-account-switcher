@@ -45,10 +45,7 @@ struct DesktopController: DesktopControlling {
     private let applicationPaths = ["/Applications/ChatGPT.app", "/Applications/Codex.app"]
 
     func closeDesktop() async throws {
-        let running = NSWorkspace.shared.runningApplications.filter { application in
-            guard let bundleIdentifier = application.bundleIdentifier else { return false }
-            return bundleIdentifiers.contains(bundleIdentifier)
-        }
+        let running = runningDesktopApplications
         guard !running.isEmpty else { return }
         for application in running where !application.isTerminated {
             let processIdentifier = application.processIdentifier

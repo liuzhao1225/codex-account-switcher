@@ -18,7 +18,7 @@ The popover uses a compact 326-point content width. Account rows keep the densit
 With the default settings, each saved account row shows:
 
 - avatar or initials;
-- display name;
+- full email address when present, otherwise the display name;
 - `Resets …` on the same line as the name;
 - the label `Usage`;
 - one progress bar;
@@ -38,7 +38,7 @@ The footer divides its width equally between:
 - `Settings`;
 - `Quit`.
 
-Manage Accounts and Settings replace the popover content in place and provide a Back action. Closing the popover from either page resets the next opening to the account list.
+Manage Accounts and Settings replace the popover content in place and provide a Back action. Reopening shows Manage Accounts while sign-in is pending, so cancellation remains available; otherwise it starts on the account list.
 
 Quit directly terminates the application, remains available during mutations, and has a Command-Q equivalent.
 
