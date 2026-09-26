@@ -60,7 +60,7 @@ OpenAI 官方账号切换功能当前适用于 ChatGPT 网页端，并且[尚未
 
 ## 下载
 
-[最新版本 v0.1.14](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 同时提供 macOS 和 Windows 安装包及 SHA-256 校验文件。
+[最新版本 v0.1.15](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 同时提供 macOS 和 Windows 安装包及 SHA-256 校验文件。
 
 | 平台 | 系统要求 | 下载与安装 |
 | --- | --- | --- |

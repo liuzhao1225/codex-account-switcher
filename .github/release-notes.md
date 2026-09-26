@@ -1,7 +1,7 @@
-- macOS 和 Windows 的账号列表、管理账号页直接显示邮箱，便于区分不同域名的账号（#11、#12）。
-- 邮箱保持单行，超出部分显示省略号；鼠标悬停时通过浮动提示显示完整地址。没有邮箱的账号保留原名称。
-- “添加账号”的浏览器登录说明移到按钮右侧，与按钮保持同一行；较长说明可悬停查看全文。
+- 修复 macOS 在 ChatGPT / Codex 桌面端更新后，添加账号、切换账号或刷新额度时报 `The Codex executable could not be found` 的问题（#13、#14）。
+- 自动识别桌面端内置 CLI 的新旧安装位置；系统命令缺失或软链接失效时，无需手动配置软链接。保留显式 `CODEX_CLI_PATH` 和系统 PATH 的优先级。
 
-- Show email addresses as account titles in Accounts and Manage Accounts on macOS and Windows (#11, #12).
-- Keep titles on one line with ellipsis and reveal the complete address in a hover tooltip. Accounts without an email keep their saved name.
-- Place the browser sign-in hint beside Add Account on the same line, with the complete hint available on hover.
+- Fix `The Codex executable could not be found` during Add Account, account switching, or usage refresh after a ChatGPT / Codex desktop update on macOS (#13, #14).
+- Discover both current and legacy bundled CLI locations when the system command is missing or its symlink is broken. Preserve explicit `CODEX_CLI_PATH` and system PATH precedence.
+
+Thanks to @lancer1256 for the bundled CLI discovery contribution in #13.

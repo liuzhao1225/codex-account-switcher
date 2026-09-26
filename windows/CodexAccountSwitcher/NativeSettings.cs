@@ -13,7 +13,7 @@ public sealed class NativeSettings
 {
     private const string Key = @"Software\CodexAccountSwitcher";
     private const string Run = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    public string Version => typeof(NativeSettings).Assembly.GetName().Version?.ToString(3) ?? "0.1.14";
+    public string Version => typeof(NativeSettings).Assembly.GetName().Version?.ToString(3) ?? "0.1.15";
     public bool LaunchAtLogin {
         get { using var key = Registry.CurrentUser.OpenSubKey(Run); return key?.GetValue("CodexAccountSwitcher") is string; }
         set { using var key = Registry.CurrentUser.CreateSubKey(Run);
