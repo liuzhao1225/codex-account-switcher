@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Codex Account 是什么？Desktop、CLI 与账号切换详解</title>
-    <meta name="description" content="解释 Codex Account、ChatGPT 身份、Codex Desktop、Codex CLI、auth.json、CODEX_HOME 与 Codex Switcher 在 macOS 上的关系。">
+    <title>Codex 账号与工作区有什么区别？Desktop 与 CLI 详解</title>
+    <meta name="description" content="了解 Codex 账号、个人与组织工作区、本地配置和运行中会话的区别，以及 Mac、Windows 上保存身份和切换账号的实际行为。">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="刘朝 Zhao Liu (liuzhao1225)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
@@ -21,17 +21,18 @@
     <meta property="og:site_name" content="Codex Account Switcher">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:locale:alternate" content="en_US">
-    <meta property="og:title" content="Codex Account 是什么？Desktop、CLI 与账号切换详解">
-    <meta property="og:description" content="有一手来源的 Codex 账号、认证、多账号与 macOS 切换工作流指南。">
+    <meta property="og:title" content="Codex 账号与工作区有什么区别？Desktop 与 CLI 详解">
+    <meta property="og:description" content="了解 Codex 账号、个人与组织工作区、本地配置和运行中会话的区别，以及 Mac、Windows 上保存身份和切换账号的实际行为。">
     <meta property="og:url" content="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/">
     <meta property="og:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <meta property="article:published_time" content="2026-08-26">
-    <meta property="article:modified_time" content="2026-09-09">
+    <meta property="article:modified_time" content="2026-09-27">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Codex Account 是什么？Desktop、CLI 与账号切换详解">
+    <meta name="twitter:description" content="了解 Codex 账号、个人与组织工作区、本地配置和运行中会话的区别，以及 Mac、Windows 上保存身份和切换账号的实际行为。">
+    <meta name="twitter:title" content="Codex 账号与工作区有什么区别？Desktop 与 CLI 详解">
     <meta name="twitter:image" content="https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png">
     <link rel="stylesheet" href="../../../styles.css?v=20260826-nav">
-    <script src="../../../app.js?v=20260826-nav" defer></script>
+    <script src="../../../app.js?v=20260927-language" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -39,12 +40,12 @@
           {
             "@type": "TechArticle",
             "@id": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/#article",
-            "headline": "Codex Account 是什么？Desktop、CLI 与账号切换详解",
-            "description": "有一手来源的 Codex 账号身份、认证、多账号与 macOS 切换工作流指南。",
+            "headline": "Codex 账号与工作区有什么区别？Desktop 与 CLI 详解",
+            "description": "了解 Codex 账号、个人与组织工作区、本地配置和运行中会话的区别，以及 Mac、Windows 上保存身份和切换账号的实际行为。",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/",
             "mainEntityOfPage": "https://liuzhao1225.github.io/codex-account-switcher/zh-CN/guides/codex-account/",
             "datePublished": "2026-08-26",
-            "dateModified": "2026-09-09",
+            "dateModified": "2026-09-27",
             "inLanguage": "zh-CN",
             "image": "https://liuzhao1225.github.io/codex-account-switcher/assets/og-image.png",
             "about": [{"@type": "Thing", "name": "Codex account"}, {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"}],
@@ -126,7 +127,12 @@
               <section id="official-support">
                 <h2>Codex Desktop 自带账号切换吗？</h2>
                 <p><strong>OpenAI 目前为 ChatGPT 网页版提供账号切换，并明确说明该功能尚不支持 Codex desktop。</strong>网页功能可以在同一浏览器会话中保留两个账号。当前支持范围以 <a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI 官方账号切换文档</a>为准。</p>
-                <p>由于 Codex Desktop 内部没有同样的切换入口，macOS 用户需要重复认证、手动管理不同本地配置，或使用独立 Codex Switcher。</p>
+                <p>由于 Codex Desktop 内部没有同样的切换入口，Desktop 用户需要重复认证、手动管理不同本地配置，或使用独立 Codex Switcher。</p>
+              </section>
+              <section id="workspace">
+                <h2>切换 Codex 账号与切换工作区有什么区别？</h2>
+                <p>账号代表登录身份，工作区代表该身份能够访问的个人或组织环境。保存登录前，请先在 Codex 登录流程中确认需要的工作区。Codex Account Switcher 选择已保存的身份；组织成员资格与权限仍由 OpenAI 和组织控制。</p>
+                <p>邮箱相同的个人与组织登录可能对应不同账号 ID，切换器会分别保存。使用“登记当前登录账号”前先确认目标环境。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/CredentialIdentity.swift">凭据身份实现</a>与<a href="../codex-multiple-accounts/#add-accounts">保存账号步骤</a>。</p>
               </section>
               <section id="authentication">
                 <h2>Codex 如何识别当前账号</h2>
@@ -139,7 +145,7 @@
                   <tr><th scope="row">退出后重新登录</th><td>偶尔切换，完全使用标准 Codex 登录流程。</td><td>每次重复浏览器认证，并再次确认当前身份。</td></tr>
                   <tr><th scope="row">不同 <code>CODEX_HOME</code></th><td>高级终端工作流和多个隔离的 CLI 环境。</td><td>需要显式管理环境变量，不提供统一的原生 Desktop 菜单。</td></tr>
                   <tr><th scope="row">ChatGPT 网页账号切换</th><td>在 ChatGPT 网页版的两个账号之间切换。</td><td>OpenAI 明确说明当前不支持 Codex desktop。</td></tr>
-                  <tr><th scope="row">macOS Codex Account Switcher</th><td>一个 Codex Desktop 身份、本地保存配置、每周用量信息和可见的手动切换。</td><td>适用于 Apple Silicon 与 macOS 14+；已有 CLI 进程保留旧状态。</td></tr>
+                  <tr><th scope="row">Codex Account Switcher</th><td>一个 Codex Desktop 身份、本地保存配置、每周用量信息和可见的手动切换。</td><td>适用于 macOS 14+、Apple Silicon 和 Windows 10/11 x64；已有 CLI 进程保留旧状态。</td></tr>
                 </tbody></table></div>
               </section>
               <section id="product">
@@ -163,18 +169,18 @@
                 <ul class="source-list">
                   <li><strong><a href="https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching">OpenAI：使用多个账号</a></strong><span>官方支持范围、网页双账号行为与账号隔离。</span></li>
                   <li><strong><a href="https://github.com/openai/codex/blob/main/codex-rs/login/src/auth/storage.rs">OpenAI Codex 认证存储源码</a></strong><span><code>CODEX_HOME</code>、<code>auth.json</code> 和文件权限的一手来源。</span></li>
-                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Codex Account Switcher 官方仓库</a></strong><span>macOS 应用实现、支持平台和公开版本的一手来源。</span></li>
+                  <li><strong><a href="https://github.com/liuzhao1225/codex-account-switcher">Codex Account Switcher 官方仓库</a></strong><span>macOS 与 Windows 应用实现、支持平台和公开版本的一手来源。</span></li>
                 </ul>
               </section>
               <div class="article-cta">
                 <p class="eyebrow">macOS 与 Windows 原生工作流</p>
                 <h2>无需终端设置，直接切换 Codex 账号。</h2>
-                <p>阅读 macOS 操作指南，或从同一个最新 Release 下载 macOS 与 Windows 版本。</p>
+                <p>阅读 Mac 与 Windows 操作指南，或从同一个最新 Release 下载 macOS 与 Windows 版本。</p>
                 <div class="download-actions"><a class="button" href="../codex-multiple-accounts/">阅读切换指南</a><a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">免费下载 Mac 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">免费下载 Windows 版</a></div>
               </div>
             </div>
-            <aside class="article-aside" aria-label="本页目录"><strong>本页内容</strong><nav><a href="#definition">定义</a><a href="#terms">关键概念</a><a href="#official-support">官方支持</a><a href="#authentication">认证</a><a href="#methods">多账号方式</a><a href="#product">官方项目</a><a href="#safe-use">安全使用</a><a href="#sources">来源</a></nav></aside>
+            <aside class="article-aside" aria-label="本页目录"><strong>本页内容</strong><nav><a href="#definition">定义</a><a href="#terms">关键概念</a><a href="#official-support">官方支持</a><a href="#workspace">账号与工作区</a><a href="#authentication">认证</a><a href="#methods">多账号方式</a><a href="#product">官方项目</a><a href="#safe-use">安全使用</a><a href="#sources">来源</a></nav></aside>
           </div>
         </div>
       </article>

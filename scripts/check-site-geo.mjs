@@ -96,6 +96,10 @@ for (const file of htmlFiles) {
   const localPath = path.relative(siteRoot, path.dirname(file)).split(path.sep).join("/");
   const expectedURL = `${baseURL}${localPath ? `${localPath}/` : ""}`;
   const language = html.match(/<html\s+lang=["']([^"']+)["']/i)?.[1];
+  if (localPath === "privacy" || localPath === "zh-CN/privacy") {
+    const visibleVersion = language === "zh-CN" ? `适用于 v${releaseVersion}` : `Applies to v${releaseVersion}`;
+    if (!html.includes(visibleVersion)) fail(`${relative}: visible privacy release differs from CITATION.cff`);
+  }
   const alternates = Object.fromEntries([...html.matchAll(/<link\s+rel="alternate"\s+hreflang="([^"]+)"\s+href="([^"]+)"/g)].map((match) => [match[1], match[2]]));
   const ogURL = matchOne(html, /<meta\s+property="og:url"\s+content="([^"]+)"[^>]*>/g, "Open Graph URL", relative);
 

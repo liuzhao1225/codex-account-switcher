@@ -3,16 +3,17 @@ const themeButton = document.querySelector("[data-theme-toggle]");
 const colorPreference = window.matchMedia("(prefers-color-scheme: dark)");
 const requestedLanguage = new URLSearchParams(window.location.search).get("lang")?.toLowerCase();
 
-if ((requestedLanguage === "zh" || requestedLanguage === "zh-cn") && root.lang === "en") {
-  const target = new URL("zh-CN/", window.location.href);
-  target.search = "";
-  window.location.replace(target);
-}
-
-if (requestedLanguage === "en" && root.lang.toLowerCase() === "zh-cn") {
-  const target = new URL("../", window.location.href);
-  target.search = "";
-  window.location.replace(target);
+const targetLanguage = requestedLanguage === "zh" || requestedLanguage === "zh-cn"
+  ? "zh-CN" : requestedLanguage === "en" ? "en" : null;
+if (targetLanguage && root.lang.toLowerCase() !== targetLanguage.toLowerCase()) {
+  const alternate = document.querySelector(`link[rel="alternate"][hreflang="${targetLanguage}"]`);
+  if (alternate) {
+    const target = new URL(alternate.href);
+    target.search = window.location.search;
+    target.searchParams.delete("lang");
+    target.hash = window.location.hash;
+    window.location.replace(target);
+  }
 }
 
 function currentTheme() {
