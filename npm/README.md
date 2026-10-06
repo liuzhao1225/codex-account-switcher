@@ -29,6 +29,8 @@ Running `npx @liuzhao1225/codex-account-switcher@latest` without arguments also 
 
 macOS reuses the signed, notarized DMG. The installer mounts it read-only, copies the complete app with `ditto`, checks identity/version, signature and Gatekeeper assessment, then detaches the image. Windows reuses the self-contained portable EXE, which is currently unsigned. It creates a Start menu shortcut; it does not register an entry in Windows Installed Apps.
 
+On macOS, a successful install or update also removes an older recognized copy from the other standard location (`~/Applications` or `/Applications`) after confirming that it is the same app and is not running. Development builds in project folders are left untouched.
+
 Installation does not launch the app automatically or request administrator privileges. Open it from Finder / Start or run:
 
 ```sh
@@ -85,5 +87,7 @@ The installer has no runtime dependencies, credential access or telemetry. It co
 也可以直接运行 `npx @liuzhao1225/codex-account-switcher@latest` 或加上 `install`。每次运行都会重新检查 GitHub latest；未来只需发布 GitHub 新版本，安装器就能获取新包。npm 安装器和桌面应用版本独立。
 
 使用 `codex-account-switcher open` 启动、`update` 更新、`uninstall` 卸载。更新前请退出应用，卸载保留账号数据。普通项目依赖安装不会自动部署桌面应用。macOS 默认放入 `~/Applications`；Windows 默认放入当前用户的 `Programs\Codex Account Switcher` 并创建开始菜单快捷方式。
+
+macOS 安装或更新成功后，会在确认旧包属于同一应用且没有运行后，清理另一处标准位置（`~/Applications` 或 `/Applications`）中的旧副本；项目目录里的开发构建会保留。
 
 维护者操作与验证见仓库 [GEO 维护说明](https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/seo-geo.md)。

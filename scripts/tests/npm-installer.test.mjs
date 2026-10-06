@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { cpSync, mkdirSync, writeFileSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { assets, compareVersions, downloadVerified, installMac, installTarget, installWindows, latestRelease, releaseChecksum } from "../../npm/lib/install.mjs";
+import { assets, compareVersions, downloadVerified, installMac, installTarget, installWindows, latestRelease, releaseChecksum, removeMacLegacyApps } from "../../npm/lib/install.mjs";
 
 const repository = "https://github.com/liuzhao1225/codex-account-switcher";
 const asset = assets.windows;
@@ -119,4 +119,26 @@ test("macOS deployment removes obsolete app files, preserves neighbors, and bloc
     }
   }
   assert.equal(detachCount, 2);
+});
+
+test("macOS legacy cleanup removes only recognized, stopped app bundles", async (t) => {
+  const dir = await temporary(t);
+  const oldApp = path.join(dir, "Applications", "Codex Account Switcher.app");
+  const unrelatedApp = path.join(dir, "Applications", "Other Switcher.app");
+  await mkdir(path.join(oldApp, "Contents"), { recursive: true });
+  await mkdir(path.join(unrelatedApp, "Contents"), { recursive: true });
+  const run = (command, args) => {
+    if (command.endsWith("plutil")) {
+      const recognized = args.at(-1).startsWith(oldApp);
+      return args[1] === "CFBundleIdentifier"
+        ? (recognized ? "com.liuzhao.codex-account-switcher" : "com.example.other")
+        : "0.1.14";
+    }
+    if (command.endsWith("ps")) return "";
+    return "";
+  };
+  const removed = await removeMacLegacyApps([oldApp, unrelatedApp], run);
+  assert.deepEqual(removed, [oldApp]);
+  await assert.rejects(readFile(oldApp), { code: "ENOENT" });
+  await access(unrelatedApp);
 });
