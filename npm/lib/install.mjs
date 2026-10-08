@@ -137,29 +137,35 @@ function requireMacClosed(target, runCommand = run) {
   }
 }
 
-async function sameMacApp(target, runCommand = run) {
-  const existing = await statIfExists(target);
-  if (!existing) return false;
-  if (existing.isSymbolicLink() || !existing.isDirectory()) {
-    throw new Error(`Unexpected legacy installation target: ${target}. No files were replaced.`);
-  }
-  try {
-    appVersion(target, runCommand);
-  } catch (error) {
-    if (error.message.startsWith("Unexpected application identity")) return false;
-    throw error;
-  }
-  return true;
-}
-
-export async function removeMacLegacyApps(targets, runCommand = run) {
+export async function macLegacyAppsToRemove({ targets, selectedTarget, version }, runCommand = run) {
+  const selected = await statIfExists(selectedTarget);
   const removable = [];
   for (const target of targets) {
-    if (await sameMacApp(target, runCommand)) {
-      requireMacClosed(target, runCommand);
-      removable.push(target);
+    const existing = await statIfExists(target);
+    if (!existing) continue;
+    // Paths with different case or symlinked parent directories can name the
+    // selected app itself. Compare filesystem identity before planning removal.
+    if (selected && existing.dev === selected.dev && existing.ino === selected.ino) continue;
+    if (existing.isSymbolicLink() || !existing.isDirectory()) {
+      throw new Error(`Unexpected legacy installation target: ${target}.`);
     }
+    let installed;
+    try { installed = appVersion(target, runCommand); }
+    catch (error) {
+      if (error.message.startsWith("Unexpected application identity")) continue;
+      throw error;
+    }
+    if (compareVersions(installed, version) > 0) {
+      throw new Error(`Legacy v${installed} is newer than GitHub latest v${version}; refusing to remove ${target}.`);
+    }
+    requireMacClosed(target, runCommand);
+    removable.push(target);
   }
+  return removable;
+}
+
+export async function removeMacLegacyApps(options, runCommand = run) {
+  const removable = await macLegacyAppsToRemove(options, runCommand);
   for (const target of removable) {
     await rm(target, { recursive: true });
     configureLauncher("darwin", target, true, runCommand);
@@ -250,7 +256,7 @@ export async function installApp({ repository, directory, log = console.log }) {
       // Keep the standard installation locations single-valued even when the
       // selected target is already current. Without this cleanup, an older
       // /Applications copy can remain visible in Spotlight forever.
-      if (platform === "darwin") await removeMacLegacyApps(legacyTargets);
+      if (platform === "darwin") await removeMacLegacyApps({ targets: legacyTargets, selectedTarget: target, version });
       configureLauncher(platform, target);
       log(`Already up to date: Codex Account Switcher v${version} at ${target}`);
       return target;
@@ -266,11 +272,9 @@ export async function installApp({ repository, directory, log = console.log }) {
     if (platform === "darwin") {
       // Check legacy locations before replacing anything so a running old copy
       // stops the update without leaving a partially migrated installation.
-      for (const legacyTarget of legacyTargets) {
-        if (await sameMacApp(legacyTarget)) requireMacClosed(legacyTarget);
-      }
+      await macLegacyAppsToRemove({ targets: legacyTargets, selectedTarget: target, version });
       await installMac(artifact, target, version, temporary);
-      await removeMacLegacyApps(legacyTargets);
+      await removeMacLegacyApps({ targets: legacyTargets, selectedTarget: target, version });
     }
     else await installWindows(artifact, target);
   } catch (error) { failure = error; }
