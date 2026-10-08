@@ -53,7 +53,7 @@ struct CodexClientTests {
           case "$line" in
             *initialized*) ;;
             *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
-            *rateLimits*) printf '%s\n' '{"id":1,"result":{"rateLimits":{"secondary":{"usedPercent":50,"windowDurationMins":10080,"resetsAt":100}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":10,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":20,"windowDurationMins":10080,"resetsAt":100}},"other-product":{"primary":{"usedPercent":99,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":95,"windowDurationMins":11520,"resetsAt":100}}}}}' ;;
+            *rateLimits*) printf '%s\n' '{"id":1,"result":{"rateLimitResetCredits":{"availableCount":2},"rateLimits":{"secondary":{"usedPercent":50,"windowDurationMins":10080,"resetsAt":100}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":10,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":20,"windowDurationMins":10080,"resetsAt":100}},"other-product":{"primary":{"usedPercent":99,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":95,"windowDurationMins":11520,"resetsAt":100}}}}}' ;;
           esac
         done
         """#)
@@ -62,6 +62,7 @@ struct CodexClientTests {
         let usage = try await client.readWeeklyUsage(profileHome: fixture.root)
         #expect(usage.remainingPercent == 80)
         #expect(usage.fiveHourRemainingPercent == 90)
+        #expect(usage.resetCreditsRemaining == 2)
     }
 
     @Test func preservesFinalResponseWithoutNewline() async throws {
@@ -77,6 +78,23 @@ struct CodexClientTests {
         defer { fixture.remove() }
         let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2))
         #expect(try await client.readIdentity(profileHome: fixture.root).accountID == "last-response")
+    }
+
+    @Test func missingResetCountRemainsUnknown() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
+            *rateLimits*) printf '%s\n' '{"id":1,"result":{"rateLimits":{"secondary":{"usedPercent":20,"windowDurationMins":10080,"resetsAt":100}}}}' ;;
+          esac
+        done
+        """#)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        let usage = try await client.readWeeklyUsage(profileHome: fixture.root)
+        #expect(usage.remainingPercent == 80)
+        #expect(usage.resetCreditsRemaining == nil)
     }
 
     @Test func waitsForStderrThatArrivesAfterStdoutEOF() async throws {
@@ -193,7 +211,7 @@ struct CodexClientTests {
               ;;
             *rateLimits*)
               test "$state" -eq 2 || exit 12
-              printf '%s\n' '{"id":1,"result":{"rateLimits":{"primary":{"usedPercent":80,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1750000000}}}}'
+              printf '%s\n' '{"id":1,"result":{"rateLimitResetCredits":{"availableCount":0},"rateLimits":{"primary":{"usedPercent":80,"windowDurationMins":300,"resetsAt":100},"secondary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1750000000}}}}'
               ;;
           esac
         done
@@ -209,6 +227,7 @@ struct CodexClientTests {
         #expect(usage.resetsAt == Date(timeIntervalSince1970: 1_750_000_000))
         #expect(usage.fiveHourRemainingPercent == 20)
         #expect(usage.fiveHourResetsAt == Date(timeIntervalSince1970: 100))
+        #expect(usage.resetCreditsRemaining == 0)
     }
 
     @Test func decodesAccountIdentity() async throws {

@@ -14,7 +14,7 @@ internal static class RpcFixture
             if (scenario == "timeout") continue;
             object result = method switch {
                 "account/read" => new { account = new { accountId = "fixture", email = "fixture@example.test" } },
-                "account/rateLimits/read" => new { rateLimits = new {
+                "account/rateLimits/read" => new { rateLimitResetCredits = new { availableCount = 2 }, rateLimits = new {
                     primary = new { usedPercent = 33, windowDurationMins = 300, resetsAt = 2_000_000_000 },
                     secondary = new { usedPercent = 58, windowDurationMins = 10080, resetsAt = 2_000_000_000 } } },
                 "account/login/start" => new { authUrl = "https://example.test/sign-in" },

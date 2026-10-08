@@ -139,6 +139,24 @@ public actor AccountStore: AccountStoring {
         profilesURL.appending(path: id.uuidString, directoryHint: .isDirectory)
     }
 
+    public func readSubscriptionSnapshot(profile: AccountProfile, isActive: Bool) -> SubscriptionSnapshot? {
+        func read(_ path: URL) -> SubscriptionSnapshot? {
+            guard let credential = try? readChecked(path) else { return nil }
+            return SubscriptionSnapshotReader.read(
+                credential: credential,
+                expectedAccountID: profile.accountID,
+                expectedEmail: profile.email
+            )
+        }
+
+        let saved = read(profileHome(id: profile.id).appending(path: "auth.json"))
+        guard isActive else { return saved }
+        let current = read(activeHomeURL.appending(path: "auth.json"))
+        guard let current else { return saved }
+        guard let saved else { return current }
+        return current.lastChecked >= saved.lastChecked ? current : saved
+    }
+
     public func activeCodexHome() -> URL { activeHomeURL }
 
     public func activeCredentialExists() -> Bool {

@@ -325,7 +325,8 @@ struct AccountStoreTests {
         let accountID = UUID()
         let usage = WeeklyUsage(
             remainingPercent: 64,
-            resetsAt: Date(timeIntervalSince1970: 1_750_000_000)
+            resetsAt: Date(timeIntervalSince1970: 1_750_000_000),
+            resetCreditsRemaining: 2
         )
         let fetchedAt = Date(timeIntervalSince1970: 1_749_000_000)
         let profile = AccountProfile(
@@ -398,6 +399,7 @@ struct AccountStoreTests {
         #expect(cache.entries[0].usage.remainingPercent == 73)
         #expect(cache.entries[0].usage.fiveHourRemainingPercent == nil)
         #expect(cache.entries[0].usage.fiveHourResetsAt == nil)
+        #expect(cache.entries[0].usage.resetCreditsRemaining == nil)
     }
 
     @Test func migratesLegacyApplicationSupportDirectory() async throws {

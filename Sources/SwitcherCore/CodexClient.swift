@@ -517,7 +517,11 @@ public struct CodexClient: AccountClient {
                 timeout: requestTimeout
             )
         }
-        return try WeeklyUsageNormalizer.normalize(parseWindows(result))
+        let availableCount = result["rateLimitResetCredits"]?["availableCount"]?.intValue
+        return try WeeklyUsageNormalizer.normalize(
+            parseWindows(result),
+            resetCreditsRemaining: availableCount.flatMap { $0 >= 0 ? $0 : nil }
+        )
     }
 
     public func login(profileHome: URL) async throws -> AccountIdentity {

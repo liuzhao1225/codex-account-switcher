@@ -11,6 +11,7 @@ open class AccountController {
     public private(set) var accounts: [AccountProfile] = [] { didSet { onChange?() } }
     public private(set) var activeAccountID: UUID? { didSet { onChange?() } }
     public private(set) var usageStates: [UUID: UsageViewState] = [:] { didSet { onChange?() } }
+    public private(set) var subscriptionSnapshots: [UUID: SubscriptionSnapshot] = [:] { didSet { onChange?() } }
     public private(set) var settings: AppSettings = .default { didSet { onChange?() } }
     public private(set) var isMutating = false { didSet { onChange?() } }
     public private(set) var isAddingAccount = false { didSet { onChange?() } }
@@ -68,6 +69,7 @@ open class AccountController {
                 registry = try await store.loadRegistry()
             }
             apply(registry)
+            await refreshSubscriptionSnapshots()
             do {
                 apply(try await store.loadUsageCache())
             } catch {
@@ -86,6 +88,7 @@ open class AccountController {
         guard !isMutating, !accounts.isEmpty, usageRefreshTask == nil else { return }
         usageRefreshTask = Task { [weak self] in
             guard let self else { return }
+            await self.refreshSubscriptionSnapshots()
             await self.performWeeklyUsageRefresh()
             self.usageRefreshTask = nil
         }
@@ -93,6 +96,18 @@ open class AccountController {
 
     public func waitForWeeklyUsageRefresh() async {
         await usageRefreshTask?.value
+    }
+
+    private func refreshSubscriptionSnapshots() async {
+        var snapshots: [UUID: SubscriptionSnapshot] = [:]
+        for account in accounts {
+            if let snapshot = await store.readSubscriptionSnapshot(
+                profile: account, isActive: account.id == activeAccountID
+            ) {
+                snapshots[account.id] = snapshot
+            }
+        }
+        subscriptionSnapshots = snapshots
     }
 
     public func startBackgroundUsageRefresh(every interval: Duration = .seconds(300)) async {
@@ -181,6 +196,7 @@ open class AccountController {
         do {
             try await switchService.switchAccount(to: id)
             apply(try await store.loadRegistry())
+            await refreshSubscriptionSnapshots()
             activeIdentityConfirmed = true
         } catch let error as OperationError {
             if error.stage == .reopenDesktop {
@@ -240,6 +256,7 @@ open class AccountController {
             )
             try await store.addProfile(profile)
             apply(try await store.loadRegistry())
+            await refreshSubscriptionSnapshots()
         } catch {
             let loginError = error
             do {
@@ -263,6 +280,7 @@ open class AccountController {
             let identity = try await codex.readIdentity(profileHome: await store.activeCodexHome())
             try await store.registerActiveIdentity(identity)
             apply(try await store.loadRegistry())
+            await refreshSubscriptionSnapshots()
             activeIdentityConfirmed = true
             visibleError = nil
         } catch { showError(error) }
@@ -331,6 +349,7 @@ open class AccountController {
         accounts = registry.accounts
         activeAccountID = registry.activeAccountID
         usageStates = usageStates.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
+        subscriptionSnapshots = subscriptionSnapshots.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
     }
 
     private func apply(_ cache: UsageCache) {

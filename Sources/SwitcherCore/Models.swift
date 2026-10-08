@@ -98,17 +98,20 @@ public struct WeeklyUsage: Codable, Equatable, Sendable {
     public let resetsAt: Date
     public let fiveHourRemainingPercent: Int?
     public let fiveHourResetsAt: Date?
+    public let resetCreditsRemaining: Int?
 
     public init(
         remainingPercent: Int,
         resetsAt: Date,
         fiveHourRemainingPercent: Int? = nil,
-        fiveHourResetsAt: Date? = nil
+        fiveHourResetsAt: Date? = nil,
+        resetCreditsRemaining: Int? = nil
     ) {
         self.remainingPercent = remainingPercent
         self.resetsAt = resetsAt
         self.fiveHourRemainingPercent = fiveHourRemainingPercent
         self.fiveHourResetsAt = fiveHourResetsAt
+        self.resetCreditsRemaining = resetCreditsRemaining
     }
 }
 

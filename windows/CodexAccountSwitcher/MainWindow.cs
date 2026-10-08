@@ -152,6 +152,22 @@ public sealed class MainWindow : Window
                         State.Settings.ShowsFiveHourUsage ? Reset(usage.ResetsAt) : null));
                     details.ToolTip = row.UsageError;
                 } else { var missing = Text(row.UsageStatus == "idle" ? T("usage") + " —" : T("usage_unavailable"), 10.5, muted: true); missing.ToolTip = row.UsageError; details.Children.Add(missing); }
+                var accountInfo = new Grid();
+                accountInfo.ColumnDefinitions.Add(new ColumnDefinition());
+                accountInfo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                if (row.Usage is { } infoUsage) {
+                    var resetCredits = Text(T("reset_credits") + ": " + (infoUsage.ResetCreditsRemaining?.ToString(CultureInfo.CurrentCulture) ?? T("unknown")), 10.5, muted: true);
+                    resetCredits.Margin = new Thickness(8, 0, 0, 0);
+                    Grid.SetColumn(resetCredits, 1); accountInfo.Children.Add(resetCredits);
+                }
+                TextBlock subscriptionLine;
+                if (row.Subscription is { } subscription) {
+                    var date = subscription.ActiveUntil.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                    subscriptionLine = Text(T("subscription_until").Replace("%@", date), 10.5, muted: true);
+                    subscriptionLine.ToolTip = subscriptionLine.Text + "\n" + T("subscription_detail").Replace("%@", subscription.LastChecked.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture));
+                } else subscriptionLine = Text(T("subscription_unknown"), 10.5, muted: true);
+                accountInfo.Children.Add(subscriptionLine);
+                details.Children.Add(accountInfo);
             }
             var grid = new Grid { MinHeight = manage ? 32 : 50 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) }); grid.ColumnDefinitions.Add(new ColumnDefinition());

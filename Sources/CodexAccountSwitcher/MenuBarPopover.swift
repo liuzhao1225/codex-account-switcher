@@ -49,7 +49,7 @@ struct MenuBarPopover: View {
                 }
             }
         }
-        .frame(width: 326)
+        .frame(width: 400)
         .onAppear {
             page = model.isAddingAccount ? .manageAccounts : .accounts
         }
@@ -83,28 +83,12 @@ struct MenuBarPopover: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 28)
             } else {
-                VStack(spacing: 2) {
-                    ForEach(model.accounts) { account in
-                        Button {
-                            if account.id == model.activeAccountID {
-                                NSApp.keyWindow?.close()
-                            } else {
-                                page = .confirmSwitch(account)
-                            }
-                        } label: {
-                            AccountRow(
-                                account: account,
-                                usageState: model.usageStates[account.id] ?? .idle,
-                                isActive: account.id == model.activeAccountID,
-                                language: model.settings.language,
-                                showsFiveHourUsage: model.settings.showsFiveHourUsage
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(model.isMutating || updater.isInstalling)
-                    }
+                ViewThatFits(in: .vertical) {
+                    accountList
+                    ScrollView { accountList }
                 }
-                .padding(5)
+                // Leave room for the footer, update notice, and error messages.
+                .frame(maxHeight: NSScreen.main.map { $0.visibleFrame.height * 0.75 })
             }
 
             Divider()
@@ -157,6 +141,32 @@ struct MenuBarPopover: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 5)
         }
+    }
+
+    private var accountList: some View {
+        VStack(spacing: 8) {
+            ForEach(model.accounts) { account in
+                Button {
+                    if account.id == model.activeAccountID {
+                        NSApp.keyWindow?.close()
+                    } else {
+                        page = .confirmSwitch(account)
+                    }
+                } label: {
+                    AccountRow(
+                        account: account,
+                        usageState: model.usageStates[account.id] ?? .idle,
+                        subscription: model.subscriptionSnapshots[account.id],
+                        isActive: account.id == model.activeAccountID,
+                        language: model.settings.language,
+                        showsFiveHourUsage: model.settings.showsFiveHourUsage
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating || updater.isInstalling)
+            }
+        }
+        .padding(8)
     }
 }
 

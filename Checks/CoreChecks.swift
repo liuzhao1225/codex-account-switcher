@@ -107,6 +107,24 @@ private func createExecutable(at url: URL, body: String) throws {
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
 }
 
+private func testCredential(
+    accountID: String = "account-a",
+    email: String = "a@example.com",
+    plan: String = "plus",
+    activeUntil: String? = "2026-10-17T12:00:00Z",
+    lastChecked: String? = "2026-10-03T12:00:00Z"
+) throws -> Data {
+    var account: [String: Any] = ["chatgpt_account_id": accountID, "chatgpt_plan_type": plan]
+    account["chatgpt_subscription_active_until"] = activeUntil
+    account["chatgpt_subscription_last_checked"] = lastChecked
+    let payload: [String: Any] = ["email": email, "https://api.openai.com/auth": account]
+    let encoded = try JSONSerialization.data(withJSONObject: payload).base64EncodedString()
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+        .replacingOccurrences(of: "=", with: "")
+    return try JSONSerialization.data(withJSONObject: ["tokens": ["id_token": "header.\(encoded).signature"]])
+}
+
 private func testTiboForecastReader() throws {
     let now = Date(timeIntervalSince1970: 1_791_149_623)
     let iso = ISO8601DateFormatter()
@@ -221,6 +239,34 @@ struct CoreChecks {
         )
         try testTiboForecastReader()
 
+        let credential = try testCredential()
+        let subscription = SubscriptionSnapshotReader.read(
+            credential: credential, expectedAccountID: "account-a", expectedEmail: "a@example.com"
+        )
+        let iso = ISO8601DateFormatter()
+        try require(subscription?.activeUntil == iso.date(from: "2026-10-17T12:00:00Z"), "saved subscription date")
+        try require(subscription?.lastChecked == iso.date(from: "2026-10-03T12:00:00Z"), "saved subscription check time")
+        try require(SubscriptionSnapshotReader.read(
+            credential: credential, expectedAccountID: "other-account", expectedEmail: "a@example.com"
+        ) == nil, "subscription cannot cross account IDs")
+        try require(SubscriptionSnapshotReader.read(
+            credential: credential, expectedAccountID: "account-a", expectedEmail: "other@example.com"
+        ) == nil, "subscription cannot cross emails")
+        try require(SubscriptionSnapshotReader.read(
+            credential: credential, expectedAccountID: nil, expectedEmail: "A@EXAMPLE.COM"
+        ) == subscription, "email-only saved profiles identify their own subscription")
+        let freeCredential = try testCredential(plan: "free")
+        try require(SubscriptionSnapshotReader.read(
+            credential: freeCredential, expectedAccountID: "account-a", expectedEmail: nil
+        ) == nil, "free login has no membership date")
+        let missingDateCredential = try testCredential(activeUntil: nil)
+        try require(SubscriptionSnapshotReader.read(
+            credential: missingDateCredential, expectedAccountID: "account-a", expectedEmail: nil
+        ) == nil, "missing subscription date stays unknown")
+        try require(SubscriptionSnapshotReader.read(
+            credential: Data("invalid".utf8), expectedAccountID: "account-a", expectedEmail: nil
+        ) == nil, "invalid credential stays unknown")
+
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory.appending(path: "switcher-check-\(UUID().uuidString)")
         defer { try? fileManager.removeItem(at: root) }
@@ -228,6 +274,58 @@ struct CoreChecks {
         let support = root.appending(path: "support")
         try fileManager.createDirectory(at: activeHome, withIntermediateDirectories: true)
         try Data(#"{"tokens":{"account_id":"first"}}"#.utf8).write(to: activeHome.appending(path: "auth.json"))
+
+        let subscriptionHome = root.appending(path: "subscription-active")
+        let subscriptionStore = AccountStore(
+            baseURL: root.appending(path: "subscription-support"), activeHomeURL: subscriptionHome
+        )
+        let subscriptionProfile = AccountProfile(
+            id: UUID(), displayName: "A", email: "a@example.com",
+            accountID: nil, createdAt: Date(), lastUsedAt: nil
+        )
+        let savedHome = await subscriptionStore.profileHome(id: subscriptionProfile.id)
+        try fileManager.createDirectory(at: savedHome, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: subscriptionHome, withIntermediateDirectories: true)
+        try credential.write(to: savedHome.appending(path: "auth.json"))
+        let newerCredential = try testCredential(
+            activeUntil: "2026-10-24T12:00:00Z", lastChecked: "2026-10-04T12:00:00Z"
+        )
+        try newerCredential.write(to: subscriptionHome.appending(path: "auth.json"))
+        let inactiveDate = await subscriptionStore.readSubscriptionSnapshot(profile: subscriptionProfile, isActive: false)
+        let activeDate = await subscriptionStore.readSubscriptionSnapshot(profile: subscriptionProfile, isActive: true)
+        try require(inactiveDate == subscription, "inactive profile uses its saved login")
+        try require(activeDate?.activeUntil == iso.date(from: "2026-10-24T12:00:00Z"),
+                    "active profile uses the newer current login")
+
+        let migrationHome = root.appending(path: "migration-active")
+        let migrationSupport = root.appending(path: "migration-support")
+        try fileManager.createDirectory(at: migrationHome, withIntermediateDirectories: true)
+        try credential.write(to: migrationHome.appending(path: "auth.json"))
+        let migrationProfile = AccountProfile(
+            id: UUID(), displayName: "A", email: "a@example.com",
+            accountID: nil, createdAt: Date(), lastUsedAt: nil
+        )
+        let migrationStore = AccountStore(baseURL: migrationSupport, activeHomeURL: migrationHome)
+        try await migrationStore.importCurrentProfile(migrationProfile)
+        let reloadedMigrationStore = AccountStore(baseURL: migrationSupport, activeHomeURL: migrationHome)
+        let migrated = try await reloadedMigrationStore.loadRegistry()
+        try require(migrated.accounts.first?.accountID == "account-a", "legacy profile gains its saved account ID")
+        try newerCredential.write(to: migrationHome.appending(path: "auth.json"))
+        let didSync = try await reloadedMigrationStore.syncActiveCredentialIfMatching(id: migrationProfile.id)
+        try require(didSync,
+                    "matching active credential refreshes the saved profile")
+        let migratedHome = await reloadedMigrationStore.profileHome(id: migrationProfile.id)
+        let savedAfterSync = try Data(contentsOf: migratedHome.appending(path: "auth.json"))
+        try require(savedAfterSync == newerCredential,
+                    "saved profile receives the refreshed credential")
+        let wrongAccountCredential = try testCredential(accountID: "other-account")
+        try wrongAccountCredential.write(to: migrationHome.appending(path: "auth.json"))
+        let rejectedSync = try await reloadedMigrationStore.syncActiveCredentialIfMatching(id: migrationProfile.id)
+        try require(!rejectedSync,
+                    "other account cannot replace the saved credential")
+        let savedAfterRejectedSync = try Data(contentsOf: migratedHome.appending(path: "auth.json"))
+        try require(savedAfterRejectedSync == newerCredential,
+                    "rejected credential leaves the saved profile intact")
 
         let store = AccountStore(baseURL: support, activeHomeURL: activeHome)
         let first = AccountProfile(

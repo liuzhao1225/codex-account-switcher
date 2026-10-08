@@ -5,8 +5,10 @@ namespace CodexAccountSwitcher.Core;
 // Wire DTOs only. Account policy and storage live in Sources/SwitcherCore.
 public sealed record Profile(Guid Id, string DisplayName, string? Email);
 public sealed record Usage(int RemainingPercent, DateTimeOffset ResetsAt,
-    int? FiveHourRemainingPercent, DateTimeOffset? FiveHourResetsAt);
-public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError, string UsageStatus = "loaded");
+    int? FiveHourRemainingPercent, DateTimeOffset? FiveHourResetsAt, int? ResetCreditsRemaining = null);
+public sealed record SubscriptionSnapshot(DateTimeOffset ActiveUntil, DateTimeOffset LastChecked);
+public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError,
+    string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null);
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
     string StatusBarUsageWindow = "fiveHour");
 public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountID, Preferences Settings,

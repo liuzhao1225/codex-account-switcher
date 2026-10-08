@@ -27,6 +27,7 @@ struct CodexClientTransportTests {
         let usage = try await client.readWeeklyUsage(profileHome: home)
         #expect(usage.remainingPercent == 42)
         #expect(usage.fiveHourRemainingPercent == 67)
+        #expect(usage.resetCreditsRemaining == 2)
     }
 
     @Test func loginAcceptsCompletionBeforeStartResponse() async throws {
