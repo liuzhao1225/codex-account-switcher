@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { copyFile, lstat, mkdir, mkdtemp, readdir, rename, rm, rmdir } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,11 +26,21 @@ export async function installTarget({ platform = process.platform, arch = proces
   release = os.release(), home = os.homedir(), localAppData = process.env.LOCALAPPDATA,
   directory } = {}) {
   if (platform === "darwin" && arch === "arm64" && Number(release.split(".")[0]) >= 23) {
-    return { platform, asset: assets.macOS, target: path.resolve(directory ?? path.join(home, "Applications"), appName) };
+    const target = path.resolve(directory ?? path.join(home, "Applications"), appName);
+    const standardTargets = [
+      path.join(home, "Applications", appName),
+      path.join("/Applications", appName),
+    ];
+    return {
+      platform,
+      asset: assets.macOS,
+      target,
+      legacyTargets: standardTargets.filter((candidate) => path.resolve(candidate) !== target),
+    };
   }
   if (platform === "win32" && arch === "x64" && Number(release.split(".")[0]) >= 10) {
     if (!directory && !localAppData) throw new Error("LOCALAPPDATA is unavailable; pass --dir <directory>.");
-    return { platform, asset: assets.windows, target: path.resolve(directory ?? path.join(localAppData, "Programs", "Codex Account Switcher"), windowsName) };
+    return { platform, asset: assets.windows, target: path.resolve(directory ?? path.join(localAppData, "Programs", "Codex Account Switcher"), windowsName), legacyTargets: [] };
   }
   throw new Error(`Unsupported system: ${platform}/${arch} (${release}). Requires macOS 14+ with ARM64 Node.js, or Windows 10/11 with x64 Node.js.`);
 }
@@ -121,14 +131,71 @@ export function compareVersions(installed, latest) {
   return 0;
 }
 
-function requireMacClosed(target, runCommand = run) {
-  if (runCommand("/bin/ps", ["-axo", "comm="]).split("\n").some((command) => command.trim().startsWith(`${target}/Contents/MacOS/`))) {
-    throw new Error(`Quit Codex Account Switcher before changing ${target}. No files were replaced.`);
+async function requireMacClosed(target, runCommand = run) {
+  const targetIdentity = await stat(target);
+  for (const line of runCommand("/bin/ps", ["-axo", "comm="]).split("\n")) {
+    const command = line.trim();
+    if (command.startsWith(`${target}/Contents/MacOS/`)) {
+      throw new Error(`Quit Codex Account Switcher before changing ${target}.`);
+    }
+    const marker = command.lastIndexOf("/Contents/MacOS/");
+    if (marker < 0) continue;
+    let runningIdentity;
+    try { runningIdentity = await stat(command.slice(0, marker)); }
+    catch (error) {
+      // A process can outlive its removed bundle; that absent directory cannot
+      // be the existing candidate. Other filesystem errors stop the check.
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    if (runningIdentity.dev === targetIdentity.dev && runningIdentity.ino === targetIdentity.ino) {
+      throw new Error(`Quit Codex Account Switcher before changing ${target}.`);
+    }
   }
 }
 
-export function configureLauncher(platform, target, remove = false) {
-  if (platform === "darwin") return run(launchServices, [remove ? "-u" : "-f", target]);
+export async function macLegacyAppsToRemove({ targets, selectedTarget, version }, runCommand = run) {
+  const selected = await statIfExists(selectedTarget);
+  const removable = [];
+  const seen = new Set();
+  for (const target of targets) {
+    const existing = await statIfExists(target);
+    if (!existing) continue;
+    // Paths with different case or symlinked parent directories can name the
+    // selected app itself. Compare filesystem identity before planning removal.
+    if (selected && existing.dev === selected.dev && existing.ino === selected.ino) continue;
+    if (existing.isSymbolicLink() || !existing.isDirectory()) {
+      throw new Error(`Unexpected legacy installation target: ${target}.`);
+    }
+    const identity = `${existing.dev}:${existing.ino}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    let installed;
+    try { installed = appVersion(target, runCommand); }
+    catch (error) {
+      if (error.message.startsWith("Unexpected application identity")) continue;
+      throw error;
+    }
+    if (compareVersions(installed, version) > 0) {
+      throw new Error(`Legacy v${installed} is newer than GitHub latest v${version}; refusing to remove ${target}.`);
+    }
+    await requireMacClosed(target, runCommand);
+    removable.push(target);
+  }
+  return removable;
+}
+
+export async function removeMacLegacyApps(options, runCommand = run) {
+  const removable = await macLegacyAppsToRemove(options, runCommand);
+  for (const target of removable) {
+    await rm(target, { recursive: true });
+    configureLauncher("darwin", target, true, runCommand);
+  }
+  return removable;
+}
+
+export function configureLauncher(platform, target, remove = false, runCommand = run) {
+  if (platform === "darwin") return runCommand(launchServices, [remove ? "-u" : "-f", target]);
   return powershell(`
     $link = Join-Path ([Environment]::GetFolderPath('Programs')) 'Codex Account Switcher.lnk';
     Add-Type -Path $env:CODEX_SWITCHER_SHORTCUT_SOURCE;
@@ -171,7 +238,7 @@ export async function installMac(dmg, target, version, temporary, runCommand = r
     if (existing) {
       if (!existing.isDirectory() || existing.isSymbolicLink()) throw new Error(`Expected an app directory at ${target}. No files were replaced.`);
       appVersion(target, runCommand);
-      requireMacClosed(target, runCommand);
+      await requireMacClosed(target, runCommand);
       await rm(target, { recursive: true });
     }
     await rename(prepared, target);
@@ -197,7 +264,7 @@ export async function installWindows(executable, target) {
 }
 
 export async function installApp({ repository, directory, log = console.log }) {
-  const { platform, asset, target } = await installTarget({ directory });
+  const { platform, asset, target, legacyTargets = [] } = await installTarget({ directory });
   const { version, downloadBase } = await latestRelease(repository);
   log(`GitHub latest: v${version}`);
   const checksum = await releaseChecksum(downloadBase, asset);
@@ -207,6 +274,10 @@ export async function installApp({ repository, directory, log = console.log }) {
     const current = platform === "darwin" ? compareVersions(existing, version) === 0 : await fileHash(target) === checksum;
     if (current) {
       if (platform === "darwin") checkMacApp(target, run);
+      // Keep the standard installation locations single-valued even when the
+      // selected target is already current. Without this cleanup, an older
+      // /Applications copy can remain visible in Spotlight forever.
+      if (platform === "darwin") await removeMacLegacyApps({ targets: legacyTargets, selectedTarget: target, version });
       configureLauncher(platform, target);
       log(`Already up to date: Codex Account Switcher v${version} at ${target}`);
       return target;
@@ -219,7 +290,13 @@ export async function installApp({ repository, directory, log = console.log }) {
     log(`Downloading ${downloadBase}/${asset}`);
     await downloadVerified(downloadBase, asset, artifact, checksum);
     log(`SHA-256 verified: ${checksum}`);
-    if (platform === "darwin") await installMac(artifact, target, version, temporary);
+    if (platform === "darwin") {
+      // Check legacy locations before replacing anything so a running old copy
+      // stops the update without leaving a partially migrated installation.
+      await macLegacyAppsToRemove({ targets: legacyTargets, selectedTarget: target, version });
+      await installMac(artifact, target, version, temporary);
+      await removeMacLegacyApps({ targets: legacyTargets, selectedTarget: target, version });
+    }
     else await installWindows(artifact, target);
   } catch (error) { failure = error; }
   // A failed detach must not make recursive cleanup traverse a mounted image.
@@ -247,7 +324,7 @@ export async function openApp({ directory }) {
 export async function uninstallApp({ directory, log = console.log }) {
   const { platform, target } = await installTarget({ directory });
   if (!await installedVersion(platform, target)) { log(`Application is not installed at ${target}.`); return; }
-  if (platform === "darwin") requireMacClosed(target);
+  if (platform === "darwin") await requireMacClosed(target);
   // Remove only this app and its launcher. Account data is stored elsewhere and is never touched.
   await rm(target, { recursive: platform === "darwin" });
   configureLauncher(platform, target, true);
