@@ -1,6 +1,6 @@
 {
   "name": "@liuzhao1225/codex-account-switcher",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Install Zhao Liu's native Codex Account Switcher for macOS and Windows from verified GitHub Release packages (liuzhao1225/codex-account-switcher).",
   "type": "module",
   "bin": {

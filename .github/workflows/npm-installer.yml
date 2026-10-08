@@ -51,7 +51,7 @@ jobs:
       - name: Install global tarball through postinstall
         env:
           CODEX_ACCOUNT_SWITCHER_INSTALL_DIR: ${{ runner.temp }}/npm-installer/应用 smoke
-        run: npm install -g ./liuzhao1225-codex-account-switcher-0.2.0.tgz --prefix "${{ runner.temp }}/npm-installer-cli" --foreground-scripts
+        run: npm install -g ./liuzhao1225-codex-account-switcher-0.2.1.tgz --prefix "${{ runner.temp }}/npm-installer-cli" --foreground-scripts
       - name: Verify real release update and uninstall
         env:
           CODEX_ACCOUNT_SWITCHER_INSTALL_DIR: ${{ runner.temp }}/npm-installer/应用 smoke
