@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { copyFile, lstat, mkdir, mkdtemp, readdir, rename, rm, rmdir } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -131,15 +131,33 @@ export function compareVersions(installed, latest) {
   return 0;
 }
 
-function requireMacClosed(target, runCommand = run) {
-  if (runCommand("/bin/ps", ["-axo", "comm="]).split("\n").some((command) => command.trim().startsWith(`${target}/Contents/MacOS/`))) {
-    throw new Error(`Quit Codex Account Switcher before changing ${target}. No files were replaced.`);
+async function requireMacClosed(target, runCommand = run) {
+  const targetIdentity = await stat(target);
+  for (const line of runCommand("/bin/ps", ["-axo", "comm="]).split("\n")) {
+    const command = line.trim();
+    if (command.startsWith(`${target}/Contents/MacOS/`)) {
+      throw new Error(`Quit Codex Account Switcher before changing ${target}.`);
+    }
+    const marker = command.lastIndexOf("/Contents/MacOS/");
+    if (marker < 0) continue;
+    let runningIdentity;
+    try { runningIdentity = await stat(command.slice(0, marker)); }
+    catch (error) {
+      // A process can outlive its removed bundle; that absent directory cannot
+      // be the existing candidate. Other filesystem errors stop the check.
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    if (runningIdentity.dev === targetIdentity.dev && runningIdentity.ino === targetIdentity.ino) {
+      throw new Error(`Quit Codex Account Switcher before changing ${target}.`);
+    }
   }
 }
 
 export async function macLegacyAppsToRemove({ targets, selectedTarget, version }, runCommand = run) {
   const selected = await statIfExists(selectedTarget);
   const removable = [];
+  const seen = new Set();
   for (const target of targets) {
     const existing = await statIfExists(target);
     if (!existing) continue;
@@ -149,6 +167,9 @@ export async function macLegacyAppsToRemove({ targets, selectedTarget, version }
     if (existing.isSymbolicLink() || !existing.isDirectory()) {
       throw new Error(`Unexpected legacy installation target: ${target}.`);
     }
+    const identity = `${existing.dev}:${existing.ino}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     let installed;
     try { installed = appVersion(target, runCommand); }
     catch (error) {
@@ -158,7 +179,7 @@ export async function macLegacyAppsToRemove({ targets, selectedTarget, version }
     if (compareVersions(installed, version) > 0) {
       throw new Error(`Legacy v${installed} is newer than GitHub latest v${version}; refusing to remove ${target}.`);
     }
-    requireMacClosed(target, runCommand);
+    await requireMacClosed(target, runCommand);
     removable.push(target);
   }
   return removable;
@@ -217,7 +238,7 @@ export async function installMac(dmg, target, version, temporary, runCommand = r
     if (existing) {
       if (!existing.isDirectory() || existing.isSymbolicLink()) throw new Error(`Expected an app directory at ${target}. No files were replaced.`);
       appVersion(target, runCommand);
-      requireMacClosed(target, runCommand);
+      await requireMacClosed(target, runCommand);
       await rm(target, { recursive: true });
     }
     await rename(prepared, target);
@@ -303,7 +324,7 @@ export async function openApp({ directory }) {
 export async function uninstallApp({ directory, log = console.log }) {
   const { platform, target } = await installTarget({ directory });
   if (!await installedVersion(platform, target)) { log(`Application is not installed at ${target}.`); return; }
-  if (platform === "darwin") requireMacClosed(target);
+  if (platform === "darwin") await requireMacClosed(target);
   // Remove only this app and its launcher. Account data is stored elsewhere and is never touched.
   await rm(target, { recursive: platform === "darwin" });
   configureLauncher(platform, target, true);

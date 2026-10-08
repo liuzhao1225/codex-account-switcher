@@ -179,6 +179,42 @@ test("macOS cleanup preserves case aliases of the selected app", { skip: process
   await access(app);
 });
 
+test("macOS cleanup removes aliased legacy candidates only once", async (t) => {
+  const home = await temporary(t);
+  const applications = path.join(home, "SharedApplications");
+  const alias = path.join(home, "Applications");
+  const oldApp = path.join(applications, "Codex Account Switcher.app");
+  await mkdir(path.join(oldApp, "Contents"), { recursive: true });
+  await symlink(applications, alias, process.platform === "win32" ? "junction" : "dir");
+  const legacyAlias = path.join(alias, "Codex Account Switcher.app");
+  const unregistered = [];
+  const run = (command, args) => {
+    if (command.endsWith("plutil")) return args[1] === "CFBundleIdentifier" ? "com.liuzhao.codex-account-switcher" : "0.1.16";
+    if (command.endsWith("lsregister")) unregistered.push(args.at(-1));
+    return "";
+  };
+  const options = { targets: [oldApp, legacyAlias], selectedTarget: path.join(home, "Custom", "Selected.app"), version: "0.2.0" };
+  assert.deepEqual(await removeMacLegacyApps(options, run), [oldApp]);
+  assert.deepEqual(unregistered, [oldApp]);
+  await assert.rejects(access(oldApp), { code: "ENOENT" });
+});
+
+test("macOS cleanup protects a running app launched through a directory alias", async (t) => {
+  const home = await temporary(t);
+  const applications = path.join(home, "Applications");
+  const alias = path.join(home, "apps-alias");
+  const oldApp = path.join(applications, "Codex Account Switcher.app");
+  await mkdir(path.join(oldApp, "Contents"), { recursive: true });
+  await symlink(applications, alias, process.platform === "win32" ? "junction" : "dir");
+  const run = (command, args) => {
+    if (command.endsWith("plutil")) return args[1] === "CFBundleIdentifier" ? "com.liuzhao.codex-account-switcher" : "0.1.16";
+    if (command.endsWith("ps")) return `${path.join(alias, "Codex Account Switcher.app")}/Contents/MacOS/CodexAccountSwitcher`;
+    assert.fail("A running app must not be unregistered");
+  };
+  await assert.rejects(removeMacLegacyApps({ targets: [oldApp], selectedTarget: path.join(home, "Selected.app"), version: "0.2.0" }, run), /Quit Codex/);
+  await access(oldApp);
+});
+
 for (const scenario of ["newer", "running"]) {
   test(`macOS cleanup rejects a ${scenario} copy before deleting any app`, async (t) => {
     const dir = await temporary(t);
