@@ -51,7 +51,7 @@ final class TiboForecastModel: ObservableObject {
         guard let url = URL(string: address) else { throw URLError(.badURL) }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
         request.setValue(
-            "CodexAccountSwitcher/0.1.16 (+https://github.com/liuzhao1225/codex-account-switcher)",
+            "CodexAccountSwitcher/0.1.17 (+https://github.com/liuzhao1225/codex-account-switcher)",
             forHTTPHeaderField: "User-Agent"
         )
         let configuration = URLSessionConfiguration.ephemeral

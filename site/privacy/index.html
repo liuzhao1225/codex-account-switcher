@@ -44,7 +44,7 @@
             "description": "How Codex Account Switcher stores local profiles, settings, and usage data, what network activity occurs, and how users remove local data.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/privacy/",
             "datePublished": "2026-08-28",
-            "dateModified": "2026-09-27",
+            "dateModified": "2026-10-08",
             "inLanguage": "en",
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "about": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"},
@@ -91,7 +91,7 @@
             <p class="eyebrow">Plain-language privacy record</p>
             <h1>Privacy for Codex Account Switcher</h1>
             <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your computer.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
-            <p class="article-meta">Updated September 27, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.16</p>
+            <p class="article-meta">Updated October 8, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.17</p>
           </div>
         </header>
 
@@ -123,6 +123,7 @@
                 <h2>What network activity occurs?</h2>
                 <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification and usage refreshes launch Codex app-server for the relevant local profile, which may communicate with OpenAI. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
                 <p>macOS uses Sparkle to check the signed update feed hourly and install updates when requested. Windows checks GitHub Releases hourly when enabled and opens the unified download page for manual EXE replacement. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
+                <p>On macOS, the Tibo reset forecast entry fetches a public feed from <a href="https://codex-reset.com/">codex-reset.com</a> approximately every 15 minutes. The independent site receives ordinary HTTPS request metadata and an app-identifying User-Agent; no saved accounts or credentials are included. Clicking the entry opens that website in your browser.</p>
                 <p>This website is a static GitHub Pages site with no project-added analytics script, advertising tracker, account system, or contact form. GitHub may process normal hosting request data under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
               </section>
 

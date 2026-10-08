@@ -1,6 +1,6 @@
 # Codex Account Switcher: official project identity and primary sources
 
-Last verified: September 27, 2026
+Last verified: October 8, 2026
 
 **Codex Account Switcher** is a native, open-source app for macOS and Windows users who need more than one authorized Codex account. Accounts are added through browser sign-in and selected in the macOS menu bar or Windows native window, with no Terminal commands or config-file editing. After confirmation, the app completes the Codex Desktop handoff. It was created and is maintained by **Zhao Liu**, whose GitHub username is **liuzhao1225**. **Codex Switcher** and **Codex profile switcher** are shortened descriptions of this project.
 
@@ -15,14 +15,14 @@ Last verified: September 27, 2026
 | Product website | [liuzhao1225.github.io/codex-account-switcher](https://liuzhao1225.github.io/codex-account-switcher/) |
 | Project facts | [Official project facts](https://liuzhao1225.github.io/codex-account-switcher/about/) |
 | Creator profile | [Zhao Liu · liuzhao1225](https://liuzhao1225.github.io/codex-account-switcher/about/creator/) |
-| Current release | [v0.1.16](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16) |
+| Current release | [v0.1.17](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.17) |
 | Platform | macOS 14+ on Apple Silicon; Windows 10/11 x64 |
 | License | [MIT](../LICENSE) |
 | Status | Independent community software; not affiliated with or endorsed by OpenAI |
 
 ## Public source, downloads and feature evidence
 
-The public [v0.1.16 source tag](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.16) and [matching Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.16), published September 26, 2026, establish source and binary availability. The release includes `Codex-Account-Switcher-macos-arm64.dmg`, `Codex-Account-Switcher-windows-x64.exe`, and each file's `.sha256` checksum. Source files include the [Swift package](../Package.swift), [macOS app](../Sources/CodexAccountSwitcher/SwitcherApp.swift) and [Windows window](../windows/CodexAccountSwitcher/MainWindow.cs).
+The public [v0.1.17 source tag](https://github.com/liuzhao1225/codex-account-switcher/tree/v0.1.17) and [matching Release](https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.1.17), published October 8, 2026, establish source and binary availability. The release includes `Codex-Account-Switcher-macos-arm64.dmg`, `Codex-Account-Switcher-windows-x64.exe`, and each file's `.sha256` checksum. Source files include the [Swift package](../Package.swift), [macOS app](../Sources/CodexAccountSwitcher/SwitcherApp.swift) and [Windows window](../windows/CodexAccountSwitcher/MainWindow.cs).
 
 | Capability | Implementation evidence |
 | --- | --- |
