@@ -77,45 +77,43 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .fixedSize()
             }
+            rowDivider
+            HStack(spacing: 12) {
+                Text(model.text("settings_desktop_launch"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
 
-            sectionLabel("settings_desktop_launch")
+                Spacer(minLength: 8)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(model.text("desktop_launch_environment"))
-
-                TextEditor(text: $desktopLaunchEnvironmentDraft)
-                    .font(.system(size: 11, design: .monospaced))
-                    .frame(height: 72)
-                    .padding(5)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(.secondary.opacity(0.25))
-                    )
-
-                HStack(alignment: .bottom, spacing: 12) {
-                    Text(model.text("desktop_launch_environment_hint"))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer(minLength: 8)
-
-                    Button(model.text("save")) {
-                        let value = desktopLaunchEnvironmentDraft
-                        Task {
-                            await model.setDesktopLaunchEnvironment(value)
-                        }
+                Button(model.text("save")) {
+                    let value = desktopLaunchEnvironmentDraft
+                    Task {
+                        await model.setDesktopLaunchEnvironment(value)
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize()
-                    .disabled(
-                        desktopLaunchEnvironmentDraft
-                            == model.settings.desktopLaunchEnvironment
-                    )
                 }
+                .buttonStyle(.bordered)
+                .fixedSize()
+                .disabled(
+                    desktopLaunchEnvironmentDraft
+                        == model.settings.desktopLaunchEnvironment
+                )
             }
-            .modifier(SettingsRowLayout())
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
 
+            TextField(
+                model.text("desktop_launch_environment_placeholder"),
+                text: $desktopLaunchEnvironmentDraft,
+                axis: .vertical
+            )
+            .font(.system(size: 11, design: .monospaced))
+            .lineLimit(2, reservesSpace: true)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityLabel(model.text("desktop_launch_environment"))
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+            rowDivider
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
                 settingSwitch("automatically_check_updates", isOn: Binding(
