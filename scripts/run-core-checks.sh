@@ -15,6 +15,7 @@ swiftc \
   -I "$output_dir" -L "$output_dir" -lSwitcherCore \
   -Xlinker -rpath -Xlinker "$output_dir" \
   "$project_dir/Sources/CodexAccountSwitcher/DesktopController.swift" \
+  "$project_dir/Sources/CodexAccountSwitcher/DesktopLaunchEnvironment.swift" \
   "$project_dir/Sources/CodexAccountSwitcher/AppModel.swift" \
   "$project_dir/Checks/CoreChecks.swift" \
   -framework AppKit \
