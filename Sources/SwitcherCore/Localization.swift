@@ -22,6 +22,10 @@ public enum L10n {
     private static let tables: [AppLanguage: [String: String]] = [
         .english: [
             "settings_general": "General",
+            "settings_desktop_launch": "Desktop Launch",
+            "desktop_launch_environment": "Launch Environment Variables",
+            "desktop_launch_environment_hint": "One KEY=VALUE per line. Do not include export. Applied when the desktop app is reopened.",
+            "save": "Save",
             "settings_updates": "Software Update",
             "update_available": "Version %@ available",
             "update_action": "Update…",
@@ -88,6 +92,10 @@ public enum L10n {
             "switched_reopen_message": "The selected account is active, but Codex Desktop could not be reopened. Open Codex manually to continue.",
         ],
         .simplifiedChinese: [
+            "settings_desktop_launch": "桌面应用启动",
+            "desktop_launch_environment": "启动环境变量",
+            "desktop_launch_environment_hint": "每行填写一个 KEY=VALUE，不需要填写 export；重新启动桌面应用时会传入这些环境变量。",
+            "save": "保存",
             "settings_general": "通用",
             "settings_updates": "软件更新",
             "update_available": "发现新版本 %@",

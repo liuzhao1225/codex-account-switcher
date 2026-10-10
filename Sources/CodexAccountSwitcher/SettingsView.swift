@@ -6,6 +6,8 @@ struct SettingsView: View {
     @ObservedObject var updater: AppUpdater
     let onBack: () -> Void
 
+    @State private var desktopLaunchEnvironmentDraft = ""
+
     var body: some View {
         VStack(spacing: 0) {
             PopoverHeader(
@@ -76,6 +78,44 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
+            sectionLabel("settings_desktop_launch")
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.text("desktop_launch_environment"))
+
+                TextEditor(text: $desktopLaunchEnvironmentDraft)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(height: 72)
+                    .padding(5)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(.secondary.opacity(0.25))
+                    )
+
+                HStack(alignment: .bottom, spacing: 12) {
+                    Text(model.text("desktop_launch_environment_hint"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 8)
+
+                    Button(model.text("save")) {
+                        let value = desktopLaunchEnvironmentDraft
+                        Task {
+                            await model.setDesktopLaunchEnvironment(value)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .fixedSize()
+                    .disabled(
+                        desktopLaunchEnvironmentDraft
+                            == model.settings.desktopLaunchEnvironment
+                    )
+                }
+            }
+            .modifier(SettingsRowLayout())
+
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
                 settingSwitch("automatically_check_updates", isOn: Binding(
@@ -107,7 +147,10 @@ struct SettingsView: View {
         .padding(.bottom, 6)
         .font(.system(size: 13))
         .controlSize(.small)
-        .onAppear { model.refreshLaunchAtLoginStatus() }
+        .onAppear {
+            model.refreshLaunchAtLoginStatus()
+            desktopLaunchEnvironmentDraft = model.settings.desktopLaunchEnvironment
+        }
     }
 
     private var rowDivider: some View {
