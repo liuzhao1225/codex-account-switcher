@@ -55,6 +55,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
+    public var desktopLaunchEnvironment: String
 
     public static let `default` = AppSettings(
         language: .system,
@@ -67,12 +68,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
         language: AppLanguage,
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false,
-        statusBarUsageWindow: StatusBarUsageWindow = .fiveHour
+        statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
+        desktopLaunchEnvironment: String = ""
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
         self.statusBarUsageWindow = statusBarUsageWindow
+        self.desktopLaunchEnvironment = desktopLaunchEnvironment
     }
 
     public init(from decoder: any Decoder) throws {
@@ -90,6 +93,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             StatusBarUsageWindow.self,
             forKey: .statusBarUsageWindow
         ) ?? .fiveHour
+        desktopLaunchEnvironment = try container.decodeIfPresent(
+            String.self,
+            forKey: .desktopLaunchEnvironment
+        ) ?? ""
     }
 }
 

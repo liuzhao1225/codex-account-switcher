@@ -65,6 +65,12 @@ struct DesktopController: DesktopControlling {
         }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
+
+        let launchEnvironment = DesktopLaunchPreferences.environment
+        if !launchEnvironment.isEmpty {
+            configuration.environment = launchEnvironment
+        }
+
         do {
             _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
         } catch {
