@@ -336,6 +336,15 @@ open class AccountController {
         }
     }
 
+    public func setDesktopLaunchEnvironment(_ value: String) async {
+    settings.desktopLaunchEnvironment = value
+    do {
+        try await store.saveSettings(settings)
+    } catch {
+        showError(error)
+    }
+}
+
     public func dismissError() {
         visibleError = nil
     }

@@ -43,6 +43,11 @@ struct DesktopQuitWaiter: Sendable {
 struct DesktopController: DesktopControlling {
     private let bundleIdentifiers = ["com.openai.codex"]
     private let applicationPaths = ["/Applications/ChatGPT.app", "/Applications/Codex.app"]
+    private let store: AccountStore
+
+    init(store: AccountStore) {
+        self.store = store
+    }
 
     func closeDesktop() async throws {
         let running = runningDesktopApplications
@@ -66,7 +71,11 @@ struct DesktopController: DesktopControlling {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
 
-        let launchEnvironment = DesktopLaunchPreferences.environment
+        let settings = (try? await store.loadSettings()) ?? .default
+        let launchEnvironment = DesktopLaunchEnvironment.parse(
+            settings.desktopLaunchEnvironment
+        )
+
         if !launchEnvironment.isEmpty {
             configuration.environment = launchEnvironment
         }

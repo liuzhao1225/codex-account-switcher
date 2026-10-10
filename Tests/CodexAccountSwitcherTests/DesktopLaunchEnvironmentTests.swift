@@ -3,7 +3,7 @@ import Testing
 @testable import CodexAccountSwitcher
 
 @Suite("Desktop launch environment")
-struct DesktopLaunchPreferencesTests {
+struct DesktopLaunchEnvironmentTests {
     @Test("parses environment variables")
     func parsesEnvironmentVariables() {
         let environment = DesktopLaunchEnvironment.parse(
