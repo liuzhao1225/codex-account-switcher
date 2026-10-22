@@ -63,6 +63,7 @@ public actor AccountStore: AccountStoring {
 
     private var accountsURL: URL { baseURL.appending(path: "accounts.json") }
     private var settingsURL: URL { baseURL.appending(path: "settings.json") }
+    private var subscriptionCacheURL: URL { baseURL.appending(path: "subscription-cache.json") }
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
 
@@ -125,6 +126,65 @@ public actor AccountStore: AccountStoring {
             cache.entries.append(entry)
         }
         try saveUsageCache(cache)
+    }
+
+    private struct SubscriptionCacheEntry: Codable {
+        let profileID: UUID
+        let accountID: String
+        let value: LiveSubscription
+    }
+
+    private func readSubscriptionCache() throws -> [SubscriptionCacheEntry] {
+        try prepareDirectories()
+        guard fileManager.fileExists(atPath: subscriptionCacheURL.path) else { return [] }
+        return try Self.decoder.decode([SubscriptionCacheEntry].self, from: readChecked(subscriptionCacheURL))
+    }
+
+    public func loadLiveSubscriptions() throws -> [UUID: LiveSubscription] {
+        let registry = try loadRegistry()
+        var result: [UUID: LiveSubscription] = [:]
+        for entry in try readSubscriptionCache() {
+            guard registry.accounts.contains(where: {
+                $0.id == entry.profileID && $0.accountID == entry.accountID
+            }) else { continue }
+            result[entry.profileID] = entry.value
+        }
+        return result
+    }
+
+    public func cacheLiveSubscription(_ value: LiveSubscription, profile: AccountProfile) throws {
+        let registry = try loadRegistry()
+        guard let accountID = profile.accountID, !accountID.isEmpty,
+              registry.accounts.contains(where: { $0.id == profile.id && $0.accountID == accountID }) else { return }
+        // A corrupt derived cache must not prevent a fresh service result from
+        // recovering it. The source credentials and registry are never changed.
+        var entries = (try? readSubscriptionCache()) ?? []
+        entries.removeAll { entry in
+            entry.profileID == profile.id || !registry.accounts.contains(where: {
+                $0.id == entry.profileID && $0.accountID == entry.accountID
+            })
+        }
+        entries.append(SubscriptionCacheEntry(profileID: profile.id, accountID: accountID, value: value))
+        try writeJSON(entries, to: subscriptionCacheURL)
+    }
+
+    public func subscriptionCredential(profile: AccountProfile, isActive: Bool) throws -> Data {
+        let home = isActive ? activeHomeURL : profileHome(id: profile.id)
+        let bytes = try readChecked(home.appending(path: "auth.json"))
+        guard let identity = try CredentialIdentity.decode(bytes), identity.matches(profile) else {
+            throw AccountStoreError.activeCredentialMismatch
+        }
+        return bytes
+    }
+
+    public func permitsSubscriptionCredentialRenewal(profile: AccountProfile) throws -> Bool {
+        _ = try subscriptionCredential(profile: profile, isActive: false)
+        guard activeCredentialExists() else { return true }
+        guard let current = try CredentialIdentity.decode(readChecked(activeHomeURL.appending(path: "auth.json"))) else { return false }
+        if current.accountID == profile.accountID { return false }
+        if let email = current.email, let expected = profile.email,
+           email.caseInsensitiveCompare(expected) == .orderedSame { return false }
+        return true
     }
 
     public func profile(id: UUID) throws -> AccountProfile {
@@ -262,6 +322,11 @@ public actor AccountStore: AccountStoring {
         if cache.entries.contains(where: { $0.profileID == id }) {
             cache.entries.removeAll(where: { $0.profileID == id })
             try saveUsageCache(cache)
+        }
+        if fileManager.fileExists(atPath: subscriptionCacheURL.path) {
+            var subscriptions = (try? readSubscriptionCache()) ?? []
+            subscriptions.removeAll(where: { $0.profileID == id })
+            try writeJSON(subscriptions, to: subscriptionCacheURL)
         }
         let original = current
         current.accounts.removeAll(where: { $0.id == id })

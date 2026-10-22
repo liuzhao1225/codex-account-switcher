@@ -239,6 +239,8 @@ struct CoreChecks {
             "Simplified Chinese five-hour setting label"
         )
         try testTiboForecastReader()
+        try await runLiveSubscriptionChecks()
+        try await runSubscriptionControllerChecks()
 
         let credential = try testCredential()
         let subscription = SubscriptionSnapshotReader.read(

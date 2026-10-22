@@ -34,8 +34,9 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     let objectWillChange = ObservableObjectPublisher()
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 
-    override init(store: AccountStore, codex: any AccountClient, switchService: any SwitchServicing) {
-        super.init(store: store, codex: codex, switchService: switchService)
+    override init(store: AccountStore, codex: any AccountClient, switchService: any SwitchServicing,
+                  subscriptionClient: any SubscriptionClient = LiveSubscriptionClient()) {
+        super.init(store: store, codex: codex, switchService: switchService, subscriptionClient: subscriptionClient)
         onChange = { [weak self] in self?.objectWillChange.send() }
         refreshLaunchAtLoginStatus()
     }

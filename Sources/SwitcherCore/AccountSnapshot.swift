@@ -9,6 +9,8 @@ public struct AccountSnapshot: Encodable, Sendable {
         public let usageError: String?
         public let usageStatus: String
         public let subscription: SubscriptionSnapshot?
+        public let liveSubscription: LiveSubscription?
+        public let subscriptionError: String?
     }
     public let accounts: [Row]
     public let activeAccountID: UUID?
@@ -28,7 +30,9 @@ extension AccountController {
                     usage: usageStates[account.id]?.displayedUsage,
                     usageError: usageStates[account.id]?.presentationError,
                     usageStatus: usageStates[account.id]?.presentationStatus ?? "idle",
-                    subscription: subscriptionSnapshots[account.id])
+                    subscription: subscriptionSnapshots[account.id],
+                    liveSubscription: subscriptionStates[account.id]?.displayedSubscription,
+                    subscriptionError: subscriptionStates[account.id]?.refreshError)
             },
             activeAccountID: activeAccountID, settings: settings,
             isMutating: isMutating, isAddingAccount: isAddingAccount,
