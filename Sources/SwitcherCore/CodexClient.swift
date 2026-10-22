@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -207,14 +212,19 @@ private actor JSONRPCSession {
     private let decoder = JSONDecoder()
     private var didTimeout = false
     private var pendingNotifications: [RPCEnvelope] = []
+    private var stopTask: Task<Bool, Never>?
 
-    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
+    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String],
+                fileCredentials: Bool = false) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = executableURL
         process.arguments = ["app-server", "--stdio"]
+        if fileCredentials {
+            process.arguments?.append(contentsOf: ["-c", "cli_auth_credentials_store=\"file\""])
+        }
         var environment = inheritedEnvironment
         environment["CODEX_HOME"] = profileHome.path
         process.environment = environment
@@ -274,15 +284,35 @@ private actor JSONRPCSession {
         return envelope.params ?? .object([:])
     }
 
-    public func stop() {
+    @discardableResult
+    public func stop() async -> Bool {
+        if let stopTask { return await stopTask.value }
         output.readabilityHandler = nil
         errorOutput.readabilityHandler = nil
         try? input.close()
-        if process.isRunning {
-            process.terminate()
-        }
         pump.finish()
         stderrDrain.finish()
+        let process = process
+        // Cleanup must survive cancellation of the request that owns this session.
+        let task = Task.detached {
+            if process.isRunning { process.terminate() }
+            for _ in 0..<100 {
+                if !process.isRunning { return true }
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            #if canImport(Darwin) || canImport(Glibc)
+            if process.isRunning { _ = kill(process.processIdentifier, SIGKILL) }
+            #endif
+            // Poll Foundation's exit state instead of blocking an executor with
+            // waitUntilExit. Never report a successful refresh with a live writer.
+            for _ in 0..<50 {
+                if !process.isRunning { return true }
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            return !process.isRunning
+        }
+        stopTask = task
+        return await task.value
     }
 
     private func response(id: Int, timeout: Duration) async throws -> RPCEnvelope {
@@ -333,9 +363,9 @@ private actor JSONRPCSession {
         throw CodexClientError.connectionClosed
     }
 
-    private func triggerTimeout() {
+    private func triggerTimeout() async {
         didTimeout = true
-        stop()
+        await stop()
     }
 
     private func send(_ object: [String: Any]) throws {
@@ -426,7 +456,8 @@ public struct CodexExecutableLocator: Sendable {
     }
 
     public func launchConfiguration(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        requireDirectExecutable: Bool = false
     ) throws -> (executable: URL, environment: [String: String]) {
         var environment = environment
         #if !os(Windows)
@@ -453,7 +484,89 @@ public struct CodexExecutableLocator: Sendable {
             environment["CODEX_CLI_PATH"] = String(fields[fields.count - 2])
         }
         #endif
-        return (try locate(environment: environment), environment)
+        let executable = try locate(environment: environment)
+        return (requireDirectExecutable ? try credentialRefreshExecutable(executable) : executable, environment)
+    }
+
+    private func credentialRefreshExecutable(_ executable: URL) throws -> URL {
+        let resolved = executable.resolvingSymlinksInPath().standardizedFileURL
+        // The official npm entry spawns a native child. Launch that child directly
+        // so the session's exit wait covers the process that can write auth.json.
+        if resolved.lastPathComponent == "codex.js", resolved.deletingLastPathComponent().lastPathComponent == "bin" {
+            let root = resolved.deletingLastPathComponent().deletingLastPathComponent()
+            if let data = try? Data(contentsOf: root.appendingPathComponent("package.json")),
+               let manifest = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+               manifest["name"] as? String == "@openai/codex",
+               let bin = manifest["bin"] as? [String: Any],
+               let entry = bin["codex"] as? String,
+               root.appendingPathComponent(entry).resolvingSymlinksInPath().standardizedFileURL == resolved {
+                let (package, triple, name) = try npmPlatform()
+                var vendor = root.appendingPathComponent("vendor")
+                // Match Node's ancestor node_modules lookup, including hoisted
+                // dependencies and symlinked pnpm package directories.
+                var directory = root.standardizedFileURL
+                for _ in 0..<256 {
+                    if directory.lastPathComponent != "node_modules" {
+                        let dependency = directory.appendingPathComponent("node_modules/\(package)")
+                        if FileManager.default.fileExists(atPath: dependency.appendingPathComponent("package.json").path) {
+                            vendor = dependency.appendingPathComponent("vendor")
+                            break
+                        }
+                    }
+                    if directory.path == "/" { break }
+                    let parent = directory.deletingLastPathComponent().standardizedFileURL
+                    if parent.path == directory.path { break }
+                    directory = parent
+                }
+                for folder in ["bin", "codex"] {
+                    let native = vendor.appendingPathComponent("\(triple)/\(folder)/\(name)")
+                    if isExecutable(native.path) {
+                        return try checkedNativeExecutable(native.resolvingSymlinksInPath())
+                    }
+                }
+                throw CodexClientError.processLaunchFailed("The official Codex npm package is missing its native executable.")
+            }
+        }
+        return try checkedNativeExecutable(executable)
+    }
+
+    private func checkedNativeExecutable(_ executable: URL) throws -> URL {
+        let handle = try FileHandle(forReadingFrom: executable)
+        defer { try? handle.close() }
+        let prefix = Array(try handle.read(upToCount: 4) ?? Data())
+        let machHeaders: [[UInt8]] = [
+            [0xfe, 0xed, 0xfa, 0xce], [0xce, 0xfa, 0xed, 0xfe],
+            [0xfe, 0xed, 0xfa, 0xcf], [0xcf, 0xfa, 0xed, 0xfe],
+            [0xca, 0xfe, 0xba, 0xbe], [0xbe, 0xba, 0xfe, 0xca],
+            [0xca, 0xfe, 0xba, 0xbf], [0xbf, 0xba, 0xfe, 0xca],
+        ]
+        let isNative = machHeaders.contains(prefix) || prefix == [0x7f, 0x45, 0x4c, 0x46]
+            || prefix.starts(with: [0x4d, 0x5a])
+        guard isNative else {
+            throw CodexClientError.processLaunchFailed("Credential renewal requires a native Codex executable or its official npm launcher.")
+        }
+        return executable
+    }
+
+    private func npmPlatform() throws -> (package: String, triple: String, name: String) {
+        #if arch(arm64)
+        let cpu = "arm64"
+        let machine = "aarch64"
+        #elseif arch(x86_64)
+        let cpu = "x64"
+        let machine = "x86_64"
+        #else
+        throw CodexClientError.processLaunchFailed("Unsupported Codex npm architecture.")
+        #endif
+        #if os(macOS)
+        return ("@openai/codex-darwin-\(cpu)", "\(machine)-apple-darwin", "codex")
+        #elseif os(Windows)
+        return ("@openai/codex-win32-\(cpu)", "\(machine)-pc-windows-msvc", "codex.exe")
+        #elseif os(Linux)
+        return ("@openai/codex-linux-\(cpu)", "\(machine)-unknown-linux-musl", "codex")
+        #else
+        throw CodexClientError.processLaunchFailed("Unsupported Codex npm platform.")
+        #endif
     }
 
     private func isExecutable(_ path: String) -> Bool {
@@ -469,7 +582,14 @@ public struct CodexExecutableLocator: Sendable {
 
 public protocol AccountClient: CodexIdentityReading {
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage
+    func refreshIdentity(profileHome: URL) async throws -> AccountIdentity
     func login(profileHome: URL) async throws -> AccountIdentity
+}
+
+extension AccountClient {
+    public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
+        throw CodexClientError.identityUnavailable
+    }
 }
 
 public struct CodexClient: AccountClient {
@@ -524,6 +644,14 @@ public struct CodexClient: AccountClient {
         )
     }
 
+    public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
+        let result = try await withSession(profileHome: profileHome, fileCredentials: true) { session in
+            try await session.request(method: "account/read", id: 1,
+                                      params: ["refreshToken": true], timeout: requestTimeout)
+        }
+        return try parseIdentity(result, profileHome: profileHome)
+    }
+
     public func login(profileHome: URL) async throws -> AccountIdentity {
         try await withSession(profileHome: profileHome) { session in
             let start = try await session.request(
@@ -564,16 +692,18 @@ public struct CodexClient: AccountClient {
 
     private func withSession<T: Sendable>(
         profileHome: URL,
+        fileCredentials: Bool = false,
         operation: (JSONRPCSession) async throws -> T
     ) async throws -> T {
-        let launch = try locator.launchConfiguration()
-        let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome, environment: launch.environment)
+        let launch = try locator.launchConfiguration(requireDirectExecutable: fileCredentials)
+        let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome,
+                                         environment: launch.environment, fileCredentials: fileCredentials)
         return try await withTaskCancellationHandler {
             do {
                 try Task.checkCancellation()
                 try await session.initialize(timeout: requestTimeout, clientVersion: clientVersion)
                 let result = try await operation(session)
-                await session.stop()
+                guard await session.stop() else { throw CodexClientError.timeout }
                 try Task.checkCancellation()
                 return result
             } catch {

@@ -11,6 +11,7 @@ open class AccountController {
     public private(set) var accounts: [AccountProfile] = [] { didSet { onChange?() } }
     public private(set) var activeAccountID: UUID? { didSet { onChange?() } }
     public private(set) var usageStates: [UUID: UsageViewState] = [:] { didSet { onChange?() } }
+    public private(set) var subscriptionStates: [UUID: LiveSubscriptionState] = [:] { didSet { onChange?() } }
     public private(set) var subscriptionSnapshots: [UUID: SubscriptionSnapshot] = [:] { didSet { onChange?() } }
     public private(set) var settings: AppSettings = .default { didSet { onChange?() } }
     public private(set) var isMutating = false { didSet { onChange?() } }
@@ -20,7 +21,9 @@ open class AccountController {
 
     private let store: AccountStore
     private let codex: any AccountClient
+    private let subscriptionClient: any SubscriptionClient
     private let switchService: any SwitchServicing
+    private var subscriptionAuthAttempts: [UUID: Date] = [:]
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
     private var nextUsageRefreshTask: Task<Void, Never>?
@@ -31,11 +34,13 @@ open class AccountController {
     public init(
         store: AccountStore,
         codex: any AccountClient,
-        switchService: any SwitchServicing
+        switchService: any SwitchServicing,
+        subscriptionClient: any SubscriptionClient = LiveSubscriptionClient()
     ) {
         self.store = store
         self.codex = codex
         self.switchService = switchService
+        self.subscriptionClient = subscriptionClient
     }
 
     public func text(_ key: String) -> String {
@@ -66,6 +71,9 @@ open class AccountController {
             await refreshSubscriptionSnapshots()
             do {
                 apply(try await store.loadUsageCache())
+                for (id, value) in try await store.loadLiveSubscriptions() {
+                    subscriptionStates[id] = .stale(value, text("subscription_refresh_pending"))
+                }
             } catch {
                 showError(error)
             }
@@ -171,6 +179,77 @@ open class AccountController {
                         usageStates[id] = .unavailable(message)
                     }
                 }
+            }
+        }
+        await refreshLiveSubscriptions()
+    }
+
+    private func refreshLiveSubscriptions() async {
+        // Each service response is account-bound. Authentication recovery runs
+        // only after all quota requests have finished, avoiding concurrent writers.
+        // Subscription results are cached outside auth.json.
+        for account in accounts {
+            guard !Task.isCancelled else { return }
+            do {
+                let value = try await readLiveSubscription(account)
+                try Task.checkCancellation()
+                guard accounts.contains(where: { $0.id == account.id && $0.accountID == account.accountID }) else { continue }
+                subscriptionStates[account.id] = .loaded(value)
+                try await store.cacheLiveSubscription(value, profile: account)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled else { return }
+                // Errors are owned by this reader and contain no response body,
+                // request URL or credentials. File errors use a generic message.
+                let message = error is LiveSubscriptionError
+                    ? error.localizedDescription : text("subscription_refresh_failed")
+                if let value = subscriptionStates[account.id]?.displayedSubscription {
+                    subscriptionStates[account.id] = .stale(value, message)
+                } else {
+                    subscriptionStates[account.id] = .unavailable(message)
+                }
+            }
+        }
+    }
+
+    private func readLiveSubscription(_ account: AccountProfile) async throws -> LiveSubscription {
+        func read() async throws -> LiveSubscription {
+            let credential = try await store.subscriptionCredential(
+                profile: account, isActive: account.id == activeAccountID
+            )
+            return try await subscriptionClient.readSubscription(
+                credential: credential, expectedAccountID: account.accountID,
+                expectedEmail: account.email
+            )
+        }
+        do { return try await read() }
+        catch LiveSubscriptionError.unauthenticated {
+            // Only an actual authentication rejection justifies token renewal.
+            // Desktop owns the active login; never rotate its saved copy here.
+            guard account.id != activeAccountID,
+                  subscriptionAuthAttempts[account.id].map({ Date().timeIntervalSince($0) >= 6 * 3_600 }) ?? true else {
+                throw LiveSubscriptionError.unauthenticated
+            }
+            try Task.checkCancellation()
+            // Revalidate immediately before allowing Codex to write this profile.
+            guard try await store.permitsSubscriptionCredentialRenewal(profile: account) else {
+                throw LiveSubscriptionError.unauthenticated
+            }
+            subscriptionAuthAttempts[account.id] = Date()
+            do {
+                let home = await store.profileHome(id: account.id)
+                let identity = try await codex.refreshIdentity(profileHome: home)
+                guard identity.matches(account) else { throw LiveSubscriptionError.invalidCredential }
+                try Task.checkCancellation()
+                let value = try await read()
+                subscriptionAuthAttempts.removeValue(forKey: account.id)
+                return value
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                if Task.isCancelled { throw CancellationError() }
+                // Never expose app-server diagnostics, which can contain credentials.
+                throw LiveSubscriptionError.unauthenticated
             }
         }
     }
@@ -339,6 +418,7 @@ open class AccountController {
         accounts = registry.accounts
         activeAccountID = registry.activeAccountID
         usageStates = usageStates.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
+        subscriptionStates = subscriptionStates.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
         subscriptionSnapshots = subscriptionSnapshots.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
     }
 
