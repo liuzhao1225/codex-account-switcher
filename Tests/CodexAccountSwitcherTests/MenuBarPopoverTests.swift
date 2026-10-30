@@ -74,6 +74,9 @@ private struct LayoutClient: AccountClient {
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         throw CodexClientError.loginFailed("Layout test must not read an identity")
     }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        throw CodexClientError.remoteError(code: nil, message: "Unexpected reset consumption in this fixture.")
+    }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         throw CodexClientError.loginFailed("Layout test must not request usage")
     }

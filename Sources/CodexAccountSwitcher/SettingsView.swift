@@ -76,17 +76,17 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
-            sectionLabel("settings_experimental")
-            settingRow("reset_expiry_experiment") {
-                settingSwitch("reset_expiry_experiment", isOn: Binding(
-                    get: { model.settings.resetExpiryExperimentEnabled },
-                    set: { enabled in Task { await model.setResetExpiryExperimentEnabled(enabled) } }
+            sectionLabel("settings_automation")
+            settingRow("auto_reset") {
+                settingSwitch("auto_reset", isOn: Binding(
+                    get: { model.settings.autoResetEnabled },
+                    set: { enabled in Task { await model.setAutoResetEnabled(enabled) } }
                 ))
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text(model.text("reset_expiry_experiment_hint"))
+                Text(model.text("auto_reset_hint"))
                     .foregroundStyle(.secondary)
-                Button(model.text("open_experiment_log")) { model.revealResetExpiryLog() }
+                Button(model.text("open_reset_log")) { model.revealResetExpiryLog() }
                     .buttonStyle(.link)
             }
             .modifier(SettingsDetail())

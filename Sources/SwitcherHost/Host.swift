@@ -105,9 +105,9 @@ private final class Host {
         case "fiveHour":
             guard let value = request.value else { throw HostError.message("Missing setting.") }
             await model.setShowsFiveHourUsage(value)
-        case "resetExpiryExperiment":
+        case "autoReset":
             guard let value = request.value else { throw HostError.message("Missing setting.") }
-            await model.setResetExpiryExperimentEnabled(value)
+            await model.setAutoResetEnabled(value)
         case "statusBarUsageWindow":
             guard let raw = request.language, let window = StatusBarUsageWindow(rawValue: raw) else {
                 throw HostError.message("Invalid status bar usage window.")

@@ -256,6 +256,50 @@ struct CodexClientTests {
         #expect(methods == ["initialize", "initialized", "account/rateLimits/read"])
     }
 
+    @Test(arguments: ["reset", "nothingToReset", "noCredit", "alreadyRedeemed"])
+    func consumesTheSpecifiedResetCreditAndDecodesOutcome(outcome: String) async throws {
+        let fixture = try ScriptFixture(body: """
+        while IFS= read -r line; do
+          printf '%s\\n' "$line" >> "$CODEX_HOME/requests.jsonl"
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\\n' '{"id":0,"result":{}}' ;;
+            *rateLimitResetCredit*) printf '%s\\n' '{"id":1,"result":{"outcome":"\(outcome)"}}' ;;
+            *) exit 99 ;;
+          esac
+        done
+        """)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: CodexExecutableLocator(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        #expect(try await client.consumeResetCredit(profileHome: fixture.root, creditID: "expiring-credit", idempotencyKey: "attempt-uuid").rawValue == outcome)
+        let lines = try String(contentsOf: fixture.root.appending(path: "requests.jsonl"), encoding: .utf8).split(separator: "\n")
+        #expect(lines.count == 3)
+        let request = try #require(JSONSerialization.jsonObject(with: Data(lines[2].utf8)) as? [String: Any])
+        #expect(request["method"] as? String == "account/rateLimitResetCredit/consume")
+        let params = try #require(request["params"] as? [String: String])
+        #expect(params == ["creditId": "expiring-credit", "idempotencyKey": "attempt-uuid"])
+    }
+
+    @Test func resetConsumePreservesRemoteErrorWithoutRetry() async throws {
+        let fixture = try ScriptFixture(body: """
+        while IFS= read -r line; do
+          printf '%s\\n' "$line" >> "$CODEX_HOME/requests.jsonl"
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\\n' '{"id":0,"result":{}}' ;;
+            *rateLimitResetCredit*) printf '%s\\n' '{"id":1,"error":{"code":503,"message":"reset service unavailable"}}' ;;
+          esac
+        done
+        """)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: CodexExecutableLocator(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        await #expect(throws: CodexClientError.remoteError(code: 503, message: "reset service unavailable")) {
+            try await client.consumeResetCredit(profileHome: fixture.root, creditID: "expiring-credit", idempotencyKey: "attempt-uuid")
+        }
+        let lines = try String(contentsOf: fixture.root.appending(path: "requests.jsonl"), encoding: .utf8).split(separator: "\n")
+        #expect(lines.count == 3)
+    }
+
     @Test func decodesAccountIdentity() async throws {
         let fixture = try ScriptFixture(body: """
         while IFS= read -r line; do

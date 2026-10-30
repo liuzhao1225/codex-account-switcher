@@ -105,18 +105,18 @@ internal static class Program
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.Single() == "fiveHour:True", "Settings must save immediately.");
-            var experiment = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == client.State.Text("reset_expiry_experiment"));
-            Assert(experiment.IsChecked == false, "The reset expiry experiment must default to off.");
+            var experiment = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == client.State.Text("auto_reset"));
+            Assert(experiment.IsChecked == false, "Auto-reset must default to off.");
             experiment.IsChecked = true; experiment.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
-            Assert(client.Commands.SequenceEqual(new[] { "fiveHour:True", "resetExpiryExperiment:True" }),
-                "The experiment toggle must save its setting without sending any reset command.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("reset_expiry_experiment_hint")),
-                "Settings must disclose that the experiment never consumes resets.");
+            Assert(client.Commands.SequenceEqual(new[] { "fiveHour:True", "autoReset:True" }),
+                "The auto-reset toggle must send the setting to the shared host.");
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("auto_reset_hint")),
+                "Settings must disclose real reset consumption and runtime requirements.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "保存" or "Save"), "Settings must not have a Save flow.");
-            client.State = client.State with { Settings = client.State.Settings with { ShowsFiveHourUsage = true, ResetExpiryExperimentEnabled = true } };
-            window.Navigate("settings"); Render(window, Path.Combine(output, "settings-experiment-enabled-zh.png"));
-            Assert(All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == client.State.Text("reset_expiry_experiment")).IsChecked == true,
-                "The experiment toggle must reflect the persisted setting.");
+            client.State = client.State with { Settings = client.State.Settings with { ShowsFiveHourUsage = true, AutoResetEnabled = true } };
+            window.Navigate("settings"); Render(window, Path.Combine(output, "settings-auto-reset-enabled-zh.png"));
+            Assert(All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == client.State.Text("auto_reset")).IsChecked == true,
+                "The auto-reset toggle must reflect the persisted setting.");
             window.Navigate("accounts"); Render(window, Path.Combine(output, "accounts-five-hour-zh.png"));
             Assert(All<TextBlock>(window).Count(text => text.Text == "5 小时") == 2, "Five-hour view must be per account.");
             var closed = false; window.Closed += (_, _) => closed = true;
@@ -180,8 +180,8 @@ internal static class Program
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
-                ["settings_experimental"] = "试验功能", ["reset_expiry_experiment"] = "自动重置试验（仅日志）",
-                ["reset_expiry_experiment_hint"] = "到期前 10、5、1 分钟记录日志，不消耗 reset。请保持应用运行。", ["open_experiment_log"] = "打开日志文件夹",
+                ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
+                ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
                 ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["language"] = "语言",
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",

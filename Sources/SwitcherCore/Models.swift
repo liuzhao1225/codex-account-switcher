@@ -55,7 +55,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
-    public var resetExpiryExperimentEnabled: Bool
+    public var autoResetEnabled: Bool
 
     public static let `default` = AppSettings(
         language: .system,
@@ -69,13 +69,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false,
         statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
-        resetExpiryExperimentEnabled: Bool = false
+        autoResetEnabled: Bool = false
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
         self.statusBarUsageWindow = statusBarUsageWindow
-        self.resetExpiryExperimentEnabled = resetExpiryExperimentEnabled
+        self.autoResetEnabled = autoResetEnabled
     }
 
     public init(from decoder: any Decoder) throws {
@@ -93,8 +93,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
             StatusBarUsageWindow.self,
             forKey: .statusBarUsageWindow
         ) ?? .fiveHour
-        resetExpiryExperimentEnabled = try container.decodeIfPresent(
-            Bool.self, forKey: .resetExpiryExperimentEnabled
+        autoResetEnabled = try container.decodeIfPresent(
+            Bool.self, forKey: .autoResetEnabled
         ) ?? false
     }
 }

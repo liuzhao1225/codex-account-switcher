@@ -185,9 +185,9 @@ The implementation should:
 
 A partially completed switch remains observable. The implementation performs only the documented pre-commit credential restoration and adds no generic repair, retry, or startup-recovery behavior.
 
-## Reset expiry experiment
+## Automatic reset before expiry
 
-The optional experiment is off by default and only writes local logs at 10, 5 and 1 minute before each banked reset expires. It never consumes a reset. Timing, persistence and error behavior are specified in [Reset expiry experiment](reset-expiry-experiment.md).
+The optional automation is off by default and uses expiring resets for all saved accounts, including inactive accounts, starting 10 minutes before expiry. Real consumption requires the new explicit setting; the old log-only setting does not opt users in. Timing, retained call/readback evidence and failure behavior are specified in [Automatic reset before expiry](reset-expiry-experiment.md).
 
 ## Public reset forecast
 

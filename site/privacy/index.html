@@ -44,7 +44,7 @@
             "description": "How Codex Account Switcher stores local profiles, settings, and usage data, what network activity occurs, and how users remove local data.",
             "url": "https://liuzhao1225.github.io/codex-account-switcher/privacy/",
             "datePublished": "2026-08-28",
-            "dateModified": "2026-10-23",
+            "dateModified": "2026-10-30",
             "inLanguage": "en",
             "isPartOf": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#website"},
             "about": {"@id": "https://liuzhao1225.github.io/codex-account-switcher/#software"},
@@ -91,7 +91,7 @@
             <p class="eyebrow">Plain-language privacy record</p>
             <h1>Privacy for Codex Account Switcher</h1>
             <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your computer.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
-            <p class="article-meta">Updated October 23, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.25</p>
+            <p class="article-meta">Updated October 30, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.26</p>
           </div>
         </header>
 
@@ -113,7 +113,7 @@
                       <tr><th scope="row"><code>accounts/&lt;profile-id&gt;/auth.json</code></th><td>A reusable Codex credential snapshot for that authorized account</td><td>Activate the account selected by the user</td></tr>
                       <tr><th scope="row"><code>settings.json</code></th><td>Language and display preferences</td><td>Keep the chosen app settings</td></tr>
                       <tr><th scope="row"><code>usage-cache.json</code></th><td>Profile ID, last successful weekly usage, optional 5-hour usage, reset times, and fetch time</td><td>Keep useful usage context visible while refreshing</td></tr>
-                      <tr><th scope="row"><code>reset-expiry-experiment.jsonl</code></th><td>When enabled: account display names and profile IDs, banked reset IDs and expiries, usage snapshots, checkpoint times and errors; no credentials</td><td>Validate the optional expiry experiment locally without consuming resets; retained until you delete the log</td></tr>
+                      <tr><th scope="row"><code>reset-expiry-experiment.jsonl</code></th><td>When enabled: account display names and profile IDs, banked reset IDs and expiries, usage snapshots, checkpoint times, idempotency keys, outcomes and errors; no credentials</td><td>Record automatic reset attempts, service outcomes and usage readback; retained until you delete the log</td></tr>
                     </tbody>
                   </table>
                 </div>

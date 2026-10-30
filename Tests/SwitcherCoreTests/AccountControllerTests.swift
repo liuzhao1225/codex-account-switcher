@@ -158,7 +158,7 @@ struct AccountControllerTests {
         #expect(fixture.model.activeRemainingPercent == 72)
     }
 
-    @Test func experimentSchedulesBeforeOrdinaryPollAndStopsWhenDisabled() async throws {
+    @Test func autoResetConsumesBeforeOrdinaryPollAndStopsWhenDisabled() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.model.stopBackgroundUsageRefresh(); fixture.clean() }
         try fixture.writeActiveCredential()
@@ -166,20 +166,23 @@ struct AccountControllerTests {
         await fixture.model.startBackgroundUsageRefresh(every: .seconds(3600))
         await fixture.model.waitForWeeklyUsageRefresh()
         #expect(!FileManager.default.fileExists(atPath: fixture.store.resetExpiryLogURL.path))
-        await fixture.model.setResetExpiryExperimentEnabled(true)
+        await fixture.model.setAutoResetEnabled(true)
         await fixture.model.waitForWeeklyUsageRefresh()
-        #expect(try await fixture.store.loadSettings().resetExpiryExperimentEnabled)
+        #expect(try await fixture.store.loadSettings().autoResetEnabled)
         try await Task.sleep(for: .seconds(3))
         await fixture.model.waitForWeeklyUsageRefresh()
         let events = try await fixture.store.loadResetExpiryLog()
-        #expect(events.contains { $0.checkpointMinutes == 10 && $0.decision == "would_attempt" })
-        #expect(events.allSatisfy { !$0.resetAttempted && $0.mode == "dry_run" })
-        await fixture.model.setResetExpiryExperimentEnabled(false)
+        #expect(events.contains { $0.checkpointMinutes == 10 && $0.decision == "attempt" })
+        #expect(events.contains { $0.event == "reset_result" && $0.outcome == .reset && $0.resetAttempted })
+        #expect(events.contains { $0.event == "reset_verified" && $0.usage?.remainingPercent == 100 })
+        #expect(await fixture.client.consumeCalls == 1)
+        #expect(fixture.model.usageStates.values.first?.displayedUsage?.resetCreditsRemaining == 0)
+        await fixture.model.setAutoResetEnabled(false)
         let count = try await fixture.store.loadResetExpiryLog().count
         fixture.model.refreshWeeklyUsage()
         await fixture.model.waitForWeeklyUsageRefresh()
         #expect(try await fixture.store.loadResetExpiryLog().count == count)
-        #expect(try await !fixture.store.loadSettings().resetExpiryExperimentEnabled)
+        #expect(try await !fixture.store.loadSettings().autoResetEnabled)
         #expect(fixture.model.visibleError == nil)
     }
 
@@ -188,8 +191,74 @@ struct AccountControllerTests {
         defer { fixture.clean() }
         await fixture.model.start()
         try FileManager.default.createDirectory(at: fixture.store.resetExpiryLogURL, withIntermediateDirectories: false)
-        await fixture.model.setResetExpiryExperimentEnabled(true)
+        await fixture.model.setAutoResetEnabled(true)
         #expect(fixture.model.visibleError != nil)
+    }
+
+    @Test func resetFailurePreservesOriginalErrorAndNeverRetriesAfterRestart() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.client.setResetExpiry(Date().addingTimeInterval(590))
+        await fixture.client.failReset()
+        await fixture.model.start()
+        await fixture.model.setAutoResetEnabled(true)
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.consumeCalls == 1)
+        #expect(fixture.model.visibleError?.message.contains("fixture reset unavailable") == true)
+        let events = try await fixture.store.loadResetExpiryLog()
+        #expect(events.last?.event == "reset_result")
+        #expect(events.last?.error?.contains("503") == true)
+        // Reinitializing from saved history must retain the failed attempt.
+        await fixture.model.setAutoResetEnabled(false)
+        await fixture.model.setAutoResetEnabled(true)
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.consumeCalls == 1)
+    }
+
+    @Test(arguments: [true, false])
+    func allSavedAccountsConsumeWithoutChangingTheActiveLogin(hasActiveLogin: Bool) async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        if hasActiveLogin { try fixture.writeActiveCredential() }
+        for index in 1...2 {
+            let profile = AccountProfile(id: UUID(), displayName: "Saved \(index)", email: "saved\(index)@example.test",
+                accountID: "saved-\(index)", createdAt: Date())
+            let home = try await fixture.store.createProfileDirectory(id: profile.id)
+            try Data("saved-fixture".utf8).write(to: home.appending(path: "auth.json"))
+            try await fixture.store.addProfile(profile)
+        }
+        await fixture.model.start()
+        let originalActiveID = fixture.model.activeAccountID
+        await fixture.client.setResetExpiry(Date().addingTimeInterval(590))
+        await fixture.model.setAutoResetEnabled(true)
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.consumeCalls == (hasActiveLogin ? 3 : 2))
+        #expect(fixture.model.activeAccountID == originalActiveID)
+        #expect(fixture.model.usageStates.values.allSatisfy { $0.displayedUsage?.resetCreditsRemaining == 0 })
+        let events = try await fixture.store.loadResetExpiryLog()
+        #expect(Set(events.filter { $0.event == "reset_verified" }.compactMap(\.profileID)) == Set(fixture.model.accounts.map(\.id)))
+        #expect(fixture.model.visibleError == nil)
+    }
+
+    @Test func successfulReplyWithoutConsumptionIsLoggedAsVerificationFailure() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.client.setResetExpiry(Date().addingTimeInterval(590))
+        await fixture.client.doNotConfirmConsumption()
+        await fixture.model.start()
+        await fixture.model.setAutoResetEnabled(true)
+        await fixture.model.waitForWeeklyUsageRefresh()
+        let events = try await fixture.store.loadResetExpiryLog()
+        #expect(events.contains { $0.event == "reset_result" && $0.outcome == .reset })
+        #expect(events.last?.event == "reset_verification_failed")
+        #expect(events.last?.usage?.resetCreditsRemaining == 1)
+        #expect(fixture.model.visibleError?.message.contains("did not confirm") == true)
+        #expect(!events.contains { $0.event == "reset_verified" })
+        fixture.model.refreshWeeklyUsage()
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.consumeCalls == 1)
     }
 
     @Test func activeProfileCannotBeRemoved() async throws {
@@ -246,6 +315,20 @@ private actor FixtureClient: AccountClient {
     private(set) var identityReads = 0
     private var usageFails = false
     private var resetExpiry: Date?
+    private var consumedHomes: Set<URL> = []
+    private var resetFails = false
+    private var confirmsConsumption = true
+    private(set) var consumeCalls = 0
+    func failReset() { resetFails = true }
+    func doNotConfirmConsumption() { confirmsConsumption = false }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        consumeCalls += 1
+        #expect(creditID == "fixture-credit")
+        #expect(UUID(uuidString: idempotencyKey) != nil)
+        if resetFails { throw CodexClientError.remoteError(code: 503, message: "fixture reset unavailable") }
+        if confirmsConsumption { consumedHomes.insert(profileHome) }
+        return .reset
+    }
     func failUsage() { usageFails = true }
     func setResetExpiry(_ date: Date) { resetExpiry = date }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
@@ -254,12 +337,13 @@ private actor FixtureClient: AccountClient {
     }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         if usageFails { throw CodexClientError.connectionClosed }
+        let resetConsumed = consumedHomes.contains(profileHome)
         return WeeklyUsage(
-            remainingPercent: 72,
+            remainingPercent: resetConsumed ? 100 : 72,
             resetsAt: Date(timeIntervalSince1970: 2_000_000_000),
             fiveHourRemainingPercent: 18,
-            resetCreditsRemaining: resetExpiry == nil ? nil : 1,
-            resetCredits: resetExpiry.map { [BankedResetCredit(id: "fixture-credit", status: "available", resetType: "codexRateLimits", expiresAt: $0)] }
+            resetCreditsRemaining: resetExpiry == nil ? nil : (resetConsumed ? 0 : 1),
+            resetCredits: resetConsumed ? [] : resetExpiry.map { [BankedResetCredit(id: "fixture-credit", status: "available", resetType: "codexRateLimits", expiresAt: $0)] }
         )
     }
     func login(profileHome: URL) async throws -> AccountIdentity {

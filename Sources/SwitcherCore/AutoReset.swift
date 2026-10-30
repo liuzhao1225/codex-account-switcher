@@ -15,9 +15,9 @@ public struct BankedResetCredit: Codable, Equatable, Sendable {
 }
 
 struct ResetExpiryEvent: Codable, Sendable {
-    var mode = "dry_run"
+    var mode = "live"
     var resetAttempted = false
-    let timestamp: Date
+    var timestamp: Date
     let event: String
     var profileID: UUID?
     var account: String?
@@ -29,6 +29,13 @@ struct ResetExpiryEvent: Codable, Sendable {
     var scheduledAt: Date?
     var delaySeconds: Double?
     var decision: String?
+    var idempotencyKey: String?
+    var outcome: ResetCreditOutcome?
+
+    var creditKey: String? {
+        guard let profileID, let creditID else { return nil }
+        return "\(profileID)/\(creditID)"
+    }
 
     var checkpointKey: String? {
         guard let profileID, let creditID, let expiresAt, let checkpointMinutes else { return nil }
@@ -36,18 +43,22 @@ struct ResetExpiryEvent: Codable, Sendable {
     }
 }
 
-/// A read-only timing experiment. It has no client or reset-consumption capability.
-struct ResetExpiryExperiment {
+/// Schedules fresh reads and tracks real attempts across application restarts.
+struct AutoReset {
+    let generation = UUID()
     static let checkpoints = [10, 5, 1]
     private var latestUsage: [UUID: WeeklyUsage] = [:]
     private var completed: Set<String> = []
+    private var stoppedCredits: Set<String> = []
 
     init(history: [ResetExpiryEvent]) {
         for event in history {
             if let id = event.profileID, let usage = event.usage, usage.resetCredits != nil {
                 latestUsage[id] = usage
             }
+            guard event.mode == "live" else { continue }
             if let key = event.checkpointKey { completed.insert(key) }
+            recordAttempt(event)
         }
     }
 
@@ -55,7 +66,8 @@ struct ResetExpiryExperiment {
         latestUsage.filter { accountIDs.contains($0.key) }.flatMap { id, usage in
             (usage.resetCredits ?? []).flatMap { credit -> [Date] in
                 guard credit.status == "available", credit.resetType == "codexRateLimits",
-                      let expiry = credit.expiresAt else { return [] }
+                      let expiry = credit.expiresAt,
+                      !stoppedCredits.contains("\(id)/\(credit.id)") else { return [] }
                 return Self.checkpoints.compactMap { minutes in
                     let event = checkpoint(profileID: id, credit: credit, minutes: minutes, at: expiry)
                     return completed.contains(event.checkpointKey!) ? nil : event.scheduledAt
@@ -74,7 +86,8 @@ struct ResetExpiryExperiment {
         let currentIDs = Set(current.map(\.id))
         let candidates = current + previous.filter { !currentIDs.contains($0.id) }
         for credit in candidates {
-            guard credit.resetType == "codexRateLimits", let expiry = credit.expiresAt else { continue }
+            guard credit.resetType == "codexRateLimits", let expiry = credit.expiresAt,
+                  !stoppedCredits.contains("\(profile.id)/\(credit.id)") else { continue }
             for (index, minutes) in Self.checkpoints.enumerated() {
                 var event = checkpoint(profileID: profile.id, credit: credit, minutes: minutes, at: now)
                 guard let key = event.checkpointKey, !completed.contains(key), now >= event.scheduledAt! else { continue }
@@ -89,16 +102,28 @@ struct ResetExpiryExperiment {
                 else if !currentIDs.contains(credit.id) || credit.status != "available" {
                     event.decision = "credit_unavailable"
                 } else {
-                    // Records the timing decision only; backend eligibility is not tested.
-                    event.decision = "would_attempt"
+                    event.decision = "attempt"
                 }
                 events.append(event)
                 completed.insert(key)
             }
         }
         // Unknown details retain only the old schedule; checkpoint decisions still require a fresh read.
-        if let usage, usage.resetCredits != nil { latestUsage[profile.id] = usage }
+        if let usage { updateUsage(usage, profileID: profile.id) }
         return events
+    }
+
+    mutating func updateUsage(_ usage: WeeklyUsage, profileID: UUID) {
+        if usage.resetCredits != nil { latestUsage[profileID] = usage }
+    }
+
+    mutating func recordAttempt(_ event: ResetExpiryEvent) {
+        guard let key = event.creditKey else { return }
+        if event.event == "reset_attempt" {
+            stoppedCredits.insert(key)
+        } else if event.event == "reset_result", event.outcome == .nothingToReset {
+            stoppedCredits.remove(key)
+        }
     }
 
     private func checkpoint(profileID: UUID, credit: BankedResetCredit, minutes: Int, at now: Date) -> ResetExpiryEvent {

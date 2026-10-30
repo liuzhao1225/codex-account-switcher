@@ -296,6 +296,9 @@ private actor CredentialClient: AccountClient {
         return identity
     }
     func login(profileHome: URL) async throws -> AccountIdentity { try await readIdentity(profileHome: profileHome) }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        throw CodexClientError.remoteError(code: nil, message: "Unexpected reset consumption in this fixture.")
+    }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         let bytes = try String(contentsOf: profileHome.appending(path: "auth.json"), encoding: .utf8)
         if bytes.contains("revoked") { throw CodexClientError.identityUnavailable }

@@ -1,13 +1,13 @@
 ## 中文
 
-- Tibo 预测直接展示网站返回的 24h、48h 百分比，移除时间戳、两项数值排序和额外响应限制，避免有效数值被隐藏。
-- “登记当前登录账号”与启动、刷新共用本地凭据同步，移除多余的身份接口请求和重复解码，保留账号匹配检查。
-- 移除重复的版本号传递、过期版本兜底及限制账号管理控件类型的断言，清理过时设计说明。
-- 自动重置试验仍然只记录日志，不消费 reset。
+- 新增“到期前自动使用 reset”：开启后覆盖所有已保存账号，包括当前未激活账号，从到期前 10 分钟开始自动使用指定 reset。
+- 接口返回“无需重置”时在到期前 5、1 分钟继续检查；成功、已使用或调用失败后停止该枚，重启后也不会重复消费。成功后刷新额度并核对 reset 状态。
+- 保留真实请求、接口结果、原始错误和使用后额度的本地日志，原有试验记录保持不变。
+- 新开关默认关闭，旧“仅日志”开关不会自动启用真实消费。应用须运行且电脑保持唤醒。开发和发布测试仅使用模拟接口。
 
 ## English
 
-- Display the site's 24h and 48h forecast percentages without timestamp, ordering or extra response gates that hide valid values.
-- Register Current Account now uses the same local credential synchronization as startup and refresh, removing the extra identity RPC and duplicate decoding while preserving account matching.
-- Remove redundant version forwarding, the stale version fallback and an assertion banning text boxes in account management. Correct outdated design notes.
-- The reset expiry experiment remains log-only and never consumes a reset.
+- Add opt-in automatic reset consumption for every saved account, including inactive accounts, starting 10 minutes before each credit expires.
+- Check again at 5 and 1 minute only when the service reports nothing to reset. Stop after consumption, unavailable credit or call failure, including across restarts; refresh usage and verify consumption.
+- Retain real attempt parameters, service outcomes, original errors and usage readback locally. Preserve historical dry-run records unchanged.
+- The new setting defaults off; the old log-only setting does not enable consumption. Keep the app running and computer awake. Development and release tests use fake interfaces only.

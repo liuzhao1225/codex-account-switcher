@@ -467,8 +467,13 @@ public struct CodexExecutableLocator: Sendable {
     }
 }
 
+public enum ResetCreditOutcome: String, Codable, Sendable {
+    case reset, nothingToReset, noCredit, alreadyRedeemed
+}
+
 public protocol AccountClient: CodexIdentityReading {
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome
     func login(profileHome: URL) async throws -> AccountIdentity
 }
 
@@ -479,7 +484,7 @@ public struct CodexClient: AccountClient {
     private let openBrowser: @Sendable (URL) async throws -> Void
 
     public init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20),
-                clientVersion: String = "0.1.25",
+                clientVersion: String = "0.1.26",
                 openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser) {
         self.locator = locator
         self.requestTimeout = requestTimeout
@@ -544,6 +549,21 @@ public struct CodexClient: AccountClient {
             resetCreditsRemaining: availableCount.flatMap { $0 >= 0 ? $0 : nil },
             resetCredits: credits
         )
+    }
+
+    public func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        let result = try await withSession(profileHome: profileHome) { session in
+            try await session.request(
+                method: "account/rateLimitResetCredit/consume", id: 1,
+                params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
+                timeout: requestTimeout
+            )
+        }
+        guard let value = result["outcome"]?.stringValue,
+              let outcome = ResetCreditOutcome(rawValue: value) else {
+            throw CodexClientError.malformedResponse
+        }
+        return outcome
     }
 
     public func login(profileHome: URL) async throws -> AccountIdentity {
