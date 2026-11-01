@@ -214,7 +214,7 @@ private actor JSONRPCSession {
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = executableURL
-        process.arguments = ["app-server", "--stdio"]
+        process.arguments = ["app-server"]
         var environment = inheritedEnvironment
         environment["CODEX_HOME"] = profileHome.path
         process.environment = environment
