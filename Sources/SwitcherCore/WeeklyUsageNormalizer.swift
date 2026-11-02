@@ -20,7 +20,8 @@ public enum WeeklyUsageNormalizer {
     public static let maximumWeeklyMinutes = 8 * 24 * 60
 
     public static func normalize(
-        _ windows: [RateLimitWindow], resetCreditsRemaining: Int? = nil
+        _ windows: [RateLimitWindow], resetCreditsRemaining: Int? = nil,
+        resetCredits: [BankedResetCredit]? = nil
     ) throws -> WeeklyUsage {
         guard let weekly = windows
             .filter({ minimumWeeklyMinutes...maximumWeeklyMinutes ~= $0.windowDurationMins })
@@ -36,7 +37,8 @@ public enum WeeklyUsageNormalizer {
             resetsAt: Date(timeIntervalSince1970: weekly.resetsAt),
             fiveHourRemainingPercent: fiveHour.map { remainingPercent(for: $0) },
             fiveHourResetsAt: fiveHour.map { Date(timeIntervalSince1970: $0.resetsAt) },
-            resetCreditsRemaining: resetCreditsRemaining
+            resetCreditsRemaining: resetCreditsRemaining,
+            resetCredits: resetCredits
         )
     }
 

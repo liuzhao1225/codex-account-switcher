@@ -62,7 +62,7 @@ struct AccountStoreTests {
         let profiles = try await prepareSwitchProfiles(fixture)
         let bytes = Data(#"{"tokens":{"account_id":"target-id","refresh_token":"test-only-new"}}"#.utf8)
         try bytes.write(to: fixture.activeHome.appending(path: "auth.json"))
-        try await fixture.store.registerActiveIdentity(AccountIdentity(accountID: "target-id", email: "target@example.com"))
+        _ = try await fixture.store.syncActiveCredential()
         let current = try await fixture.store.loadRegistry()
         #expect(current.accounts.count == 2)
         #expect(current.activeAccountID == profiles.target.id)

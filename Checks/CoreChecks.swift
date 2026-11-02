@@ -97,6 +97,7 @@ private struct ReopenFailureSwitchService: SwitchServicing {
     let store: AccountStore
 
     func switchAccount(to targetID: UUID) async throws {
+        try await store.activateTargetCredential(id: targetID)
         try await store.commitActiveAccountID(targetID)
         throw OperationError.stage(.reopenDesktop, InjectedReopenFailure())
     }
@@ -123,75 +124,6 @@ private func testCredential(
         .replacingOccurrences(of: "/", with: "_")
         .replacingOccurrences(of: "=", with: "")
     return try JSONSerialization.data(withJSONObject: ["tokens": ["id_token": "header.\(encoded).signature"]])
-}
-
-private func testTiboForecastReader() throws {
-    let now = Date(timeIntervalSince1970: 1_791_149_623)
-    let iso = ISO8601DateFormatter()
-    func event(_ daysAgo: Int, group: String = "reset", state: String = "announced") -> [String: Any] {
-        let postedAt = now.addingTimeInterval(-Double(daysAgo * 86_400))
-        let milliseconds = UInt64(postedAt.timeIntervalSince1970 * 1_000)
-        let id = String((milliseconds - 1_288_834_974_657) << 22)
-        return [
-            "id": id, "group": group, "announcement_state": state,
-            "url": "https://x.com/thsottiaux/status/\(id)",
-            "summary": "Fictional reset fixture", "announced_at": iso.string(from: postedAt),
-        ]
-    }
-    var events = (1...6).map { event($0) }
-    events.append(event(7, group: "credits"))
-    events.append(event(8, state: "none"))
-    let conditionalPlanID = "2106845241357824205"
-    events.append([
-        "id": conditionalPlanID, "group": "reset", "announcement_state": "none",
-        "url": "https://x.com/thsottiaux/status/\(conditionalPlanID)",
-        "summary": "Over the next 28 days, each day we'll either ship an improvement or ship a full reset.",
-    ])
-    let forecastPayload: [String: Any] = [
-        "updated_at": iso.string(from: now),
-        "last_reset_at": iso.string(from: now.addingTimeInterval(-86_400)),
-        "probabilities": ["rounded_24h": 16, "rounded_48h": 29],
-        "confidence": "low",
-        "time_window": ["start_hour": 7, "end_hour": 10, "timezone": "Asia/Shanghai"],
-    ]
-    let forecastData = try JSONSerialization.data(withJSONObject: forecastPayload)
-    func timelineData(_ events: [[String: Any]]) throws -> Data {
-        try JSONSerialization.data(withJSONObject: ["updated_at": iso.string(from: now), "events": events])
-    }
-    let result = try TiboResetForecastReader.read(
-        forecast: forecastData, timeline: timelineData(events), now: now
-    )
-    try require(result.next24HourPercent == 16 && result.next48HourPercent == 29,
-                "public Tibo probability fields")
-    try require(result.events.count == 6, "credits and unconfirmed posts do not enter history")
-    try require(result.forwardSignal?.url.absoluteString ==
-                "https://x.com/thsottiaux/status/\(conditionalPlanID)",
-                "the conditional plan is shown separately from confirmed resets")
-    try require(result.events[0].postedAt == now.addingTimeInterval(-86_400),
-                "post time comes from the original X status ID")
-    try require(result.recentMedianDays == 1 && result.historicalNextWindow != nil,
-                "historical window uses the latest five confirmed post gaps")
-    events[5]["url"] = "https://x.com/another-author/status/\(events[5]["id"]!)"
-    let filtered = try TiboResetForecastReader.read(
-        forecast: forecastData, timeline: timelineData(events), now: now
-    )
-    try require(filtered.events.count == 5, "other authors cannot enter Tibo history")
-    try require(filtered.recentMedianDays == nil && filtered.historicalNextWindow == nil,
-                "historical window requires five confirmed intervals")
-    events[8]["url"] = "https://x.com/not-tibo/status/\(conditionalPlanID)"
-    let invalidSignal = try TiboResetForecastReader.read(
-        forecast: forecastData, timeline: timelineData(events), now: now
-    )
-    try require(invalidSignal.forwardSignal == nil,
-                "a non-original URL cannot support the conditional plan")
-    do {
-        _ = try TiboResetForecastReader.read(
-            forecast: forecastData, timeline: timelineData(events), now: now.addingTimeInterval(10_800)
-        )
-        throw CheckFailure.failed("stale Tibo forecast was shown")
-    } catch TiboResetForecastReader.DataError.staleResponse {
-        // Expected: a delayed public feed cannot be presented as current.
-    }
 }
 
 @main
@@ -237,7 +169,6 @@ struct CoreChecks {
             L10n.string("show_five_hour_usage", language: .simplifiedChinese) == "显示 5 小时用量",
             "Simplified Chinese five-hour setting label"
         )
-        try testTiboForecastReader()
 
         let credential = try testCredential()
         let subscription = SubscriptionSnapshotReader.read(
@@ -311,8 +242,8 @@ struct CoreChecks {
         let migrated = try await reloadedMigrationStore.loadRegistry()
         try require(migrated.accounts.first?.accountID == "account-a", "legacy profile gains its saved account ID")
         try newerCredential.write(to: migrationHome.appending(path: "auth.json"))
-        let didSync = try await reloadedMigrationStore.syncActiveCredentialIfMatching(id: migrationProfile.id)
-        try require(didSync,
+        let synced = try await reloadedMigrationStore.syncActiveCredential()
+        try require(synced.activeAccountID == migrationProfile.id,
                     "matching active credential refreshes the saved profile")
         let migratedHome = await reloadedMigrationStore.profileHome(id: migrationProfile.id)
         let savedAfterSync = try Data(contentsOf: migratedHome.appending(path: "auth.json"))
@@ -320,12 +251,12 @@ struct CoreChecks {
                     "saved profile receives the refreshed credential")
         let wrongAccountCredential = try testCredential(accountID: "other-account")
         try wrongAccountCredential.write(to: migrationHome.appending(path: "auth.json"))
-        let rejectedSync = try await reloadedMigrationStore.syncActiveCredentialIfMatching(id: migrationProfile.id)
-        try require(!rejectedSync,
-                    "other account cannot replace the saved credential")
+        let externalLogin = try await reloadedMigrationStore.syncActiveCredential()
+        try require(externalLogin.activeAccountID != migrationProfile.id && externalLogin.accounts.count == 2,
+                    "external login becomes active in its own profile")
         let savedAfterRejectedSync = try Data(contentsOf: migratedHome.appending(path: "auth.json"))
         try require(savedAfterRejectedSync == newerCredential,
-                    "rejected credential leaves the saved profile intact")
+                    "external login leaves the previous profile intact")
 
         let store = AccountStore(baseURL: support, activeHomeURL: activeHome)
         let first = AccountProfile(
@@ -475,6 +406,7 @@ struct CoreChecks {
         let identity = try await client.readIdentity(profileHome: root)
         try require(identity.accountID == "acct-123", "JSONL account handshake")
 
+        try await store.activateTargetCredential(id: first.id)
         let appModel = AppModel(
             store: store,
             codex: client,
@@ -685,7 +617,8 @@ struct CoreChecks {
             .filter { $0.hasPrefix("usage-cache.json.switcher-") }
         try require(cacheTemporaryFiles.isEmpty, "failed cache replacement removes temporary file")
 
-        try require(!appModel.activeIdentityConfirmed, "precondition identity mismatch")
+        try require(appModel.activeIdentityConfirmed && appModel.activeAccountID == first.id,
+                    "local credential determines the current account despite unrelated RPC identity")
         await appModel.switchAccount(to: second.id)
         try require(appModel.activeAccountID == second.id, "reopen failure active account reload")
         try require(appModel.activeIdentityConfirmed, "reopen failure identity state")

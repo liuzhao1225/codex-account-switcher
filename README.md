@@ -107,6 +107,7 @@ Run `codex-account-switcher update` to update, `open` to launch, or `uninstall` 
 | **Usage at a glance** | Check weekly allowance in account rows by default, or enable the exact 300-minute (5-hour) service window and reset time in Settings. The optional row is off by default. Choose whether the menu bar or Windows tray shows the 5-hour or weekly remaining percentage; it defaults to 5-hour usage. |
 | **Reset count and plan date** | See the saved subscription date on the left and available rate-limit reset count on the right of one compact row. Dates use `YYYY-MM-DD`; hover over a date for its login-snapshot source and check time. Missing values remain unknown. |
 | **Extra-reset forecast (macOS)** | A single menu bar row shows a reset icon, the Tibo reset forecast label, two compact 24/48-hour probability boxes and an external-link arrow using the independent site’s experimental forecast. Click the entry to open [codex-reset.com](https://codex-reset.com/) for announcements, history and details. These estimates are not an OpenAI reset schedule or proof that a reset reached your account. |
+| **Use resets before expiry** | Opt in to use expiring resets for all saved accounts, including inactive accounts, starting 10 minutes before expiry. Keep the app running and computer awake; real outcomes and usage readback remain in local logs. |
 | **Native apps on both platforms** | SwiftUI on macOS and WPF on Windows, with English and Simplified Chinese interfaces. |
 
 ## How it works
@@ -126,7 +127,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 ## Privacy and scope
 
 - Saved account data stays in user-only local directories on your computer.
-- The macOS Tibo outlook makes periodic public GET requests to codex-reset.com while the app runs. It sends no saved account details or credentials. If the public data is missing, stale, or inconsistent, the forecast appears unavailable.
+- The macOS Tibo outlook makes periodic public GET requests to codex-reset.com while the app runs. It sends no saved account details or credentials. If the public data is missing, stale, or invalid, the forecast appears unavailable.
 - Each saved profile contains a complete, reusable `auth.json` credential snapshot. macOS uses mode `0700` for profile directories and `0600` for credentials; Windows uses current-user ACLs. Both platforms replace credential files atomically.
 - Local file permissions define the current security boundary. User backups, filesystem snapshots, cloud backup tools, endpoint software, and other processes with access to the user's files may copy the saved credential snapshots.
 - Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.

@@ -72,7 +72,7 @@ public partial class App : Application
                 if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window.OpenWindow(); }
             };
             client.Changed += RefreshTray;
-            await client.InitializeAsync(native.Version);
+            await client.InitializeAsync();
             if (!e.Args.Contains("--background")) window.OpenWindow();
             updates = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
             updates.Tick += async (_, _) => { if (native.AutomaticallyCheckUpdates) await native.CheckUpdatesAsync(); };
@@ -156,7 +156,7 @@ public partial class App : Application
             Directory.CreateDirectory(Path.Combine(root, "active"));
             var host = HostRuntime.Resolve(Assembly.GetExecutingAssembly());
             await using var core = new CoreClient(host, Path.Combine(root, "data"), Path.Combine(root, "active"));
-            await core.InitializeAsync(new NativeSettings().Version).WaitAsync(TimeSpan.FromSeconds(30));
+            await core.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
             await core.CommandAsync("fiveHour", value: true).WaitAsync(TimeSpan.FromSeconds(10));
             if (!File.Exists(Path.Combine(root, "data", "settings.json"))) throw new IOException("Shared settings were not persisted.");
             if (File.Exists(Path.Combine(root, "active", "auth.json"))) throw new IOException("Empty startup created an unexpected credential.");

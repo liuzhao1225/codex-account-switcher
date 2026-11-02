@@ -3,7 +3,7 @@ import Testing
 @testable import SwitcherCore
 
 struct CredentialSyncTests {
-    @Test func refreshCopiesOnlyTheMatchingActiveCredential() async throws {
+    @Test func refreshCopiesCredentialsToTheirActualAccount() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
@@ -11,15 +11,20 @@ struct CredentialSyncTests {
         try await fixture.store.importCurrentProfile(profile)
         let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
         try fixture.writeLive("personal", token: "fresh")
-        #expect(try await fixture.store.syncActiveCredentialIfMatching(id: profile.id))
+        #expect(try await fixture.store.syncActiveCredential().activeAccountID == profile.id)
         let fresh = try Data(contentsOf: saved)
         #expect(try fresh == Data(contentsOf: fixture.auth))
 
         // Same email, different workspace must leave the personal credential untouched.
         try fixture.writeLive("workspace", token: "other")
-        #expect(try await !fixture.store.syncActiveCredentialIfMatching(id: profile.id))
+        let registry = try await fixture.store.syncActiveCredential()
+        let workspace = try #require(registry.accounts.first(where: { $0.accountID == "workspace" }))
         #expect(try Data(contentsOf: saved) == fresh)
-        #expect(try await fixture.store.loadRegistry().activeAccountID == profile.id)
+        #expect(registry.activeAccountID == workspace.id)
+        #expect(registry.accounts.count == 2)
+        #expect(try await fixture.store.syncActiveCredential().accounts.count == 2)
+        let workspaceAuth = await fixture.store.profileHome(id: workspace.id).appending(path: "auth.json")
+        #expect(try Data(contentsOf: workspaceAuth) == Data(contentsOf: fixture.auth))
     }
 
     @Test func legacyIDsComeFromEachSavedProfileAndPersist() async throws {
@@ -31,23 +36,34 @@ struct CredentialSyncTests {
         try fixture.writeLive("workspace", token: "fresh")
         let reopened = AccountStore(baseURL: fixture.base, activeHomeURL: fixture.active)
         #expect(try await reopened.loadRegistry().accounts.first?.accountID == "personal")
-        #expect(try await !reopened.syncActiveCredentialIfMatching(id: legacy.id))
+        let updated = try await reopened.syncActiveCredential()
+        #expect(updated.activeAccountID != legacy.id)
         let restarted = AccountStore(baseURL: fixture.base, activeHomeURL: fixture.active)
         #expect(try await restarted.loadRegistry().accounts.first?.accountID == "personal")
     }
 
-    @Test func registrationRejectsACredentialChangedAfterIdentityRead() async throws {
+    @Test @MainActor func manualRegistrationFollowsTheCurrentLocalLogin() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
         try await fixture.store.importCurrentProfile(profile)
+        let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
+        let original = try Data(contentsOf: saved)
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
         try fixture.writeLive("workspace", token: "other")
-        await #expect(throws: AccountStoreError.activeCredentialMismatch) {
-            try await fixture.store.registerActiveIdentity(.init(accountID: "personal", email: "same@example.test"))
-        }
-        #expect(try await fixture.store.loadRegistry().accounts.count == 1)
-        #expect(try await fixture.store.loadRegistry().activeAccountID == profile.id)
+        await model.registerCurrentAccount()
+        await model.waitForWeeklyUsageRefresh()
+        let registry = try await fixture.store.loadRegistry()
+        let workspace = try #require(registry.accounts.first { $0.accountID == "workspace" })
+        #expect(registry.accounts.count == 2)
+        #expect(model.activeAccountID == workspace.id)
+        #expect(try Data(contentsOf: saved) == original)
+        let workspaceAuth = await fixture.store.profileHome(id: workspace.id).appending(path: "auth.json")
+        #expect(try Data(contentsOf: workspaceAuth) == Data(contentsOf: fixture.auth))
+        #expect(model.visibleError == nil)
     }
 
     @Test func workspaceIdentityDoesNotMatchAnEmailOnlyProfile() {
@@ -89,6 +105,123 @@ struct CredentialSyncTests {
         #expect(model.usageStates[profile.id]?.displayedUsage?.remainingPercent == 59)
         #expect(model.usageStates[profile.id]?.refreshError == nil)
         #expect(model.activeIdentityConfirmed)
+    }
+
+    @Test @MainActor func startupAndRefreshFollowExternalLoginChanges() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let first = fixture.profile("personal")
+        let second = fixture.profile("workspace")
+        try fixture.writeLive("personal", token: "old")
+        try await fixture.store.importCurrentProfile(first)
+        let secondHome = try await fixture.store.createProfileDirectory(id: second.id)
+        try fixture.bytes("workspace", token: "old").write(to: secondHome.appending(path: "auth.json"))
+        try await fixture.store.addProfile(second)
+        try fixture.writeLive("workspace", token: "fresh")
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        #expect(model.activeAccountID == second.id)
+        #expect(model.activeIdentityConfirmed)
+        #expect(model.accounts.count == 2)
+        #expect(try Data(contentsOf: secondHome.appending(path: "auth.json")) == Data(contentsOf: fixture.auth))
+
+        try fixture.writeLive("personal", token: "fresh")
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == first.id)
+        #expect(model.activeIdentityConfirmed)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == first.id)
+        #expect(model.visibleError == nil)
+    }
+
+    @Test @MainActor func refreshFindsLoginAfterStartingSignedOut() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        try fixture.writeLive("personal", token: "fresh")
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        let id = try #require(model.activeAccountID)
+        #expect(model.accounts.count == 1)
+        #expect(model.activeIdentityConfirmed)
+
+        try FileManager.default.removeItem(at: fixture.auth)
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == nil)
+        #expect(!model.activeIdentityConfirmed)
+        #expect(try await fixture.store.loadRegistry().activeAccountID == nil)
+
+        try fixture.writeLive("personal", token: "renewed")
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == id)
+        #expect(model.activeIdentityConfirmed)
+        #expect(model.accounts.count == 1)
+    }
+
+    @Test @MainActor func invalidLiveCredentialStopsRefreshAndShowsError() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let profile = fixture.profile("personal")
+        try fixture.writeLive("personal", token: "fresh")
+        try await fixture.store.importCurrentProfile(profile)
+        let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
+        let original = try Data(contentsOf: saved)
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        try Data("private-token-malformed".utf8).write(to: fixture.auth)
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == nil)
+        #expect(!model.activeIdentityConfirmed)
+        #expect(model.visibleError?.message == CodexClientError.identityUnavailable.localizedDescription)
+        #expect(model.usageStates.isEmpty)
+        #expect(try Data(contentsOf: saved) == original)
+    }
+
+    @Test @MainActor func switchRechecksLiveLoginBeforeSkippingTheOldActiveAccount() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let first = fixture.profile("personal")
+        try fixture.writeLive("personal", token: "fresh")
+        try await fixture.store.importCurrentProfile(first)
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        try fixture.writeLive("workspace", token: "fresh")
+        await model.switchAccount(to: first.id)
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == first.id)
+        #expect(try CredentialIdentity.read(from: fixture.active)?.accountID == "personal")
+        #expect(model.accounts.count == 2)
+        #expect(model.visibleError == nil)
+    }
+
+    @Test @MainActor func removalCannotDeleteAnAccountThatBecameActiveExternally() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let first = fixture.profile("personal")
+        let second = fixture.profile("workspace")
+        try fixture.writeLive("personal", token: "fresh")
+        try await fixture.store.importCurrentProfile(first)
+        let home = try await fixture.store.createProfileDirectory(id: second.id)
+        try fixture.bytes("workspace", token: "old").write(to: home.appending(path: "auth.json"))
+        try await fixture.store.addProfile(second)
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        try fixture.writeLive("workspace", token: "fresh")
+        await model.removeAccount(id: second.id)
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == second.id)
+        #expect(model.accounts.count == 2)
+        #expect(model.visibleError?.message == AccountStoreError.cannotRemoveActiveAccount.localizedDescription)
+        #expect(try Data(contentsOf: home.appending(path: "auth.json")) == Data(contentsOf: fixture.auth))
     }
 
     @Test @MainActor func switchingDrainsOldRefreshBeforeChangingCredentials() async throws {
@@ -163,6 +296,9 @@ private actor CredentialClient: AccountClient {
         return identity
     }
     func login(profileHome: URL) async throws -> AccountIdentity { try await readIdentity(profileHome: profileHome) }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        throw CodexClientError.remoteError(code: nil, message: "Unexpected reset consumption in this fixture.")
+    }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         let bytes = try String(contentsOf: profileHome.appending(path: "auth.json"), encoding: .utf8)
         if bytes.contains("revoked") { throw CodexClientError.identityUnavailable }

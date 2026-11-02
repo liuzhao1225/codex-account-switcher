@@ -15,7 +15,7 @@ The September 5 update adds one explicit maintenance job: keep Switcher current 
 
 The popover uses a 400-point content width so the reset count and saved subscription date fit without crowding adjacent account rows.
 
-The account list grows with its content up to three quarters of the current screen's usable height, then scrolls. Footer actions remain outside the scrolling list.
+The account list grows with its content up to three visible account rows, then scrolls. Footer actions remain outside the scrolling list.
 
 With the default settings, each saved account row shows:
 
@@ -90,7 +90,7 @@ Preflight target and original active profile
 → reopen Codex Desktop
 ```
 
-Before any credential write, preflight reads the registry and validates `originalActiveID`. After target activation succeeds, a verification or registry-commit failure restores `~/.codex/auth.json` from the original profile snapshot saved earlier in the same attempt. An activation failure does not run restoration because replacement did not complete. A Desktop-reopen failure occurs after the registry commit and keeps the selected account active.
+Before any credential write, preflight reads the registry and validates the selected profile and any original active profile. A first activation is allowed when no active credential exists. Identity checks read the installed local credential without an app-server request. After target activation succeeds, a verification or registry-commit failure restores `~/.codex/auth.json` from the original profile snapshot saved earlier in the same attempt. An activation failure does not run restoration because replacement did not complete. A Desktop-reopen failure occurs after the registry commit and keeps the selected account active.
 
 The MVP does not implement:
 
@@ -105,7 +105,7 @@ When a step fails, execution stops and the exact original error is shown. If the
 
 ## 6. Credential storage
 
-The MVP uses ordinary local files with user-only permissions.
+The MVP uses ordinary local files with user-only permissions. Startup, refresh and Register Current Account identify and save the same local credential bytes. Manual registration does not need an identity RPC.
 
 - Codex active credential: `~/.codex/auth.json`
 - Switcher registry: `~/Library/Application Support/Codex Account Switcher/accounts.json`
@@ -157,6 +157,8 @@ The following controls are intentionally absent:
 
 The production client is a native SwiftUI menu-bar app.
 
+An AppKit application delegate owns the shared account, update and forecast models and starts background work independently of the menu-bar label's appearance. macOS uses only the menu-bar popover. Manual launch, login launch and Finder/Spotlight reopen do not create a separate account window. The popover preserves the three-account viewport and returns to the account list when reopened (or Manage Accounts while sign-in is pending).
+
 It does not require:
 
 - Electron;
@@ -182,3 +184,11 @@ The implementation should:
 - avoid retry loops unless a later product requirement explicitly adds them.
 
 A partially completed switch remains observable. The implementation performs only the documented pre-commit credential restoration and adds no generic repair, retry, or startup-recovery behavior.
+
+## Automatic reset before expiry
+
+The optional automation is off by default and uses expiring resets for all saved accounts, including inactive accounts, starting 10 minutes before expiry. Real consumption requires the new explicit setting; the old log-only setting does not opt users in. Timing, retained call/readback evidence and failure behavior are specified in [Automatic reset before expiry](reset-expiry-experiment.md).
+
+## Public reset forecast
+
+Display `probabilities.rounded_24h` and `probabilities.rounded_48h` from `https://codex-reset.com/api/forecast`. The timestamp, reset metadata and relative ordering of the two values do not gate display. HTTP errors, missing or malformed fields, and percentages outside 0–100 remain visible failures.

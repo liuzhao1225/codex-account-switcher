@@ -2,6 +2,7 @@ import SwitcherCore
 import Combine
 import Foundation
 import ServiceManagement
+import AppKit
 
 enum LaunchAtLoginState: Equatable {
     case disabled
@@ -44,7 +45,7 @@ final class AppModel: AccountController, @MainActor ObservableObject {
         let store = AccountStore()
         let codex = CodexClient()
         return AppModel(store: store, codex: codex,
-                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: codex))
+                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()))
     }
 
     var launchesAtLogin: Bool { launchAtLoginState.isOn }
@@ -67,4 +68,12 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     }
 
     func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
+
+    func revealResetExpiryLog() {
+        if FileManager.default.fileExists(atPath: resetExpiryLogURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([resetExpiryLogURL])
+        } else {
+            NSWorkspace.shared.activateFileViewerSelecting([resetExpiryLogURL.deletingLastPathComponent()])
+        }
+    }
 }

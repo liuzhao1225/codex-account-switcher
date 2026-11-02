@@ -22,6 +22,10 @@ public enum L10n {
     private static let tables: [AppLanguage: [String: String]] = [
         .english: [
             "settings_general": "General",
+            "settings_automation": "Automation",
+            "auto_reset": "Use resets before expiry",
+            "auto_reset_hint": "Uses saved accounts’ resets 10 minutes before expiry. Keep the app running and computer awake.",
+            "open_reset_log": "Open Log Folder",
             "settings_updates": "Software Update",
             "update_available": "Version %@ available",
             "update_action": "Update…",
@@ -90,6 +94,10 @@ public enum L10n {
         ],
         .simplifiedChinese: [
             "settings_general": "通用",
+            "settings_automation": "自动化",
+            "auto_reset": "到期前自动使用 reset",
+            "auto_reset_hint": "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。",
+            "open_reset_log": "打开日志文件夹",
             "settings_updates": "软件更新",
             "update_available": "发现新版本 %@",
             "update_action": "更新…",

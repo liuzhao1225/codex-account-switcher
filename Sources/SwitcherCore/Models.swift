@@ -55,6 +55,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
+    public var autoResetEnabled: Bool
 
     public static let `default` = AppSettings(
         language: .system,
@@ -67,12 +68,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
         language: AppLanguage,
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false,
-        statusBarUsageWindow: StatusBarUsageWindow = .fiveHour
+        statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
+        autoResetEnabled: Bool = false
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
         self.statusBarUsageWindow = statusBarUsageWindow
+        self.autoResetEnabled = autoResetEnabled
     }
 
     public init(from decoder: any Decoder) throws {
@@ -90,6 +93,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
             StatusBarUsageWindow.self,
             forKey: .statusBarUsageWindow
         ) ?? .fiveHour
+        autoResetEnabled = try container.decodeIfPresent(
+            Bool.self, forKey: .autoResetEnabled
+        ) ?? false
     }
 }
 
@@ -99,19 +105,22 @@ public struct WeeklyUsage: Codable, Equatable, Sendable {
     public let fiveHourRemainingPercent: Int?
     public let fiveHourResetsAt: Date?
     public let resetCreditsRemaining: Int?
+    public let resetCredits: [BankedResetCredit]?
 
     public init(
         remainingPercent: Int,
         resetsAt: Date,
         fiveHourRemainingPercent: Int? = nil,
         fiveHourResetsAt: Date? = nil,
-        resetCreditsRemaining: Int? = nil
+        resetCreditsRemaining: Int? = nil,
+        resetCredits: [BankedResetCredit]? = nil
     ) {
         self.remainingPercent = remainingPercent
         self.resetsAt = resetsAt
         self.fiveHourRemainingPercent = fiveHourRemainingPercent
         self.fiveHourResetsAt = fiveHourResetsAt
         self.resetCreditsRemaining = resetCreditsRemaining
+        self.resetCredits = resetCredits
     }
 }
 

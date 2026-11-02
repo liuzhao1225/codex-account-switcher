@@ -16,7 +16,7 @@ Everything else exists to make that operation understandable and usable:
 - display weekly Usage and optional 5-hour Usage;
 - close and reopen Codex Desktop;
 - save the currently active credential before replacing it;
-- verify that Codex can read the selected identity;
+- verify that the installed credential belongs to the selected account;
 - maintain a small amount of local metadata.
 
 The MVP uses direct sequential code and lets failures surface. One bounded consistency action restores the validated original profile credential when target verification or the registry commit fails after activation. There is no general rollback framework.
@@ -55,10 +55,12 @@ Recommended stack:
 - Swift 6;
 - SwiftUI for UI;
 - `MenuBarExtra` for the status item and popover;
-- AppKit for process discovery and application lifecycle;
+- AppKit for process discovery, application lifecycle and the independently accessible account panel;
 - Service Management for the main app's Login Item registration and authorization state;
 - Foundation `FileManager`, `Process`, and JSON coding;
-- Codex app-server JSON-RPC over stdio for identity and Usage reads.
+- Local credential identity checks during switching; Codex app-server JSON-RPC over stdio for login and Usage reads.
+
+`SwitcherAppDelegate` owns the shared UI models and starts refresh/update work in `applicationDidFinishLaunching`, independently of menu-bar visibility. `MenuBarExtra` presents the account interface; there is no separate account panel or reopen-window handler. Forecast requests launched when the popover opens outlive the popover, and a failed request can be attempted again on the next opening. Service Management remains the source of truth for auto-start registration.
 
 No third-party runtime dependency is required beyond the installed Codex executable.
 
@@ -454,47 +456,9 @@ stateDiagram-v2
 
 `RestoringOriginal` is the single bounded consistency action after successful target activation and before a successful registry commit. There is no persisted or general rollback state machine.
 
-### 12.2 Pseudocode
+### 12.2 Implementation
 
-```swift
-func switchAccount(to targetID: UUID) async throws {
-    let target = try store.profile(id: targetID)
-    let registry = try store.loadRegistry()
-    guard let originalActiveID = registry.activeAccountID,
-          registry.accounts.contains(where: { $0.id == originalActiveID }) else {
-        throw AccountStoreError.activeProfileMissing
-    }
-
-    stage = .closeDesktop
-    try await desktop.closeDesktop()
-
-    stage = .saveCurrentCredential
-    try await store.saveCurrentCredential()
-
-    stage = .activateTargetCredential
-    try await store.activateTargetCredential(id: target.id)
-
-    stage = .verifyTargetIdentity
-    do {
-        let identity = try await codex.readIdentity(profileHome: store.activeCodexHome())
-        guard identity.matches(target) else { throw CodexClientError.identityUnavailable }
-    } catch {
-        throw await restoreOriginalCredential(originalActiveID, preserving: error)
-    }
-
-    stage = .commitActiveAccountID
-    do {
-        try await store.commitActiveAccountID(target.id)
-    } catch {
-        throw await restoreOriginalCredential(originalActiveID, preserving: error)
-    }
-
-    stage = .reopenDesktop
-    try await desktop.reopenDesktop()
-}
-```
-
-The restoration helper reuses the saved profile credential and the same atomic installation path. It returns the original stage error after a successful restoration, or one error containing both the original and restoration failures.
+[SwitchService](../Sources/SwitcherCore/SwitchService.swift) owns the switch sequence, including first activation and bounded credential restoration. [CredentialIdentity](../Sources/SwitcherCore/CredentialIdentity.swift) verifies identity from the installed credential.
 
 ### 12.3 Preflight
 
@@ -514,7 +478,7 @@ Closing Desktop comes before saving the active credential, so no matched Desktop
 
 ### 12.5 Save current credentials
 
-The registry must identify one active account. After Desktop exits, read the shared home’s current identity and match it against this profile before saving. An external login mismatch stops visibly and leaves saved profiles unchanged.
+The registry must identify one active account. After Desktop exits, read the identity from the shared home’s current `auth.json` and match it against this profile before saving. An external login mismatch stops visibly and leaves saved profiles unchanged.
 
 ```text
 copy ~/.codex/auth.json
@@ -537,7 +501,7 @@ If activation fails, stop. Atomic installation throws before a completed replace
 
 ### 12.7 Verify target
 
-Start Codex app-server using the active `~/.codex` home and read identity.
+Read the identity from the installed `~/.codex/auth.json`. Both switch checks use the existing credential parser directly, so account handoff does not depend on app-server's network-backed workspace routing discovery. Missing or malformed credentials fail visibly. Codex authenticates the selected credential with its service after reopening.
 
 If identity does not match the target metadata, preserve the mismatch as the stage error and reinstall the just-saved original profile credential into `~/.codex/auth.json`.
 

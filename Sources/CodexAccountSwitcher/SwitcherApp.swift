@@ -4,43 +4,43 @@ import SwiftUI
 
 @main
 struct SwitcherApp: App {
-    @StateObject private var model = AppModel.live()
-    @StateObject private var updater = AppUpdater()
-    @StateObject private var tiboForecast = TiboForecastModel()
+    @NSApplicationDelegateAdaptor(SwitcherAppDelegate.self) private var appDelegate
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarPopover(model: model, updater: updater, tiboForecast: tiboForecast)
+            MenuBarPopover(model: appDelegate.model, updater: appDelegate.updater,
+                           tiboForecast: appDelegate.tiboForecast)
         } label: {
-            HStack(spacing: 4) {
-                MenuBarLogo()
-                    .overlay(alignment: .topTrailing) {
-                        if updater.availableVersion != nil {
-                            Circle().fill(.blue).frame(width: 5, height: 5)
-                                .offset(x: 2, y: -1)
-                        }
-                    }
-                if model.settings.showsMenuBarPercentage,
-                   let remainingPercent = model.activeRemainingPercent {
-                    Text("\(remainingPercent)%")
-                        .monospacedDigit()
-                }
-            }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(menuBarAccessibilityLabel)
-                .task {
-                    updater.start()
-                    tiboForecast.start()
-                    await model.startBackgroundUsageRefresh()
-                }
-                .onChange(of: model.isMutating || model.isAddingAccount) { _, busy in
-                    updater.accountOperationInProgress = busy
-                }
+            MenuBarStatusLabel(model: appDelegate.model, updater: appDelegate.updater)
         }
         .menuBarExtraStyle(.window)
         .commands {
-            QuitApplicationCommands(title: model.text("quit"))
+            QuitApplicationCommands(model: appDelegate.model)
         }
+    }
+}
+
+private struct MenuBarStatusLabel: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var updater: AppUpdater
+
+    var body: some View {
+        HStack(spacing: 4) {
+            MenuBarLogo()
+                .overlay(alignment: .topTrailing) {
+                    if updater.availableVersion != nil {
+                        Circle().fill(.blue).frame(width: 5, height: 5)
+                            .offset(x: 2, y: -1)
+                    }
+                }
+            if model.settings.showsMenuBarPercentage,
+               let remainingPercent = model.activeRemainingPercent {
+                Text("\(remainingPercent)%")
+                    .monospacedDigit()
+            }
+        }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(menuBarAccessibilityLabel)
     }
 
     private var menuBarAccessibilityLabel: String {
@@ -83,11 +83,11 @@ private struct MenuBarLogo: View {
 }
 
 private struct QuitApplicationCommands: Commands {
-    let title: String
+    @ObservedObject var model: AppModel
 
     var body: some Commands {
         CommandGroup(replacing: .appTermination) {
-            Button(title) {
+            Button(model.text("quit")) {
                 NSApp.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: .command)

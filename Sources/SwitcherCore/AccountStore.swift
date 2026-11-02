@@ -65,6 +65,42 @@ public actor AccountStore: AccountStoring {
     private var settingsURL: URL { baseURL.appending(path: "settings.json") }
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
+    public nonisolated var resetExpiryLogURL: URL { baseURL.appending(path: "reset-expiry-experiment.jsonl") }
+
+    func loadResetExpiryLog() throws -> [ResetExpiryEvent] {
+        try prepareDirectories()
+        guard fileManager.fileExists(atPath: resetExpiryLogURL.path) else { return [] }
+        return try readChecked(resetExpiryLogURL).split(separator: 0x0A).map {
+            try Self.decoder.decode(ResetExpiryEvent.self, from: Data($0))
+        }
+    }
+
+    func appendResetExpiryLog(_ events: [ResetExpiryEvent]) throws {
+        try prepareDirectories()
+        try checkPath(resetExpiryLogURL)
+        if !fileManager.fileExists(atPath: resetExpiryLogURL.path) {
+            try secureAtomicWrite(Data(), to: resetExpiryLogURL)
+        }
+        try restrictPermissions(resetExpiryLogURL, directory: false)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        var bytes = Data()
+        for event in events {
+            bytes.append(try encoder.encode(event))
+            bytes.append(0x0A)
+        }
+        let handle = try FileHandle(forWritingTo: resetExpiryLogURL)
+        do {
+            try handle.seekToEnd()
+            try handle.write(contentsOf: bytes)
+            try handle.synchronize()
+        } catch {
+            try? handle.close()
+            throw error
+        }
+        try handle.close()
+    }
 
     public func loadRegistry() throws -> AccountRegistry {
         try prepareDirectories()
@@ -211,32 +247,35 @@ public actor AccountStore: AccountStoring {
         if fileManager.fileExists(atPath: directory.path) { try removeProfileDirectory(directory) }
     }
 
-    public func registerActiveIdentity(_ identity: AccountIdentity) throws {
+    private func registerActiveIdentity(_ identity: AccountIdentity, credential bytes: Data) throws {
         let current = try loadRegistry()
-        let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
-        let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
-            email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
-        guard let credentialIdentity = try CredentialIdentity.decode(bytes), credentialIdentity.matches(candidate) else {
-            throw AccountStoreError.activeCredentialMismatch
-        }
         if let profile = current.accounts.first(where: { identity.matches($0) }) {
-            try secureAtomicWrite(bytes, to: profileHome(id: profile.id).appending(path: "auth.json"))
-            try commitActiveAccountID(profile.id)
+            let destination = profileHome(id: profile.id).appending(path: "auth.json")
+            if try readChecked(destination) != bytes { try secureAtomicWrite(bytes, to: destination) }
+            if current.activeAccountID != profile.id { try commitActiveAccountID(profile.id) }
         } else {
+            let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
+                email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
             try importProfile(candidate, credential: bytes)
         }
     }
 
-    /// Verify and copy the same bytes, so an external login cannot overwrite another saved account.
-    public func syncActiveCredentialIfMatching(id: UUID) throws -> Bool {
-        let current = try loadRegistry()
-        guard current.activeAccountID == id,
-              let profile = current.accounts.first(where: { $0.id == id }) else { return false }
+    /// The live login determines the active profile. Identify and save the same credential bytes.
+    public func syncActiveCredential() throws -> AccountRegistry {
+        var current = try loadRegistry()
+        guard activeCredentialExists() else {
+            if current.activeAccountID != nil {
+                current.activeAccountID = nil
+                try saveRegistry(current)
+            }
+            return current
+        }
         let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
-        guard let identity = try CredentialIdentity.decode(bytes), identity.matches(profile) else { return false }
-        let destination = profileHome(id: id).appending(path: "auth.json")
-        if try readChecked(destination) != bytes { try secureAtomicWrite(bytes, to: destination) }
-        return true
+        guard let identity = try CredentialIdentity.decode(bytes) else {
+            throw CodexClientError.identityUnavailable
+        }
+        try registerActiveIdentity(identity, credential: bytes)
+        return try loadRegistry()
     }
 
     public func removeAccount(id: UUID) throws {

@@ -4,7 +4,17 @@ import SwitcherPlatform
 #endif
 
 // Identity metadata labels a local login; Codex still authenticates with the service.
-enum CredentialIdentity {
+public struct CredentialIdentity: CodexIdentityReading {
+    public init() {}
+
+    public func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        try Task.checkCancellation()
+        guard let identity = try Self.read(from: profileHome) else {
+            throw CodexClientError.identityUnavailable
+        }
+        return identity
+    }
+
     static func read(from home: URL) throws -> AccountIdentity? {
         let url = home.appending(path: "auth.json")
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
