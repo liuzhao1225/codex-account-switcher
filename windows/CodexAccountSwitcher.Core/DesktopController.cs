@@ -99,25 +99,28 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
         return result == ErrorSuccess ? value.ToString() : null;
     }
 
-    public async Task CloseAsync(CancellationToken cancellationToken)
+    public Task CloseAsync(CancellationToken cancellationToken) => CloseAsync(cancellationToken, TimeSpan.FromSeconds(30));
+
+    internal async Task CloseAsync(CancellationToken cancellationToken, TimeSpan exitTimeout)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Store package paths are versioned, so resolve the executable for every handoff.
         var installation = await discover(cancellationToken);
-        var initial = FindDesktopProcesses(installation);
+        var processes = FindDesktopProcesses(installation);
         try
         {
-            if (initial.Count == 0) return;
-            var requested = false;
-            foreach (var process in initial)
+            if (processes.Count == 0) return;
+            // Keep handles to descendants as well: Kill(true) and waiting for the root alone
+            // do not guarantee its app-server children have exited before auth.json changes.
+            DesktopProcessTree.IncludeDescendants(processes);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var process in processes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!process.HasExited && process.MainWindowHandle != IntPtr.Zero)
-                {
-                    if (!process.CloseMainWindow()) throw new IOException("Codex Desktop rejected the normal close request.");
-                    requested = true;
-                }
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) when (process.HasExited) { }
+                catch (System.ComponentModel.Win32Exception) when (process.HasExited) { }
             }
-            if (!requested) throw new IOException("Codex Desktop is running without a closable window. Quit it manually before switching.");
             var stopwatch = Stopwatch.StartNew();
             while (true)
             {
@@ -125,13 +128,17 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
                 var remaining = FindDesktopProcesses(installation);
                 var count = remaining.Count;
                 foreach (var process in remaining) process.Dispose();
-                if (count == 0) return;
-                if (stopwatch.Elapsed > TimeSpan.FromSeconds(30))
-                    throw new TimeoutException("Codex Desktop did not exit within 30 seconds. Finish its tasks and quit it manually; the account was not changed.");
+                if (count == 0 && processes.All(process => process.HasExited)) return;
+                if (stopwatch.Elapsed > exitTimeout)
+                    throw new TimeoutException($"Codex Desktop or its child processes did not exit within {exitTimeout.TotalSeconds:g} seconds. Close them manually before switching; the account was not changed.");
                 await Task.Delay(200, cancellationToken);
             }
         }
-        finally { foreach (var process in initial) process.Dispose(); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or AggregateException)
+        {
+            throw new IOException("Could not terminate Codex Desktop and its child processes. Close them manually before switching; the account was not changed.", ex);
+        }
+        finally { foreach (var process in processes) process.Dispose(); }
     }
 
     public async Task OpenAsync(CancellationToken cancellationToken)

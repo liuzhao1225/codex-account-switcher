@@ -401,11 +401,13 @@ func open() async throws
 
 ### 11.1 Close
 
-Use `NSRunningApplication` for the Codex Desktop bundle identifier and call `terminate()`.
+On macOS, use `NSRunningApplication` for the Codex Desktop bundle identifier and call `terminate()`.
 
-Codex Desktop can display a quit confirmation while work is active. Allow up to 30 seconds for its normal exit, including its history and settings flush. Never force-terminate Desktop. If the quit request is rejected or Desktop remains running, report a close-stage error before saving or replacing credentials. The user can finish or stop active tasks, close Desktop, and switch again. Cancellation also stops the wait.
+On macOS, Codex Desktop can display a quit confirmation while work is active. Allow up to 30 seconds for normal exit, including its history and settings flush; do not force-terminate. If the quit request is rejected or Desktop remains running, report a close-stage error before saving or replacing credentials. The user can finish or stop active tasks, close Desktop, and switch again. Cancellation also stops the wait.
 
-The switcher only observes the Desktop application's exit; it does not terminate CLI processes or claim to repair Codex's history database. Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. Without an override or executable PATH command, macOS checks the installed Desktop app layouts described in section 8.
+On Windows, rediscover the Store manifest or executable path for each handoff. Match Desktop by stable application identity or full path, collect descendant process handles from the Windows process snapshot, and terminate the matched trees. Verify both the retained process handles and remaining installation matches before returning, with a 30-second exit timeout. This handles tray-hidden and headless processes without window or keyboard automation. The existing confirmation warns about task interruption and unsaved-state loss. Inspection or termination failures stop before credential changes. Refuse a tree containing the switcher itself.
+
+Account RPCs read the login shell's `PATH` and shared `CODEX_CLI_PATH` setting. A bare command such as `codex` resolves through that PATH; an explicit absolute path must be executable. The child receives the same PATH so npm launchers can find Node. Without an override or executable PATH command, macOS checks the installed Desktop app layouts described in section 8.
 
 If Desktop is not running, `close()` succeeds immediately.
 
@@ -417,7 +419,7 @@ If launch fails, return the AppKit error. The account switch remains at whatever
 
 ### 11.3 CLI processes
 
-The switcher never enumerates, terminates, signals, or restarts `codex` CLI processes.
+The switcher does not terminate or restart independently launched CLI sessions. Windows includes Desktop-owned app-server descendants in its process shutdown, even if their executable is also named `codex.exe`; ancestry, not the executable name alone, determines inclusion.
 
 An existing CLI process may have already loaded credentials into memory. Therefore:
 
@@ -472,7 +474,7 @@ These checks occur before the six recorded `SwitchStage` values.
 
 ### 12.4 Close Codex Desktop
 
-Closing Desktop comes before saving the active credential so Codex has a chance to finish its normal shutdown writes.
+Closing Desktop comes before saving the active credential, so no matched Desktop process continues using the old credential during replacement. macOS permits normal shutdown writes; Windows force-stops Desktop and its descendants after confirmation.
 
 ### 12.5 Save current credentials
 

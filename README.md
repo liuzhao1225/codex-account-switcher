@@ -229,7 +229,7 @@ No. Install the app, add each account through a normal browser sign-in, then cho
 
 ### How do I switch accounts?
 
-Add each authorized account once. Finish or stop active Desktop tasks, then select the account in the app and confirm. If Desktop displays its quit dialog, complete it. The app waits up to 30 seconds for normal exit, completes the handoff, verifies the selected account, and reopens Desktop. If Desktop cannot exit, switching stops before the account changes.
+Add each authorized account once. Finish or stop active Desktop tasks, then select the account in the app and confirm. Windows forcibly stops Desktop and its child processes, which interrupts running tasks and may lose unsaved state. macOS requests normal exit; complete any quit dialog. The app waits up to 30 seconds for exit, completes the handoff, verifies the selected account, and reopens Desktop. If closing fails, switching stops before the account changes. Independently started CLI sessions remain open.
 
 ### Does it switch accounts automatically?
 

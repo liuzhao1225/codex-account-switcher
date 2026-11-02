@@ -18,11 +18,13 @@ The app opens a centered Windows window with a standard title bar, minimize and 
 
 ## Shared logic and native boundaries
 
-`Sources/SwitcherCore` owns the ordered handoff: normal Desktop close, verify/save current login, activate target, verify target, commit selection and reopen Desktop. A verification/commit failure performs the same bounded recovery on both platforms.
+`Sources/SwitcherCore` owns the ordered handoff: close Desktop, verify/save current login, activate target, verify target, commit selection and reopen Desktop. A verification/commit failure performs the same bounded recovery on both platforms.
 
-macOS calls the module directly through its SwiftUI model. Windows starts a bundled `SwitcherHost.exe` child and receives presentation snapshots. Credentials never cross that UI protocol. Windows adapters implement file ACLs/atomic replacement, Desktop discovery and normal close/open, browser opening, tray and startup integration.
+macOS calls the module directly through its SwiftUI model. Windows starts a bundled `SwitcherHost.exe` child and receives presentation snapshots. Credentials never cross that UI protocol. Windows adapters implement file ACLs/atomic replacement, Desktop discovery and close/open, browser opening, tray and startup integration.
 
-Desktop is located from the `OpenAI.Codex` Store manifest (its executable can be `ChatGPT.exe`) and common per-user installation paths. Matching uses the full executable path. Existing CLI sessions are not closed. If Desktop cannot exit normally within 30 seconds, switching stops before credentials are changed.
+Desktop is located from the `OpenAI.Codex` Store manifest (its executable can be `ChatGPT.exe`) and common per-user installation paths. Each close/open rediscovers the installation; matching uses the stable Store application identity or the full executable path. After the user confirms switching, Windows forcibly terminates the matched Desktop processes and their descendants, then waits up to 30 seconds for exit before changing credentials. This works for background, minimized and tray-hidden processes without activating windows or simulating keyboard input. Child processes such as Desktop's app-server are included; independently started CLI sessions and same-named executables at unrelated paths remain running. Inspection, termination or exit-wait failures stop the switch before credentials change.
+
+The Windows confirmation explains that forced termination interrupts running tasks and may lose unsaved state. Finish or stop Desktop tasks before switching. macOS retains its normal quit flow.
 
 ## Storage
 
@@ -50,6 +52,15 @@ dotnet run --project windows/CodexAccountSwitcher -c Release
 ```
 
 The native integration checks use a fresh temporary active home and storage directory. UI checks use fictional presentation data. Neither test operates the user's Desktop or actual credentials.
+
+Run the isolated process-termination regression checks on Windows:
+
+```powershell
+dotnet build windows/CodexAccountSwitcher.CloseFixture -c Release
+dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- desktop-close "$pwd/windows/CodexAccountSwitcher.CloseFixture/bin/Release/net10.0-windows/ChatGPT.exe"
+```
+
+The fixture hides on window close. Checks cover visible, background, tray-hidden, minimized, headless and unresponsive processes, child/grandchild termination, independent CLI and same-name process isolation, pre-cancellation and Store path rediscovery. Process termination does not depend on an unlocked desktop or foreground input. Fixtures never terminate the user's actual Codex process or change real credentials.
 
 ## Package and release
 

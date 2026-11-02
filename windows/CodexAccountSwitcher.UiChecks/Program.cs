@@ -90,6 +90,8 @@ internal static class Program
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
             Assert(client.Commands.Count == 0, "Selection must not switch before confirmation.");
             Render(window, Path.Combine(output, "switch-zh.png"));
+            Assert(All<TextBlock>(window).Any(text => text.Text.Contains("强制结束") && text.Text.Contains("未保存的状态可能丢失")),
+                "Windows confirmation must explain forced termination before switching.");
             window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "Personal" or "Studio"), "Manage must not duplicate the email with a display-name row.");
@@ -186,7 +188,7 @@ internal static class Program
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
-                ["switch_title"] = "切换到 %@？", ["switch_body"] = "Codex Desktop 将关闭并重新打开。请先完成或停止正在运行的 Desktop 任务。如果 Desktop 显示退出提示，请处理该提示；无法正常退出时会停止切换。现有 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
+                ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });
         }
         public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null) {

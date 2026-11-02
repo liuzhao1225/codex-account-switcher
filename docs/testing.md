@@ -24,6 +24,14 @@ Require the `Test run with ... tests ... passed` summary before treating the sui
 
 ## 2. Unit tests
 
+### Windows Desktop process termination (issue #29)
+
+`DesktopCloseChecks` uses real processes in synthetic installation directories. Its WinForms window hides on close, reproducing the tray timeout. It covers visible, background, already hidden, minimized, headless and unresponsive Desktop processes; child/grandchild exit; an independent CLI using the same binary as Desktop's children; unrelated same-name process isolation; pre-cancellation; and Store path rediscovery. Closing forcibly terminates matched Desktop processes and their descendants, retaining process handles to verify exit before returning. `SwitchServiceTests.quitFailureLeavesBothAccountsUntouched` separately covers credential preservation on a close-stage error.
+
+The close adapter sends no keyboard input and does not activate or restore windows. Tests never terminate the actual user Desktop or switch real credentials. WPF checks verify the forced-termination warning appears before confirmation. A complete handoff with real accounts remains a manual acceptance test.
+
+Static inspection of the installed Codex 26.1007.2314.0 package confirmed that its main-window close handler hides the final window when tray mode is available. This is evidence from a newer build than the issue's 26.1002.6548.0, not a live handoff test of that reported version.
+
 ### macOS account popover sizing (v0.1.18)
 
 `MenuBarPopoverTests` measures the production SwiftUI view with 0, 1, 2, 3, 4, and 20 saved accounts, with five-hour usage both hidden and shown. The initial zero-height proposal and the sizes left by account management and settings must yield the same home height. One through three accounts increase the height; four and twenty retain the three-account viewport.
@@ -195,7 +203,7 @@ With two real test accounts:
 5. confirm the status bar matches 5-hour remaining Usage by default, switch Status Bar Usage to weekly and verify its weekly value, then confirm an account without 5-hour data uses the weekly value;
 6. start a Codex CLI under A;
 7. switch A → B;
-8. with an active local chat, leave Desktop's native quit dialog pending and confirm a close-stage error after 30 seconds, with account A still active and Desktop still running; then finish or stop the task and close Desktop normally;
+8. on macOS, leave Desktop's native quit dialog pending and confirm a close-stage error after 30 seconds with account A still active; on Windows, confirm the force-stop warning, then verify switching from both visible and tray-hidden Desktop after finishing active tasks;
 9. switch again and confirm Desktop reopens as B; reopen existing tasks and check their earlier and latest messages;
 10. confirm the existing CLI was not terminated;
 11. start a new CLI and confirm it uses B;

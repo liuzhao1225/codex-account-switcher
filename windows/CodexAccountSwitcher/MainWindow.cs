@@ -225,7 +225,7 @@ public sealed class MainWindow : Window
     {
         if (target == null) return;
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-        var copy = T(page == "switch" ? "switch_body" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
+        var copy = T(page == "switch" ? "switch_body_windows" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
         var text = Text(copy, 13, muted: true); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 0, 14); content.Children.Add(text);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Button(T("cancel"), () => Navigate(page == "remove" ? "manage" : "accounts")));
