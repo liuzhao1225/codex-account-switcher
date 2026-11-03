@@ -288,7 +288,7 @@ Do not add download automation or multiple package-manager fallbacks in the MVP.
 For a given profile home:
 
 ```text
-CODEX_HOME=<profile-home> codex app-server --stdio
+CODEX_HOME=<profile-home> codex app-server
 ```
 
 The client communicates with newline-delimited JSON-RPC messages over stdin/stdout.
