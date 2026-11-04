@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 
 struct MenuBarPopover: View {
+    @Environment(\.openSettings) private var openSettings
     @ObservedObject var model: AppModel
     @ObservedObject var updater: AppUpdater
     @ObservedObject var tiboForecast: TiboForecastModel
@@ -29,10 +30,6 @@ struct MenuBarPopover: View {
                         page = .accounts
                     }
                     .disabled(updater.isInstalling)
-                case .settings:
-                    SettingsView(model: model, updater: updater) {
-                        page = .accounts
-                    }
                 case let .confirmSwitch(account):
                     SwitchConfirmationPage(
                         model: model,
@@ -137,7 +134,7 @@ struct MenuBarPopover: View {
                     title: model.text("settings"),
                     systemImage: "gearshape"
                 ) {
-                    page = .settings
+                    openSettings()
                 }
                 .disabled(model.isMutating)
 
@@ -184,7 +181,6 @@ struct MenuBarPopover: View {
 private enum PopoverPage {
     case accounts
     case manageAccounts
-    case settings
     case confirmSwitch(AccountProfile)
 }
 

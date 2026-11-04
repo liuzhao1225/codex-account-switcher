@@ -4,16 +4,24 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject var updater: AppUpdater
-    let onBack: () -> Void
+    let onBack: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            PopoverHeader(
-                title: model.text("settings"),
-                backTitle: model.text("back"),
-                onBack: onBack
-            )
-            Divider()
+            if let onBack {
+                PopoverHeader(
+                    title: model.text("settings"),
+                    backTitle: model.text("back"),
+                    onBack: onBack
+                )
+                Divider()
+            } else {
+                Text(model.text("settings"))
+                    .font(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 18)
+            }
 
             sectionLabel("settings_general")
             settingRow("launch_at_login") {
@@ -121,7 +129,7 @@ struct SettingsView: View {
         }
         .padding(.bottom, 6)
         .font(.system(size: 13))
-        .controlSize(.small)
+        .controlSize(onBack == nil ? .regular : .small)
         .onAppear { model.refreshLaunchAtLoginStatus() }
     }
 

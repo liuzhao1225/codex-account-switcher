@@ -65,8 +65,8 @@ internal static class Program
                 }
             }
             Render(window, Path.Combine(output, "accounts-zh.png"));
-            Assert(Math.Abs(window.ActualWidth - 420) < 2 && window.ActualHeight < 360,
-                $"Home must be a compact 420 DIP window (actual {window.ActualWidth} × {window.ActualHeight}).");
+            Assert(Math.Abs(window.ActualWidth - 440) < 2 && window.ActualHeight < 360,
+                $"Home must be a compact 440 DIP window (actual {window.ActualWidth} × {window.ActualHeight}).");
             Assert(window.ShowInTaskbar && !window.Topmost && window.WindowStyle == WindowStyle.SingleBorderWindow,
                 "Windows must use a normal titled window visible in the taskbar.");
             var other = new Window { Width = 100, Height = 100, ShowInTaskbar = false };
@@ -79,12 +79,10 @@ internal static class Program
             Assert(All<TextBlock>(window).Where(text => text.Text.Contains("@example.test")).All(text =>
                 text.TextWrapping == TextWrapping.NoWrap && text.TextTrimming == TextTrimming.CharacterEllipsis && Equals(text.ToolTip, text.Text)),
                 "Account emails must stay on one line and expose the full address in a tooltip.");
-            Assert(!All<TextBlock>(window).Any(text => text.Text == "当前"), "Home uses selection color, not active labels.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "重置次数: 2"), "Home shows the reported reset count beneath usage.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "重置次数: 未知"), "Missing reset count must not be shown as zero.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "有效期：2099-10-17" && text.ToolTip is string),
-                "Home shows the subscription date without a parenthetical label and exposes its check time on hover.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "有效期：未知"), "Missing subscription date stays unknown.");
+            Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1,
+                "Home clearly identifies the active account.");
+            Assert(!All<TextBlock>(window).Any(text => text.Text.StartsWith("重置次数") || text.Text.StartsWith("有效期")),
+                "Home keeps account rows focused on identity and usage.");
             var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "studio@example.test");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
@@ -99,10 +97,16 @@ internal static class Program
             var addButton = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_account"));
             var hintPosition = addHint.TranslatePoint(new Point(), window);
             var addPosition = addButton.TranslatePoint(new Point(), window);
-            Assert(hintPosition.X >= addPosition.X + addButton.ActualWidth &&
-                hintPosition.Y >= addPosition.Y && hintPosition.Y + addHint.ActualHeight <= addPosition.Y + addButton.ActualHeight + 1,
-                "The sign-in hint must sit to the right of Add Account within the same row.");
+            Assert(hintPosition.Y >= addPosition.Y + addButton.ActualHeight,
+                "The sign-in hint must sit below the account actions.");
+            Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_api_key")),
+                "Manage must offer API key entry beside sign-in.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
+            window.Navigate("apiKey"); Render(window, Path.Combine(output, "api-key-zh.png"));
+            Assert(All<PasswordBox>(window).Count() == 1, "API keys must use a masked native input.");
+            Assert(All<TextBox>(window).Count() == 1, "API key profiles need a name.");
+            Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("save_api_key")),
+                "API key entry needs a clear save action.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
@@ -180,18 +184,22 @@ internal static class Program
                 ["subscription_until"] = "有效期：%@", ["subscription_snapshot"] = "登录快照", ["subscription_old_snapshot"] = "旧登录快照",
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
+                ["add_api_key"] = "添加 API 密钥", ["api_key_name"] = "名称", ["api_key_secret"] = "API 密钥",
+                ["api_key_hint"] = "密钥仅保存在这台电脑上。这里可能无法显示 API 密钥用量。",
+                ["api_key_invalid"] = "请输入名称和不含空格的 API 密钥。", ["save_api_key"] = "保存 API 密钥",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
                 ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
                 ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
-                ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["language"] = "语言",
+                ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["status_bar_usage_window"] = "托盘用量周期", ["language"] = "语言",
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });
         }
-        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null) {
+        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+            string? displayName = null, string? apiKey = null) {
             Commands.Add(command + ":" + value); return Task.CompletedTask;
         }
     }

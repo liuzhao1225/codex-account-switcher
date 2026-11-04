@@ -6,6 +6,9 @@ struct ManageAccountsView: View {
     let onBack: () -> Void
 
     @State private var page: ManageAccountsPage = .accounts
+    @State private var apiKeyName = ""
+    @State private var apiKeySecret = ""
+    @State private var apiKeyError = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +23,8 @@ struct ManageAccountsView: View {
             switch page {
             case .accounts:
                 accountList
+            case .apiKey:
+                apiKeyForm
             case let .remove(account):
                 removePage(account)
             }
@@ -30,6 +35,8 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             model.text("accounts")
+        case .apiKey:
+            model.text("add_api_key")
         case let .remove(account):
             model.format("remove_title", account.displayName)
         }
@@ -39,7 +46,7 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             onBack()
-        case .remove:
+        case .remove, .apiKey:
             page = .accounts
         }
     }
@@ -68,7 +75,7 @@ struct ManageAccountsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 10) {
                 Button {
                     if model.isAddingAccount {
                         model.cancelAddingAccount()
@@ -76,44 +83,35 @@ struct ManageAccountsView: View {
                         model.addAccount()
                     }
                 } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: model.isAddingAccount ? "xmark" : "plus")
-                            .frame(width: 14)
-                        Text(model.text(model.isAddingAccount ? "cancel_add_account" : "add_account"))
-                            .fixedSize()
-                        Spacer(minLength: 4)
-                        signInHint
-                        if model.isAddingAccount {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .frame(height: 30)
-                    .contentShape(Rectangle())
+                    Label(model.text(model.isAddingAccount ? "cancel_add_account" : "add_account"),
+                          systemImage: model.isAddingAccount ? "xmark" : "plus")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
                 .disabled(model.isMutating && !model.isAddingAccount)
+
+                signInHint
+
+                Button {
+                    apiKeyName = ""
+                    apiKeySecret = ""
+                    apiKeyError = false
+                    page = .apiKey
+                } label: {
+                    Label(model.text("add_api_key"), systemImage: "key")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.isMutating || model.isAddingAccount)
 
                 Button {
                     Task { await model.registerCurrentAccount() }
                 } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: "person.crop.circle.badge.checkmark")
-                            .frame(width: 14)
-                        Text(model.text("register_current_account"))
-                        Spacer()
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .frame(height: 30)
-                    .contentShape(Rectangle())
+                    Label(model.text("register_current_account"), systemImage: "person.crop.circle.badge.checkmark")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .disabled(model.isMutating || model.isAddingAccount)
             }
-            .padding(5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
         }
     }
 
@@ -122,9 +120,60 @@ struct ManageAccountsView: View {
         return Text(hint)
             .font(.system(size: 10.5))
             .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
             .help(hint)
+    }
+
+    private var apiKeyForm: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(model.text("api_key_hint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(model.text("api_key_name"))
+                TextField(model.text("api_key_name"), text: $apiKeyName)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(model.text("api_key_secret"))
+                SecureField(model.text("api_key_secret"), text: $apiKeySecret)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            if apiKeyError {
+                Text(model.text("api_key_invalid"))
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
+                Spacer()
+                Button(model.text("cancel")) { page = .accounts }
+                    .buttonStyle(.bordered)
+                Button(model.text("save_api_key")) { saveAPIKey() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.isMutating)
+            }
+        }
+        .padding(16)
+    }
+
+    private func saveAPIKey() {
+        let name = apiKeyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let secret = apiKeySecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !secret.isEmpty, !secret.contains(where: \.isWhitespace) else {
+            apiKeyError = true
+            return
+        }
+        apiKeyError = false
+        Task {
+            await model.addAPIKey(displayName: name, key: secret)
+            apiKeySecret = ""
+            if model.visibleError == nil { page = .accounts }
+        }
     }
 
     private func removePage(_ account: AccountProfile) -> some View {
@@ -196,6 +245,7 @@ struct ManageAccountsView: View {
 
 private enum ManageAccountsPage {
     case accounts
+    case apiKey
     case remove(AccountProfile)
 }
 

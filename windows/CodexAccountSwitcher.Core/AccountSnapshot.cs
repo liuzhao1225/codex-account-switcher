@@ -23,5 +23,6 @@ public interface IAccountClient
 {
     AccountSnapshot State { get; }
     event Action? Changed;
-    Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null);
+    Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+        string? displayName = null, string? apiKey = null);
 }

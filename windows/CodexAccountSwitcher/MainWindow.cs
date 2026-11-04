@@ -30,13 +30,13 @@ public sealed class MainWindow : Window
     {
         this.client = client; this.native = native ?? new NativeSettings();
         Icon = System.Windows.Media.Imaging.BitmapFrame.Create(App.IconUri);
-        Title = "Codex Account Switcher"; Width = 420; SizeToContent = SizeToContent.Height;
+        Title = "Codex Account Switcher"; Width = 440; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanMinimize;
         Background = B("Surface"); ShowInTaskbar = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         MaxHeight = SystemParameters.WorkArea.Height - 24;
         client.Changed += Render; this.native.Changed += Render;
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate("accounts"); e.Handled = true; } };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate(page == "apiKey" ? "manage" : "accounts"); e.Handled = true; } };
         Closing += (_, e) => {
             if (closingForExit) return;
             e.Cancel = true;
@@ -57,9 +57,10 @@ public sealed class MainWindow : Window
         _ = Run("refresh");
     }
     public void Navigate(string destination) { page = destination; target = null; localError = null; Render(); }
-    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null)
+    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null,
+        string? displayName = null, string? apiKey = null)
     {
-        try { await client.CommandAsync(command, id, value, language); }
+        try { await client.CommandAsync(command, id, value, language, displayName, apiKey); }
         catch (Exception ex) { localError = ex.Message; Render(); }
     }
     private TextBlock Text(string text, double size = 13, bool muted = false, bool bold = false) => new() {
@@ -104,19 +105,20 @@ public sealed class MainWindow : Window
                 settings.Content = indicator;
             }
             commands.Children.Add(settings);
-            var heading = Pair(Text(T("accounts"), 20, bold: true), commands);
-            heading.Margin = new Thickness(20, 16, 20, 16); body.Children.Add(heading);
+            var heading = Pair(Text(T("accounts"), 22, bold: true), commands);
+            heading.Margin = new Thickness(24, 20, 24, 18); body.Children.Add(heading);
         } else {
-            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 16, 20, 16) };
-            header.Children.Add(Button("", () => Navigate(page == "remove" ? "manage" : "accounts"), "\uE72B"));
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(24, 20, 24, 18) };
+            header.Children.Add(Button("", () => Navigate(page is "remove" or "apiKey" ? "manage" : "accounts"), "\uE72B"));
             AutomationProperties.SetName(header.Children[0], T("back"));
             var title = target != null && page is "switch" or "remove"
                 ? T(page + "_title").Replace("%@", target.Profile.DisplayName)
-                : T(page == "settings" ? "settings" : "accounts");
+                : T(page == "settings" ? "settings" : page == "apiKey" ? "add_api_key" : "accounts");
             var heading = Text(title, 20, bold: true); heading.Margin = new Thickness(12, 0, 0, 0); header.Children.Add(heading);
             body.Children.Add(header);
         }
         if (page is "switch" or "remove") Confirmation(body);
+        else if (page == "apiKey") APIKeyForm(body);
         else if (page == "settings") Settings(body);
         else Accounts(body, page == "manage");
         Content = new Border { Background = B("Surface"),
@@ -132,8 +134,8 @@ public sealed class MainWindow : Window
         }
         var list = new StackPanel();
         foreach (var row in State.Accounts) {
-            var avatar = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(4), Background = B("Hover"),
-                Child = Text(row.Initials, 11, bold: true) };
+            var avatar = new Border { Width = 36, Height = 36, CornerRadius = new CornerRadius(18), Background = B("Avatar"),
+                Child = Text(row.Initials, 12, bold: true) };
             ((TextBlock)avatar.Child).HorizontalAlignment = HorizontalAlignment.Center;
             var details = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var active = row.Profile.Id == State.ActiveAccountID;
@@ -143,68 +145,94 @@ public sealed class MainWindow : Window
             if (manage) {
                 details.Children.Add(name);
             } else {
-                var reset = Text(row.Usage != null && !State.Settings.ShowsFiveHourUsage ? Reset(row.Usage.ResetsAt) : "", 10.5, muted: true);
-                reset.Margin = new Thickness(7, 0, 0, 0); details.Children.Add(Pair(name, reset));
+                details.Children.Add(name);
                 if (row.Usage is { } usage) {
                     if (State.Settings.ShowsFiveHourUsage && usage.FiveHourRemainingPercent is { } five && usage.FiveHourResetsAt is { } time)
                         details.Children.Add(UsageLine(T("five_hour"), five, Reset(time, false)));
                     details.Children.Add(UsageLine(T(State.Settings.ShowsFiveHourUsage ? "weekly" : "usage"), usage.RemainingPercent,
-                        State.Settings.ShowsFiveHourUsage ? Reset(usage.ResetsAt) : null));
-                    details.ToolTip = row.UsageError;
+                        null));
+                    details.ToolTip = Reset(usage.ResetsAt) + (row.UsageError is null ? "" : "\n" + row.UsageError);
                 } else { var missing = Text(row.UsageStatus == "idle" ? T("usage") + " —" : T("usage_unavailable"), 10.5, muted: true); missing.ToolTip = row.UsageError; details.Children.Add(missing); }
-                var accountInfo = new Grid();
-                accountInfo.ColumnDefinitions.Add(new ColumnDefinition());
-                accountInfo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                if (row.Usage is { } infoUsage) {
-                    var resetCredits = Text(T("reset_credits") + ": " + (infoUsage.ResetCreditsRemaining?.ToString(CultureInfo.CurrentCulture) ?? T("unknown")), 10.5, muted: true);
-                    resetCredits.Margin = new Thickness(8, 0, 0, 0);
-                    Grid.SetColumn(resetCredits, 1); accountInfo.Children.Add(resetCredits);
-                }
-                TextBlock subscriptionLine;
-                if (row.Subscription is { } subscription) {
-                    var date = subscription.ActiveUntil.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                    subscriptionLine = Text(T("subscription_until").Replace("%@", date), 10.5, muted: true);
-                    subscriptionLine.ToolTip = subscriptionLine.Text + "\n" + T("subscription_detail").Replace("%@", subscription.LastChecked.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture));
-                } else subscriptionLine = Text(T("subscription_unknown"), 10.5, muted: true);
-                accountInfo.Children.Add(subscriptionLine);
-                details.Children.Add(accountInfo);
             }
-            var grid = new Grid { MinHeight = manage ? 32 : 50 };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
+            var grid = new Grid { MinHeight = manage ? 40 : 54 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.Children.Add(avatar); Grid.SetColumn(details, 1); grid.Children.Add(details);
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             if (manage) {
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 UIElement action = active ? Text(T("active"), 11, muted: true) : Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
                 AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 2); grid.Children.Add(action);
-                list.Children.Add(new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid });
+                list.Children.Add(new Border { Padding = new Thickness(14, 9, 14, 9), Child = grid });
             } else {
+                var state = Text(active ? T("active") : "›", active ? 11 : 20, muted: !active, bold: active);
+                state.Margin = new Thickness(12, 0, 0, 0); Grid.SetColumn(state, 2); grid.Children.Add(state);
                 var button = new Button { Content = grid, Style = (Style)FindResource("AccountRow"), Background = active ? B("Selected") : Brushes.Transparent, IsEnabled = !IsBusy };
                 AutomationProperties.SetName(button, title);
                 button.Click += (_, _) => { if (!active) { target = row; page = "switch"; Render(); } };
-                var selection = new Border { Width = 3, Height = 24, Background = active ? B("Accent") : Brushes.Transparent,
-                    HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
-                var rowContainer = new Grid(); rowContainer.Children.Add(button); rowContainer.Children.Add(selection);
-                list.Children.Add(rowContainer);
+                list.Children.Add(button);
             }
         }
         if (State.Accounts.Length == 0) { var empty = Text(T("no_accounts"), 12, muted: true); empty.Margin = new Thickness(12, 24, 12, 24); list.Children.Add(empty); }
-        body.Children.Add(new Border { Margin = new Thickness(20, 0, 20, 20), BorderBrush = B("Line"), BorderThickness = new Thickness(1),
-            Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
+        body.Children.Add(new Border { Margin = new Thickness(24, 0, 24, 20), BorderBrush = B("Line"), BorderThickness = new Thickness(1),
+            Background = B("ListSurface"), CornerRadius = new CornerRadius(10), Child = list });
         if (manage) {
-            var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
+            var actions = new StackPanel { Margin = new Thickness(24, 0, 24, 24) };
             var add = Button(T(State.IsAddingAccount ? "cancel_add_account" : "add_account"), () => _ = Run(State.IsAddingAccount ? "cancelAdd" : "add"), State.IsAddingAccount ? "\uE711" : "\uE710");
-            var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 12, muted: true);
-            hint.ToolTip = hint.Text;
-            hint.Margin = new Thickness(8, 0, 0, 0);
-            var addRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-            addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            addRow.ColumnDefinitions.Add(new ColumnDefinition());
-            addRow.Children.Add(add); Grid.SetColumn(hint, 1); addRow.Children.Add(hint);
+            var addRow = new StackPanel { Orientation = Orientation.Horizontal };
+            addRow.Children.Add(add);
+            var addKey = Button(T("add_api_key"), () => Navigate("apiKey"));
+            addKey.Margin = new Thickness(8, 0, 0, 0);
+            addRow.Children.Add(addKey);
             actions.Children.Add(addRow);
+            var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 11, muted: true);
+            hint.TextWrapping = TextWrapping.Wrap;
+            hint.Margin = new Thickness(0, 8, 0, 14);
+            actions.Children.Add(hint);
             var register = Button(T("register_current_account"), () => _ = Run("register"));
             register.IsEnabled &= !State.IsAddingAccount; register.HorizontalAlignment = HorizontalAlignment.Left;
             actions.Children.Add(register); body.Children.Add(actions);
         }
+    }
+
+    private void APIKeyForm(StackPanel body)
+    {
+        var form = new StackPanel { Margin = new Thickness(24, 0, 24, 24) };
+        var name = new TextBox { Margin = new Thickness(0, 6, 0, 14), MaxLength = 100,
+            MinHeight = 34, Padding = new Thickness(8, 5, 8, 5), Background = B("ListSurface"),
+            BorderBrush = B("Line"), BorderThickness = new Thickness(1) };
+        AutomationProperties.SetName(name, T("api_key_name"));
+        form.Children.Add(Text(T("api_key_name")));
+        form.Children.Add(name);
+        var key = new PasswordBox { Margin = new Thickness(0, 6, 0, 14),
+            MinHeight = 34, Padding = new Thickness(8, 5, 8, 5), Background = B("ListSurface"),
+            BorderBrush = B("Line"), BorderThickness = new Thickness(1) };
+        AutomationProperties.SetName(key, T("api_key_secret"));
+        form.Children.Add(Text(T("api_key_secret")));
+        form.Children.Add(key);
+        var hint = Text(T("api_key_hint"), 11, muted: true);
+        hint.TextWrapping = TextWrapping.Wrap;
+        hint.Margin = new Thickness(0, 0, 0, 14);
+        form.Children.Add(hint);
+        var validation = Text("", 11, muted: true);
+        validation.Foreground = B("Error");
+        validation.Margin = new Thickness(0, 0, 0, 8);
+        form.Children.Add(validation);
+        var save = Button(T("save_api_key"), () => {
+            var label = name.Text.Trim();
+            var secret = key.Password.Trim();
+            if (label.Length == 0 || secret.Length == 0 || secret.Any(char.IsWhiteSpace)) {
+                validation.Text = T("api_key_invalid"); return;
+            }
+            key.Clear();
+            Navigate("manage");
+            _ = Run("addAPIKey", displayName: label, apiKey: secret);
+        });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(Button(T("cancel"), () => Navigate("manage")));
+        save.Margin = new Thickness(8, 0, 0, 0);
+        save.IsDefault = true;
+        buttons.Children.Add(save);
+        form.Children.Add(buttons);
+        body.Children.Add(form);
     }
 
     private string Reset(DateTimeOffset date, bool includeDate = true) => T("resets") + " " + date.ToLocalTime().ToString(includeDate ? "MMM d HH:mm" : "HH:mm", CultureInfo.CurrentCulture);

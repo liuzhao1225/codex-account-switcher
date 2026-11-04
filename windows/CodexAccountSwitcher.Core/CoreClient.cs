@@ -41,8 +41,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     }
 
     public Task InitializeAsync() => SendAsync(new { command = "initialize" });
-    public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null)
-        => SendAsync(new { command, accountID, value, language });
+    public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+        string? displayName = null, string? apiKey = null)
+        => SendAsync(new { command, accountID, value, language, displayName, apiKey });
 
     private async Task SendAsync(object command)
     {
@@ -106,7 +107,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
             switch (message.GetProperty("method").GetString()) {
                 case "openBrowser":
                     var url = new Uri(message.GetProperty("url").GetString()!);
-                    if (url.Scheme is not ("https" or "http")) throw new IOException("Invalid sign-in address.");
+                    if (!IsSafeSignInURL(url)) throw new IOException("Invalid sign-in address.");
                     using (Process.Start(new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true })) { }
                     break;
                 case "closeDesktop":
@@ -121,6 +122,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
         try { await WriteAsync(new { command = "platformReply", id = message.GetProperty("id").GetInt32(), error }); }
         catch (Exception) when (lifetime.IsCancellationRequested || process.HasExited) { }
     }
+
+    internal static bool IsSafeSignInURL(Uri url) =>
+        url.Scheme == Uri.UriSchemeHttps || (url.Scheme == Uri.UriSchemeHttp && url.IsLoopback);
 
     public async ValueTask DisposeAsync()
     {
