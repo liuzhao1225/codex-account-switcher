@@ -5,8 +5,11 @@ private struct Request: Decodable, Sendable {
     let id: Int
     let command: String
     var accountID: UUID?
+    var targetAccountID: UUID?
     var value: Bool?
     var language: String?
+    var displayName: String?
+    var apiKey: String?
     var error: String?
 }
 
@@ -69,7 +72,10 @@ private final class Host {
             let environment = ProcessInfo.processInfo.environment
             let store = AccountStore(baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) })
             let codex = CodexClient(openBrowser: { [self] url in
-                guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+                let scheme = url.scheme?.lowercased()
+                let host = url.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).lowercased()
+                let localHTTP = scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(host ?? "")
+                guard scheme == "https" || localHTTP else {
                     throw HostError.message("Unsupported sign-in URL.")
                 }
                 try await platform("openBrowser", url: url)
@@ -88,12 +94,22 @@ private final class Host {
         case "add": model.addAccount()
         case "cancelAdd": model.cancelAddingAccount()
         case "register": await model.registerCurrentAccount()
+        case "addAPIKey":
+            guard let name = request.displayName, let key = request.apiKey else {
+                throw HostError.message("Missing API key or name.")
+            }
+            await model.addAPIKey(displayName: name, key: key)
         case "switch":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.switchAccount(to: id)
         case "remove":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.removeAccount(id: id)
+        case "move":
+            guard let id = request.accountID, let targetID = request.targetAccountID else {
+                throw HostError.message("Missing account ID.")
+            }
+            await model.moveAccount(id: id, to: targetID)
         case "language":
             guard let raw = request.language, let language = AppLanguage(rawValue: raw) else {
                 throw HostError.message("Invalid language.")

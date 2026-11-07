@@ -288,6 +288,17 @@ open class AccountController {
         } catch { showError(error) }
     }
 
+    public func addAPIKey(displayName: String, key: String) async {
+        guard !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false; refreshWeeklyUsage() }
+        do {
+            try await store.addAPIKeyProfile(displayName: displayName, key: key)
+            apply(try await store.loadRegistry())
+            visibleError = nil
+        } catch { showError(error) }
+    }
+
     public func removeAccount(id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
@@ -301,6 +312,17 @@ open class AccountController {
         } catch {
             showError(error)
         }
+    }
+
+    public func moveAccount(id: UUID, to targetID: UUID) async {
+        guard !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        do {
+            try await store.moveAccount(id: id, to: targetID)
+            apply(try await store.loadRegistry())
+            visibleError = nil
+        } catch { showError(error) }
     }
 
     public func setLanguage(_ language: AppLanguage) async {

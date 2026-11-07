@@ -170,6 +170,9 @@ public struct AccountIdentity: Equatable, Sendable {
     public init(accountID: String?, email: String?) { self.accountID = accountID; self.email = email }
 
     public var suggestedDisplayName: String {
+        if let accountID, accountID.hasPrefix("api-key:") {
+            return "API Key " + String(accountID.dropFirst("api-key:".count).prefix(6))
+        }
         guard let email, let localPart = email.split(separator: "@").first else {
             return "Codex Account"
         }
@@ -240,6 +243,7 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case activeCredentialMismatch
     case targetCredentialMissing
     case duplicateAccount
+    case invalidAPIKeyProfile
     case cannotRemoveActiveAccount
 
     public var errorDescription: String? {
@@ -256,6 +260,8 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "The selected account has no saved auth.json file."
         case .duplicateAccount:
             "This account is already saved. Select the existing account instead."
+        case .invalidAPIKeyProfile:
+            "Enter a name and an API key without spaces."
         case .cannotRemoveActiveAccount:
             "The active account cannot be removed."
         }

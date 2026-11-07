@@ -2,11 +2,23 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <bcrypt.h>
 #include <sddl.h>
 #include <aclapi.h>
 #include <objbase.h>
 #include <wchar.h>
 #include <stdlib.h>
+
+uint32_t switcher_sha256(const void *bytes, size_t count, uint8_t digest[32]) {
+    if (!bytes || !digest || count > UINT32_MAX) return ERROR_INVALID_PARAMETER;
+    BCRYPT_ALG_HANDLE algorithm = NULL;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, NULL, 0);
+    if (status >= 0) {
+        status = BCryptHash(algorithm, NULL, 0, (PUCHAR)bytes, (ULONG)count, digest, 32);
+        BCryptCloseAlgorithmProvider(algorithm, 0);
+    }
+    return status >= 0 ? 0 : (uint32_t)status;
+}
 
 static wchar_t *wide_path(const char *path) {
     int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);

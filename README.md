@@ -42,7 +42,7 @@
 
 <p align="center">Created and maintained by <a href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">Zhao Liu (GitHub: liuzhao1225)</a> · <a href="https://x.com/liuzhao_666">X</a> · <a href="https://space.bilibili.com/1263732318">Bilibili</a></p>
 
-Codex Account Switcher is a free, open-source app for managing multiple authorized Codex accounts on macOS and Windows. Add personal, work, or client accounts through the browser once, then choose the account you need in the app. The everyday workflow requires no coding knowledge, Terminal commands, copied tokens, or config-file editing.
+Codex Account Switcher is a free, open-source app for managing multiple authorized Codex accounts on macOS and Windows. Add personal, work, or client accounts through browser sign-in, or save an API key profile, then choose the account you need in the app. Browser sign-in requires no coding knowledge, Terminal commands, copied tokens, or config-file editing.
 
 After you select and confirm an account, the app closes Codex Desktop, completes the account handoff, verifies the selected identity, and reopens Desktop. Saved account data stays on your computer. The app runs without its own proxy, traffic router, cloud account service, or automatic account rotation.
 
@@ -101,6 +101,7 @@ Run `codex-account-switcher update` to update, `open` to launch, or `uninstall` 
 | Feature | What it gives you |
 | --- | --- |
 | **No-code setup** | Add accounts through the normal browser sign-in flow, with no Terminal commands or config files. |
+| **API key profiles** | Save a named API key on either platform and switch to it like another account. ChatGPT usage limits may be unavailable for key profiles. |
 | **Native account controls** | Use the macOS menu bar or a Windows window with a system-tray entry point. |
 | **Completed Desktop handoff** | Select and confirm an account, then let the app close, switch, verify, and reopen Codex Desktop. |
 | **Local account storage** | Keep saved account data on your computer without an app-owned proxy or cloud account service. |
@@ -113,7 +114,7 @@ Run `codex-account-switcher update` to update, `open` to launch, or `uninstall` 
 ## How it works
 
 1. **Download for your platform:** install the macOS DMG or run the portable Windows EXE.
-2. **Add each account once:** complete the familiar browser sign-in; the app derives the account name from the login identity.
+2. **Add each account once:** complete browser sign-in or choose Add API Key in Manage Accounts and enter a name and key.
 3. **Choose and continue:** select an account in the app, confirm, and let the app reopen Codex Desktop.
 
 Existing terminal processes keep their current runtime state. Start a new Codex CLI process to use the newly selected account.
@@ -129,6 +130,7 @@ Comparisons with other account switchers are welcome. Please describe the workfl
 - Saved account data stays in user-only local directories on your computer.
 - The macOS Tibo outlook makes periodic public GET requests to codex-reset.com while the app runs. It sends no saved account details or credentials. If the public data is missing, stale, or invalid, the forecast appears unavailable.
 - Each saved profile contains a complete, reusable `auth.json` credential snapshot. macOS uses mode `0700` for profile directories and `0600` for credentials; Windows uses current-user ACLs. Both platforms replace credential files atomically.
+- API key profiles store the key in their saved `auth.json` because Codex reads that file when the profile is active. Saved copies are restricted to the current user, but they are not encrypted with Windows Credential Manager or macOS Keychain. The active Codex `auth.json` is managed separately by Codex and may have different permissions.
 - Local file permissions define the current security boundary. User backups, filesystem snapshots, cloud backup tools, endpoint software, and other processes with access to the user's files may copy the saved credential snapshots.
 - Removing an account performs ordinary filesystem deletion. The app makes no secure-erasure guarantee for SSD storage, APFS snapshots, or backups.
 - Both platforms use file-backed credential storage; macOS does not store profile credentials in Keychain.

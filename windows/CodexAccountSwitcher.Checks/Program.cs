@@ -1,6 +1,10 @@
 using System.Security.AccessControl;
 using CodexAccountSwitcher.Core;
 
+Require(CoreClient.IsSafeSignInURL(new Uri("https://auth.openai.com/login")), "HTTPS sign-in must be accepted.");
+Require(CoreClient.IsSafeSignInURL(new Uri("http://127.0.0.1:1455/callback")), "Loopback HTTP callback must be accepted.");
+Require(!CoreClient.IsSafeSignInURL(new Uri("http://example.com/login")), "Remote plain-HTTP sign-in must be rejected.");
+
 if (args.FirstOrDefault() == "app-server") {
     await RpcFixture.RunAsync();
     return 0;
