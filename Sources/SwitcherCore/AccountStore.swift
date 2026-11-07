@@ -334,6 +334,18 @@ public actor AccountStore: AccountStoring {
         }
     }
 
+    public func moveAccount(id: UUID, to targetID: UUID) throws {
+        var current = try loadRegistry()
+        guard let source = current.accounts.firstIndex(where: { $0.id == id }),
+              let destination = current.accounts.firstIndex(where: { $0.id == targetID }) else {
+            throw AccountStoreError.profileNotFound
+        }
+        guard source != destination else { return }
+        let profile = current.accounts.remove(at: source)
+        current.accounts.insert(profile, at: destination)
+        try saveRegistry(current)
+    }
+
     public func saveCurrentCredential() throws {
         let current = try loadRegistry()
         guard let activeID = current.activeAccountID else {

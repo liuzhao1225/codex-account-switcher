@@ -314,6 +314,17 @@ open class AccountController {
         }
     }
 
+    public func moveAccount(id: UUID, to targetID: UUID) async {
+        guard !isMutating, !isAddingAccount else { return }
+        isMutating = true
+        defer { isMutating = false }
+        do {
+            try await store.moveAccount(id: id, to: targetID)
+            apply(try await store.loadRegistry())
+            visibleError = nil
+        } catch { showError(error) }
+    }
+
     public func setLanguage(_ language: AppLanguage) async {
         settings.language = language
         do {

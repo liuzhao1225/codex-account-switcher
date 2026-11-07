@@ -4,6 +4,31 @@ import Testing
 
 @MainActor
 struct AccountControllerTests {
+    @Test func accountOrderCanMoveBothDirectionsAndSurvivesRestart() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        let profiles = (1...3).map { index in
+            AccountProfile(id: UUID(), displayName: "Account \(index)", email: nil,
+                           accountID: "account-\(index)", createdAt: Date())
+        }
+        for profile in profiles {
+            let home = try await fixture.store.createProfileDirectory(id: profile.id)
+            try Data("fixture".utf8).write(to: home.appendingPathComponent("auth.json"))
+            try await fixture.store.addProfile(profile)
+        }
+        try await fixture.store.moveAccount(id: profiles[2].id, to: profiles[0].id)
+        #expect(try await fixture.store.loadRegistry().accounts.map(\.id) ==
+                [profiles[2].id, profiles[0].id, profiles[1].id])
+        try await fixture.store.moveAccount(id: profiles[2].id, to: profiles[1].id)
+        #expect(try await fixture.store.loadRegistry().accounts.map(\.id) ==
+                [profiles[0].id, profiles[1].id, profiles[2].id])
+        await #expect(throws: AccountStoreError.profileNotFound) {
+            try await fixture.store.moveAccount(id: UUID(), to: profiles[0].id)
+        }
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.loadRegistry().accounts.map(\.id) == profiles.map(\.id))
+    }
+
     @Test func firstActivationInstallsAndCommitsTheSavedAccount() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }

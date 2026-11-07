@@ -91,6 +91,8 @@ internal static class Program
             Assert(All<TextBlock>(window).Any(text => text.Text.Contains("强制结束") && text.Text.Contains("未保存的状态可能丢失")),
                 "Windows confirmation must explain forced termination before switching.");
             window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
+            Assert(All<TextBlock>(window).Count(text => System.Windows.Automation.AutomationProperties.GetName(text) == client.State.Text("drag_to_reorder")) == 2,
+                "Every managed account must expose a drag handle.");
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "Personal" or "Studio"), "Manage must not duplicate the email with a display-name row.");
             var addHint = All<TextBlock>(window).Single(text => text.Text == client.State.Text("sign_in_hint"));
@@ -184,6 +186,7 @@ internal static class Program
                 ["subscription_until"] = "有效期：%@", ["subscription_snapshot"] = "登录快照", ["subscription_old_snapshot"] = "旧登录快照",
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
+                ["reorder_accounts"] = "拖动把手以调整账号顺序。", ["drag_to_reorder"] = "拖动以调整顺序",
                 ["add_api_key"] = "添加 API 密钥", ["api_key_name"] = "名称", ["api_key_secret"] = "API 密钥",
                 ["api_key_hint"] = "密钥仅保存在这台电脑上。这里可能无法显示 API 密钥用量。",
                 ["api_key_invalid"] = "请输入名称和不含空格的 API 密钥。", ["save_api_key"] = "保存 API 密钥",
@@ -199,7 +202,7 @@ internal static class Program
             });
         }
         public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
-            string? displayName = null, string? apiKey = null) {
+            string? displayName = null, string? apiKey = null, Guid? targetAccountID = null) {
             Commands.Add(command + ":" + value); return Task.CompletedTask;
         }
     }

@@ -5,6 +5,7 @@ private struct Request: Decodable, Sendable {
     let id: Int
     let command: String
     var accountID: UUID?
+    var targetAccountID: UUID?
     var value: Bool?
     var language: String?
     var displayName: String?
@@ -104,6 +105,11 @@ private final class Host {
         case "remove":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.removeAccount(id: id)
+        case "move":
+            guard let id = request.accountID, let targetID = request.targetAccountID else {
+                throw HostError.message("Missing account ID.")
+            }
+            await model.moveAccount(id: id, to: targetID)
         case "language":
             guard let raw = request.language, let language = AppLanguage(rawValue: raw) else {
                 throw HostError.message("Invalid language.")
