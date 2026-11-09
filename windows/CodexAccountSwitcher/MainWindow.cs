@@ -314,8 +314,8 @@ public sealed class MainWindow : Window
         var usageWindowRow = Pair(Text(T("status_bar_usage_window")), usageWindow);
         usageWindowRow.Height = 48; settings.Children.Add(usageWindowRow);
         Toggle(T("show_five_hour_usage"), State.Settings.ShowsFiveHourUsage, value => _ = Run("fiveHour", value: value));
-        var languages = new[] { "system", "english", "simplifiedChinese" };
-        var language = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = new[] { T("system_default"), T("english"), T("simplified_chinese") }, SelectedIndex = Array.IndexOf(languages, State.Settings.Language) };
+        var languages = new[] { "system", "english", "simplifiedChinese", "italian" };
+        var language = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = new[] { T("system_default"), T("english"), T("simplified_chinese"), T("italian") }, SelectedIndex = Array.IndexOf(languages, State.Settings.Language) };
         language.SelectionChanged += (_, _) => { if (language.SelectedIndex >= 0) _ = Run("language", language: languages[language.SelectedIndex]); };
         var languageRow = Pair(Text(T("language")), language); languageRow.Height = 48; settings.Children.Add(languageRow);
         var experimentHeading = Text(T("settings_automation"), 14, bold: true); experimentHeading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(experimentHeading);

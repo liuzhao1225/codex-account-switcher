@@ -4,6 +4,17 @@ import Testing
 
 @MainActor
 struct AccountControllerTests {
+    @Test func italianLanguageResolvesFromSystemAndCanBeSelected() throws {
+        #expect(L10n.systemLanguage(for: "it-IT") == .italian)
+        #expect(L10n.systemLanguage(for: "IT_it") == .italian)
+        #expect(L10n.systemLanguage(for: "zh-Hans-CN") == .simplifiedChinese)
+        #expect(L10n.systemLanguage(for: "en-US") == .english)
+        #expect(L10n.string("manage", language: .italian) == "Gestisci account")
+        #expect(L10n.string("switch_title", language: .italian) == "Passare a %@?")
+        let restored = try JSONDecoder().decode(AppLanguage.self, from: JSONEncoder().encode(AppLanguage.italian))
+        #expect(restored == .italian)
+    }
+
     @Test func accountOrderCanMoveBothDirectionsAndSurvivesRestart() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }

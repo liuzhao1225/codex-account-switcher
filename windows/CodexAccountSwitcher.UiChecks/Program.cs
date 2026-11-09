@@ -110,6 +110,8 @@ internal static class Program
             Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("save_api_key")),
                 "API key entry needs a clear save action.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
+            var languagePicker = All<ComboBox>(window).Single(box => box.Items.Count == 4);
+            Assert(languagePicker.Items[3] as string == "Italiano", "Settings must offer Italian as an explicit language choice.");
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.Single() == "fiveHour:True", "Settings must save immediately.");
@@ -118,6 +120,8 @@ internal static class Program
             experiment.IsChecked = true; experiment.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.SequenceEqual(new[] { "fiveHour:True", "autoReset:True" }),
                 "The auto-reset toggle must send the setting to the shared host.");
+            languagePicker.SelectedIndex = 3;
+            Assert(client.Commands.Last() == "language:italian", "Selecting Italian must reach the shared host.");
             Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("auto_reset_hint")),
                 "Settings must disclose real reset consumption and runtime requirements.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "保存" or "Save"), "Settings must not have a Save flow.");
@@ -195,7 +199,7 @@ internal static class Program
                 ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
                 ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
                 ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["status_bar_usage_window"] = "托盘用量周期", ["language"] = "语言",
-                ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
+                ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["italian"] = "Italiano", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
@@ -203,7 +207,7 @@ internal static class Program
         }
         public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
             string? displayName = null, string? apiKey = null, Guid? targetAccountID = null) {
-            Commands.Add(command + ":" + value); return Task.CompletedTask;
+            Commands.Add(command + ":" + (language ?? value?.ToString())); return Task.CompletedTask;
         }
     }
 }

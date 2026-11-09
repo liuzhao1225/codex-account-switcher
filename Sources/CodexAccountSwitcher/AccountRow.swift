@@ -184,9 +184,14 @@ struct AccountRow: View {
             Locale(identifier: "zh_CN")
         case .english:
             Locale(identifier: "en_US")
+        case .italian:
+            Locale(identifier: "it_IT")
         case .system:
-            Locale.preferredLanguages.first?.hasPrefix("zh") == true
-                ? Locale(identifier: "zh_CN") : .autoupdatingCurrent
+            switch L10n.systemLanguage(for: Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier) {
+            case .simplifiedChinese: Locale(identifier: "zh_CN")
+            case .italian: Locale(identifier: "it_IT")
+            case .english, .system: .autoupdatingCurrent
+            }
         }
     }
 

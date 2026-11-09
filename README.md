@@ -109,7 +109,7 @@ Run `codex-account-switcher update` to update, `open` to launch, or `uninstall` 
 | **Reset count and plan date** | See the saved subscription date on the left and available rate-limit reset count on the right of one compact row. Dates use `YYYY-MM-DD`; hover over a date for its login-snapshot source and check time. Missing values remain unknown. |
 | **Extra-reset forecast (macOS)** | A single menu bar row shows a reset icon, the Tibo reset forecast label, two compact 24/48-hour probability boxes and an external-link arrow using the independent site’s experimental forecast. Click the entry to open [codex-reset.com](https://codex-reset.com/) for announcements, history and details. These estimates are not an OpenAI reset schedule or proof that a reset reached your account. |
 | **Use resets before expiry** | Opt in to use expiring resets for all saved accounts, including inactive accounts, starting 10 minutes before expiry. Keep the app running and computer awake; real outcomes and usage readback remain in local logs. |
-| **Native apps on both platforms** | SwiftUI on macOS and WPF on Windows, with English and Simplified Chinese interfaces. |
+| **Native apps on both platforms** | SwiftUI on macOS and WPF on Windows, with English, Simplified Chinese, and Italian interfaces. System Default follows the computer's preferred display language when supported. |
 
 ## How it works
 
