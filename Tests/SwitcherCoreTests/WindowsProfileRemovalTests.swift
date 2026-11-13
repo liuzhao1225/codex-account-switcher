@@ -85,14 +85,7 @@ struct WindowsProfileRemovalTests {
         let sentinel = external.appending(path: "keep.txt")
         try Data("must survive".utf8).write(to: sentinel)
         let junction = home.appending(path: "linked-cache")
-        let command = Process()
-        command.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["COMSPEC"] ?? "C:\\Windows\\System32\\cmd.exe")
-        command.arguments = ["/d", "/c", "mklink", "/J", junction.path, external.path]
-        command.standardOutput = FileHandle.nullDevice
-        command.standardError = FileHandle.nullDevice
-        try command.run()
-        command.waitUntilExit()
-        try #require(command.terminationStatus == 0)
+        try fixture.createJunction(junction, to: external)
         defer { _ = fixture.wide(junction) { RemoveDirectoryW($0) } }
 
         await #expect(throws: (any Error).self) {
@@ -111,8 +104,8 @@ private struct RemovalFixture {
     let base: URL
     let live: URL
     let store: AccountStore
-    let active = AccountProfile(id: UUID(), displayName: "Active", email: "active@example.test", accountID: "active", createdAt: Date())
-    let target = AccountProfile(id: UUID(), displayName: "Inactive", email: "inactive@example.test", accountID: "inactive", createdAt: Date())
+    let active = AccountProfile(id: UUID(), displayName: "Active", email: "active@example.test", accountID: "active", createdAt: Date(timeIntervalSince1970: 1_700_000_000))
+    let target = AccountProfile(id: UUID(), displayName: "Inactive", email: "inactive@example.test", accountID: "inactive", createdAt: Date(timeIntervalSince1970: 1_700_000_001))
     let activeCredential = Data(#"{"tokens":{"account_id":"active","access_token":"synthetic-active"}}"#.utf8)
     let targetCredential = Data(#"{"tokens":{"account_id":"inactive","access_token":"synthetic-inactive"}}"#.utf8)
 
@@ -168,6 +161,41 @@ private struct RemovalFixture {
         CloseHandle(try open(file, create: true))
         if readOnly, !wide(file, { SetFileAttributesW($0, DWORD(FILE_ATTRIBUTE_READONLY)) }) { throw winError() }
         return file
+    }
+
+    // Mount-point junctions do not require Developer Mode or symlink privileges.
+    // Build REPARSE_DATA_BUFFER explicitly so the test does not depend on cmd.exe
+    // quoting or on Foundation's treatment of Windows path separators.
+    func createJunction(_ junction: URL, to target: URL) throws {
+        guard wide(junction, { CreateDirectoryW($0, nil) }) else { throw winError() }
+        let handle = wide(junction) {
+            CreateFileW($0, DWORD(GENERIC_WRITE), 0, nil, DWORD(OPEN_EXISTING),
+                        DWORD(FILE_FLAG_OPEN_REPARSE_POINT) | DWORD(FILE_FLAG_BACKUP_SEMANTICS), nil)
+        }
+        guard let handle, handle != INVALID_HANDLE_VALUE else { throw winError() }
+        defer { CloseHandle(handle) }
+        let path = target.path.replacingOccurrences(of: "/", with: "\\")
+        let substitute = Array(("\\??\\" + path + "\0").utf16)
+        let printName = Array((path + "\0").utf16)
+        var buffer = Data()
+        func append<T: FixedWidthInteger>(_ value: T) {
+            var littleEndian = value.littleEndian
+            withUnsafeBytes(of: &littleEndian) { buffer.append(contentsOf: $0) }
+        }
+        append(UInt32(0xA0000003)) // IO_REPARSE_TAG_MOUNT_POINT
+        append(UInt16(8 + 2 * (substitute.count + printName.count)))
+        append(UInt16(0)) // Reserved
+        append(UInt16(0)) // SubstituteNameOffset
+        append(UInt16(2 * (substitute.count - 1)))
+        append(UInt16(2 * substitute.count)) // PrintNameOffset
+        append(UInt16(2 * (printName.count - 1)))
+        for character in substitute + printName { append(character) }
+        var returned: DWORD = 0
+        let success = buffer.withUnsafeMutableBytes { bytes in
+            DeviceIoControl(handle, DWORD(0x000900A4), bytes.baseAddress, DWORD(bytes.count),
+                            nil, 0, &returned, nil) // FSCTL_SET_REPARSE_POINT
+        }
+        guard success else { throw winError() }
     }
 
     func winError() -> NSError { NSError(domain: "WindowsProfileRemovalTests", code: Int(GetLastError())) }
