@@ -404,16 +404,11 @@ public actor AccountStore: AccountStoring {
 
     private func removeProfileDirectory(_ path: URL) throws {
         #if os(Windows)
-        func checkTree(_ directory: URL) throws {
-            try checkPath(directory)
-            for child in try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) {
-                try checkPath(child)
-                if try child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true { try checkTree(child) }
-            }
-        }
-        try checkTree(path)
-        #endif
+        let error = switcher_remove_directory(path.path)
+        guard error == 0 else { throw windowsError(error) }
+        #else
         try fileManager.removeItem(at: path)
+        #endif
     }
 
     private func secureAtomicWrite(_ bytes: Data, to destination: URL) throws {
