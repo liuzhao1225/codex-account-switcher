@@ -10,8 +10,10 @@
   <SolidColorBrush x:Key="Accent" Color="#0067C0"/>
   <SolidColorBrush x:Key="Selected" Color="#E2EEFA"/>
   <SolidColorBrush x:Key="Hover" Color="#0C000000"/>
+  <SolidColorBrush x:Key="Avatar" Color="#E9EEF4"/>
+  <SolidColorBrush x:Key="Error" Color="#B3261E"/>
   <Style TargetType="Window">
-   <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI"/>
+   <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Microsoft YaHei UI"/>
    <Setter Property="FontSize" Value="13"/>
    <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
   </Style>
@@ -22,7 +24,7 @@
    <Setter Property="Padding" Value="16,12"/>
    <Setter Property="Background" Value="Transparent"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-    <Border x:Name="Row" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+    <Border x:Name="Row" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="8">
      <ContentPresenter/>
     </Border>
     <ControlTemplate.Triggers>

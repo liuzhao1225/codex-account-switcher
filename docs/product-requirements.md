@@ -17,7 +17,7 @@ The user should understand the product after opening the menu once. The main pat
 - account switching;
 - add account;
 - remove inactive account;
-- English and Simplified Chinese UI.
+- English, Simplified Chinese, and Italian UI.
 
 ### Out of scope
 
@@ -52,7 +52,7 @@ As a user, I can remove an inactive local profile from Manage Accounts.
 
 ### US-5: Change language
 
-As a user, I can choose System Default, English, or Simplified Chinese.
+As a user, I can choose System Default, English, Simplified Chinese, or Italian. System Default follows the first supported preferred display language.
 
 ## 4. Menu-bar trigger
 

@@ -90,6 +90,34 @@ struct CredentialSyncTests {
         }
     }
 
+    @Test func apiKeyIdentityUsesStableFingerprintWithoutExposingSecret() throws {
+        let credential = Data(#"{"auth_mode":"apikey","OPENAI_API_KEY":"abc"}"#.utf8)
+        let identity = try #require(try CredentialIdentity.decode(credential))
+        #expect(identity.accountID == "api-key:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(identity.email == nil)
+        #expect(!identity.suggestedDisplayName.contains("abc"))
+        #expect(throws: CodexClientError.identityUnavailable) {
+            try CredentialIdentity.decode(Data(#"{"auth_mode":"apikey"}"#.utf8))
+        }
+    }
+
+    @Test func apiKeyProfileCanBeSavedAndRecognizedAsActive() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        try await fixture.store.addAPIKeyProfile(displayName: "Development", key: "test-secret")
+        let registry = try await fixture.store.loadRegistry()
+        let profile = try #require(registry.accounts.first)
+        #expect(profile.displayName == "Development")
+        #expect(profile.email == nil)
+        #expect(profile.accountID?.hasPrefix("api-key:") == true)
+        let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
+        try Data(contentsOf: saved).write(to: fixture.auth)
+        #expect(try await fixture.store.syncActiveCredential().activeAccountID == profile.id)
+        await #expect(throws: AccountStoreError.duplicateAccount) {
+            try await fixture.store.addAPIKeyProfile(displayName: "Duplicate", key: "test-secret")
+        }
+    }
+
     @Test @MainActor func usageRefreshReadsTheUpdatedSavedCopy() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }

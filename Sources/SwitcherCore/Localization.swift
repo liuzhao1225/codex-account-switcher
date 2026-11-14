@@ -7,16 +7,19 @@ public enum L10n {
         Dictionary(uniqueKeysWithValues: (tables[.english] ?? [:]).keys.map { ($0, string($0, language: language)) })
     }
     public static func string(_ key: String, language: AppLanguage) -> String {
-        let resolved: AppLanguage
-        switch language {
-        case .system:
-            resolved = Locale.preferredLanguages.first?.hasPrefix("zh") == true
-                ? .simplifiedChinese
-                : .english
-        case .english, .simplifiedChinese:
-            resolved = language
-        }
+        let resolved = language == .system
+            ? systemLanguage(for: Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier)
+            : language
         return tables[resolved]?[key] ?? tables[.english]?[key] ?? key
+    }
+
+    static func systemLanguage(for identifier: String) -> AppLanguage {
+        let code = identifier.split(whereSeparator: { $0 == "-" || $0 == "_" }).first?.lowercased()
+        switch code {
+        case "zh": return .simplifiedChinese
+        case "it": return .italian
+        default: return .english
+        }
     }
 
     private static let tables: [AppLanguage: [String: String]] = [
@@ -63,8 +66,16 @@ public enum L10n {
             "cancel": "Cancel",
             "switch": "Switch Account",
             "accounts": "Accounts",
+            "reorder_accounts": "Drag the handle to reorder accounts.",
+            "drag_to_reorder": "Drag to reorder",
             "back": "Back",
             "add_account": "Add Account",
+            "add_api_key": "Add API Key",
+            "api_key_name": "Name",
+            "api_key_secret": "API Key",
+            "api_key_hint": "The key is saved only on this computer. API key usage limits may be unavailable here.",
+            "api_key_invalid": "Enter a name and an API key without spaces.",
+            "save_api_key": "Save API Key",
             "cancel_add_account": "Cancel Adding Account",
             "remove": "Remove",
             "active": "Active",
@@ -81,6 +92,7 @@ public enum L10n {
             "system_default": "System Default",
             "english": "English",
             "simplified_chinese": "简体中文",
+            "italian": "Italiano",
             "sign_in_hint": "A browser window will open for Codex sign-in.",
             "sign_in_pending_hint": "Complete sign-in in the browser, or cancel here if you closed it.",
             "no_accounts": "No saved accounts",
@@ -135,8 +147,16 @@ public enum L10n {
             "cancel": "取消",
             "switch": "切换账号",
             "accounts": "账号",
+            "reorder_accounts": "拖动把手以调整账号顺序。",
+            "drag_to_reorder": "拖动以调整顺序",
             "back": "返回",
             "add_account": "添加账号",
+            "add_api_key": "添加 API 密钥",
+            "api_key_name": "名称",
+            "api_key_secret": "API 密钥",
+            "api_key_hint": "密钥仅保存在这台电脑上。这里可能无法显示 API 密钥用量。",
+            "api_key_invalid": "请输入名称和不含空格的 API 密钥。",
+            "save_api_key": "保存 API 密钥",
             "cancel_add_account": "取消添加账号",
             "remove": "移除",
             "active": "当前",
@@ -153,6 +173,7 @@ public enum L10n {
             "system_default": "跟随系统",
             "english": "English",
             "simplified_chinese": "简体中文",
+            "italian": "Italiano",
             "sign_in_hint": "将打开浏览器进行 Codex 登录。",
             "sign_in_pending_hint": "请在浏览器完成登录；如果已关闭页面，可在此取消。",
             "no_accounts": "暂无已保存账号",
@@ -163,6 +184,87 @@ public enum L10n {
             "active_unconfirmed": "无法确认当前账号",
             "switched_reopen_title": "账号已切换",
             "switched_reopen_message": "所选账号已经生效，但 Codex Desktop 未能重新打开。请手动打开 Codex 继续使用。",
+        ],
+        .italian: [
+            "settings_general": "Generali",
+            "settings_automation": "Automazione",
+            "auto_reset": "Usa i reset prima della scadenza",
+            "auto_reset_hint": "Usa i reset degli account salvati 10 minuti prima della scadenza. Tieni l'app aperta e il computer attivo.",
+            "open_reset_log": "Apri cartella dei log",
+            "settings_updates": "Aggiornamenti software",
+            "update_available": "Versione %@ disponibile",
+            "update_action": "Aggiorna…",
+            "update_installing": "Installazione…",
+            "current_version": "Versione %@",
+            "check_for_updates": "Verifica aggiornamenti",
+            "automatically_check_updates": "Verifica automaticamente gli aggiornamenti",
+            "update_check_hint": "Controlla ogni ora. Un punto blu indica una nuova versione.",
+            "update_check_failed": "Verifica degli aggiornamenti non riuscita.",
+            "usage": "Utilizzo",
+            "five_hour": "5 h",
+            "weekly": "7 gg",
+            "usage_unavailable": "Utilizzo non disponibile",
+            "reset_credits": "Reset disponibili",
+            "subscription_until": "Valido fino al: %@",
+            "subscription_unknown": "Validità: sconosciuta",
+            "subscription_snapshot": "dati del login salvato",
+            "subscription_old_snapshot": "dati di un vecchio login",
+            "subscription_detail": "Ultima verifica: %@. È il periodo di abbonamento riportato nel login salvato, non una data di fatturazione o rinnovo aggiornata. Verifica le modifiche nella sezione Fatturazione di ChatGPT.",
+            "unknown": "Sconosciuto",
+            "tibo_title": "Previsione reset Tibo",
+            "tibo_source_hint": "Previsione sperimentale di codex-reset.com. Apri la fonte per i dettagli.",
+            "tibo_loading": "Caricamento previsione…",
+            "tibo_unavailable": "Previsione pubblica non disponibile",
+            "tibo_24h": "24 h",
+            "tibo_48h": "48 h",
+            "left": "% rimanente",
+            "resets": "Ripristino:",
+            "manage": "Gestisci account",
+            "settings": "Impostazioni",
+            "quit": "Esci",
+            "switch_title": "Passare a %@?",
+            "switch_body_windows": "Codex Desktop e i suoi processi secondari verranno terminati forzatamente, poi Desktop verrà riaperto. Le attività in corso saranno interrotte e i dati non salvati potrebbero andare persi. Completa o interrompi le attività di Desktop prima di cambiare account. Le sessioni CLI avviate separatamente restano aperte; le nuove sessioni CLI useranno l'account selezionato.",
+            "switch_body": "Codex Desktop verrà chiuso e riaperto. Completa o interrompi prima le attività di Desktop in corso. Se Desktop chiede di uscire, conferma la richiesta. Se Desktop non si chiude normalmente, il cambio account si interrompe. Le sessioni CLI esistenti restano aperte; quelle nuove useranno l'account selezionato.",
+            "cancel": "Annulla",
+            "switch": "Cambia account",
+            "accounts": "Account",
+            "reorder_accounts": "Trascina la maniglia per riordinare gli account.",
+            "drag_to_reorder": "Trascina per riordinare",
+            "back": "Indietro",
+            "add_account": "Aggiungi account",
+            "add_api_key": "Aggiungi chiave API",
+            "api_key_name": "Nome",
+            "api_key_secret": "Chiave API",
+            "api_key_hint": "La chiave viene salvata solo su questo computer. I limiti di utilizzo della chiave API potrebbero non essere disponibili qui.",
+            "api_key_invalid": "Inserisci un nome e una chiave API senza spazi.",
+            "save_api_key": "Salva chiave API",
+            "cancel_add_account": "Annulla aggiunta account",
+            "remove": "Rimuovi",
+            "active": "Attivo",
+            "remove_title": "Rimuovere %@?",
+            "remove_body": "Questa operazione rimuove solo il profilo locale salvato su questo Mac.",
+            "launch_at_login": "Avvia all'accesso",
+            "launch_at_login_requires_approval": "È necessaria l'autorizzazione nelle Impostazioni di Sistema.",
+            "launch_at_login_unavailable": "macOS non trova questo elemento di login.",
+            "open_system_settings": "Apri Impostazioni di Sistema",
+            "show_menu_bar_percentage": "Mostra percentuale nella barra dei menu",
+            "status_bar_usage_window": "Utilizzo nella barra di stato",
+            "show_five_hour_usage": "Mostra utilizzo su 5 ore",
+            "language": "Lingua",
+            "system_default": "Lingua di sistema",
+            "english": "English",
+            "simplified_chinese": "简体中文",
+            "italian": "Italiano",
+            "sign_in_hint": "Si aprirà una finestra del browser per accedere a Codex.",
+            "sign_in_pending_hint": "Completa l'accesso nel browser oppure annulla qui se hai chiuso la finestra.",
+            "no_accounts": "Nessun account salvato",
+            "ok": "OK",
+            "operation_failed": "Operazione non riuscita",
+            "switch_failed": "Cambio account non riuscito",
+            "register_current_account": "Registra account attuale",
+            "active_unconfirmed": "Impossibile verificare l'account attivo",
+            "switched_reopen_title": "Account cambiato",
+            "switched_reopen_message": "L'account selezionato è attivo, ma Codex Desktop non è stato riaperto. Apri Codex manualmente per continuare.",
         ],
     ]
 }

@@ -24,10 +24,10 @@ struct AccountRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(verbatim: accountTitle)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .help(accountTitle)
+                        .help(accountTitle + "\n" + subscriptionDetail)
                     Spacer(minLength: 4)
                     if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))
@@ -45,25 +45,22 @@ struct AccountRow: View {
                 }
 
                 usageContent
-                HStack(spacing: 8) {
-                    Text(subscriptionText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .help(subscriptionDetail)
-                    if let usage = usageState.displayedUsage {
-                        Text(resetCreditsText(for: usage))
-                            .fixedSize(horizontal: true, vertical: false)
-                    }
-                }
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
+            if isActive {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityLabel(L10n.string("active", language: language))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(minHeight: 50)
         .padding(.horizontal, 8)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .contentShape(Rectangle())
         .background(
             rowBackground,
@@ -181,34 +178,21 @@ struct AccountRow: View {
         resetText(for: usage.resetsAt, includesDate: true)
     }
 
-    private func resetCreditsText(for usage: WeeklyUsage) -> String {
-        let count = usage.resetCreditsRemaining.map(String.init)
-            ?? L10n.string("unknown", language: language)
-        return "\(L10n.string("reset_credits", language: language)): \(count)"
-    }
-
     private var dateLocale: Locale {
         switch language {
         case .simplifiedChinese:
             Locale(identifier: "zh_CN")
         case .english:
             Locale(identifier: "en_US")
+        case .italian:
+            Locale(identifier: "it_IT")
         case .system:
-            Locale.preferredLanguages.first?.hasPrefix("zh") == true
-                ? Locale(identifier: "zh_CN") : .autoupdatingCurrent
+            switch L10n.systemLanguage(for: Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier) {
+            case .simplifiedChinese: Locale(identifier: "zh_CN")
+            case .italian: Locale(identifier: "it_IT")
+            case .english, .system: .autoupdatingCurrent
+            }
         }
-    }
-
-    private var subscriptionText: String {
-        guard let subscription else {
-            return L10n.string("subscription_unknown", language: language)
-        }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return String(format: L10n.string("subscription_until", language: language),
-                      formatter.string(from: subscription.activeUntil))
     }
 
     private var subscriptionDetail: String {
