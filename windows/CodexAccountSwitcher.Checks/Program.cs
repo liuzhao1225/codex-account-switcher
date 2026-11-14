@@ -31,6 +31,33 @@ if (args.FirstOrDefault() == "host-exit") {
     return 0;
 }
 
+if (args.FirstOrDefault() == "runtime-cache") {
+    var runtimeRoot = Path.Combine(Path.GetTempPath(), "switcher-runtime-check-" + Guid.NewGuid());
+    using var payload = new MemoryStream();
+    using (var zip = new System.IO.Compression.ZipArchive(payload, System.IO.Compression.ZipArchiveMode.Create, true)) {
+        foreach (var name in new[] { "SwitcherHost.exe", "runtime.dll" }) {
+            using var writer = new StreamWriter(zip.CreateEntry(name).Open());
+            writer.Write("trusted " + name);
+        }
+    }
+    var archive = payload.ToArray();
+    try {
+        var runtimeHost = HostRuntime.EnsureExtracted(new MemoryStream(archive), runtimeRoot);
+        var timestamp = File.GetLastWriteTimeUtc(runtimeHost);
+        Require(HostRuntime.EnsureExtracted(new MemoryStream(archive), runtimeRoot) == runtimeHost, "Warm extraction must reuse the content directory.");
+        Require(File.GetLastWriteTimeUtc(runtimeHost) == timestamp, "A valid runtime must not be rewritten.");
+        File.WriteAllText(runtimeHost, "tampered host");
+        var library = Path.Combine(Path.GetDirectoryName(runtimeHost)!, "runtime.dll");
+        File.Delete(library);
+        HostRuntime.EnsureExtracted(new MemoryStream(archive), runtimeRoot);
+        Require(File.ReadAllText(runtimeHost) == "trusted SwitcherHost.exe", "A modified host must be repaired.");
+        Require(File.ReadAllText(library) == "trusted runtime.dll", "A missing runtime library must be restored.");
+        Console.WriteLine("PASS: warm runtime reuse, tamper repair, and missing library recovery.");
+        return 0;
+    }
+    finally { SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), runtimeRoot); }
+}
+
 var host = args.FirstOrDefault() ?? Environment.GetEnvironmentVariable("CODEX_SWITCHER_HOST_PATH");
 if (string.IsNullOrEmpty(host) || !File.Exists(host)) {
     Console.Error.WriteLine("Pass the built SwitcherHost.exe path to run native/shared-core integration checks.");

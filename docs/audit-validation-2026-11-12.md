@@ -27,3 +27,18 @@ This checks `codex_account_switcher_audit_report.md` against the local `codex/ap
 - Fixture-only desktop-close check: blocked by Windows rejecting the temporary `ChatGPT.exe` launch with Win32 error 1223.
 
 The Swift changes therefore still need a full Swift build and test run in a working toolchain. The desktop-close behavior needs an unrestricted Windows test environment.
+
+## Follow-up validation (2026-11-13)
+
+The revised attached report uses IDs B1-B7 and O1-O4 and includes proposed patches. Its claims still refer to the older revision, and several patches reference functions and model fields absent from this checkout. B1-B7, O2, and usage-cache batching are already addressed at `2e567cd`; the reset log is already append-only. The report's latency savings are estimates, not measurements reproduced here.
+
+O3 received a further improvement: runtime verification now hashes streams rather than allocating whole byte arrays for each installed DLL and copying the ZIP payload for hashing. Healthy cached entries are verified without building decompressed byte arrays; missing or modified entries are restored. Content verification remains mandatory. O1's proposed cache still conflicts with package changes between close and reopen, so fresh discovery remains in place. Arbitrarily truncating reset history could remove idempotency records, so the proposed fixed-count pruning was not applied.
+
+Validation on the working tree based on `2e567cd`, including its pre-existing local edits, succeeded outside the restricted sandbox:
+
+- Swift build and test run: 78 tests reported passed; the Windows-disabled `CodexClientTransportTests` suite was skipped.
+- Isolated Windows desktop fixture checks: passed, including version rediscovery, graceful close, rejection of unsafe closes, and cancellation.
+- Freshly built Swift host with Windows integration checks: passed for IPC, shared snapshots/localization, settings persistence, private ACLs, and restart persistence.
+- Runtime cache regression check: passed for warm reuse without rewriting, modified-host repair, and missing-library recovery.
+
+These results supersede the earlier sandbox-blocked attempts. macOS-specific behavior and Windows-disabled transport tests remain unverified here. No account-switch latency benchmark was performed.
