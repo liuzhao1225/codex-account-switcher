@@ -153,6 +153,8 @@ open class AccountController {
         }
         guard !Task.isCancelled else { return }
         await refreshSubscriptionSnapshots()
+        var cacheEntries: [UsageCacheEntry] = []
+        var observations: [(AccountProfile, WeeklyUsage?, String?)] = []
         await withTaskGroup(of: UsageRefreshResult.self) { group in
             for account in accounts {
                 group.addTask { [store, codex] in
@@ -171,15 +173,11 @@ open class AccountController {
                 case let .success(id, usage):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
                     usageStates[id] = .loaded(usage)
-                    do {
-                        try await store.cacheWeeklyUsage(usage, profileID: id)
-                    } catch {
-                        showError(error)
-                    }
-                    await observeResetExpiry(profile: account, usage: usage)
+                    cacheEntries.append(UsageCacheEntry(profileID: id, usage: usage, fetchedAt: Date()))
+                    observations.append((account, usage, nil))
                 case let .failure(id, message):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
-                    await observeResetExpiry(profile: account, usage: nil, error: message)
+                    observations.append((account, nil, message))
                     if let cached = usageStates[id]?.displayedUsage {
                         usageStates[id] = .stale(cached, message)
                     } else {
@@ -188,10 +186,17 @@ open class AccountController {
                 }
             }
         }
+        if !Task.isCancelled && !cacheEntries.isEmpty {
+            do { try await store.cacheWeeklyUsage(cacheEntries) }
+            catch { showError(error) }
+        }
+        for (account, usage, message) in observations where !Task.isCancelled {
+            await observeResetExpiry(profile: account, usage: usage, error: message)
+        }
     }
 
     public func switchAccount(to id: UUID) async {
-        guard !isMutating else { return }
+        guard !isMutating, !isAddingAccount else { return }
         isMutating = true
         await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
@@ -300,7 +305,7 @@ open class AccountController {
     }
 
     public func removeAccount(id: UUID) async {
-        guard !isMutating else { return }
+        guard !isMutating, !isAddingAccount else { return }
         isMutating = true
         await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }

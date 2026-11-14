@@ -7,7 +7,7 @@ internal static class DesktopCloseChecks
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
 
-    public static async Task<int> RunAsync(string fixtureExecutable)
+    public static async Task<int> RunAsync(string fixtureExecutable, bool verifyInstalledPackage = true)
     {
         var root = Path.Combine(Path.GetTempPath(), "codex-desktop-close-check-" + Guid.NewGuid().ToString("N"));
         var oldExecutable = Path.Combine(root, "OpenAI.Codex_1.0.0.0_x64__fixture", "app", "ChatGPT.exe");
@@ -16,7 +16,7 @@ internal static class DesktopCloseChecks
         Directory.CreateDirectory(Path.GetDirectoryName(newExecutable)!);
         try
         {
-            await VerifyRunningPackageIdentityAsync();
+            if (verifyInstalledPackage) await VerifyRunningPackageIdentityAsync();
             CopyFixture(fixtureExecutable, Path.GetDirectoryName(oldExecutable)!);
             CopyFixture(fixtureExecutable, Path.GetDirectoryName(newExecutable)!);
             var installedVersion = 1;

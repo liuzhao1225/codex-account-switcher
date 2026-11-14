@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
 
 namespace CodexAccountSwitcher.Core;
 
@@ -11,9 +12,17 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
 {
     private const int ErrorInsufficientBuffer = 122;
     private const int ErrorSuccess = 0;
+    private const uint ProcessQueryLimitedInformation = 0x1000;
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetApplicationUserModelId(IntPtr process, ref uint length, StringBuilder? appUserModelId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeProcessHandle OpenProcess(uint desiredAccess, bool inheritHandle, int processId);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool QueryFullProcessImageNameW(SafeProcessHandle process, uint flags, StringBuilder filename, ref uint size);
 
     public static async Task<DesktopInstallation> DiscoverAsync(string? explicitPath, CancellationToken ct = default)
     {
@@ -85,17 +94,25 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
             ReadApplicationUserModelId(process) is { } actualAppUserModelId)
             return string.Equals(actualAppUserModelId, expectedAppUserModelId, StringComparison.OrdinalIgnoreCase);
 
-        return string.Equals(process.MainModule?.FileName, installation.Executable, StringComparison.OrdinalIgnoreCase);
+        using var handle = OpenProcess(ProcessQueryLimitedInformation, false, process.Id);
+        if (handle.IsInvalid) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        var filename = new StringBuilder(32768);
+        uint length = (uint)filename.Capacity;
+        if (!QueryFullProcessImageNameW(handle, 0, filename, ref length))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        return string.Equals(filename.ToString(), installation.Executable, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ReadApplicationUserModelId(Process process)
     {
+        using var handle = OpenProcess(ProcessQueryLimitedInformation, false, process.Id);
+        if (handle.IsInvalid) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         uint length = 0;
-        var result = GetApplicationUserModelId(process.Handle, ref length, null);
+        var result = GetApplicationUserModelId(handle.DangerousGetHandle(), ref length, null);
         if (result != ErrorInsufficientBuffer || length == 0) return null;
 
         var value = new StringBuilder((int)length);
-        result = GetApplicationUserModelId(process.Handle, ref length, value);
+        result = GetApplicationUserModelId(handle.DangerousGetHandle(), ref length, value);
         return result == ErrorSuccess ? value.ToString() : null;
     }
 

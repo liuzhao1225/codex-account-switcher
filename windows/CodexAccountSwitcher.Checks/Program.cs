@@ -10,13 +10,25 @@ if (args.FirstOrDefault() == "app-server") {
     return 0;
 }
 
-if (args.FirstOrDefault() == "desktop-close") {
+if (args.FirstOrDefault() is "desktop-close" or "desktop-close-fixture") {
     var fixture = args.ElementAtOrDefault(1);
     if (string.IsNullOrWhiteSpace(fixture) || !File.Exists(fixture)) {
         Console.Error.WriteLine("Pass the built ChatGPT.exe desktop fixture path to run the isolated close and update check.");
         return 1;
     }
-    return await DesktopCloseChecks.RunAsync(fixture);
+    return await DesktopCloseChecks.RunAsync(fixture, verifyInstalledPackage: args[0] == "desktop-close");
+}
+
+if (args.FirstOrDefault() == "host-exit") {
+    var exitedHost = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "where.exe");
+    await using var client = new CoreClient(exitedHost, Path.GetTempPath());
+    try {
+        await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        throw new Exception("An exited host must fail a pending command.");
+    }
+    catch (Exception ex) when (ex is IOException or OperationCanceledException) { }
+    Console.WriteLine("PASS: an exited host completes pending commands with a failure.");
+    return 0;
 }
 
 var host = args.FirstOrDefault() ?? Environment.GetEnvironmentVariable("CODEX_SWITCHER_HOST_PATH");

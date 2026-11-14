@@ -78,6 +78,7 @@ private final class LinePump: @unchecked Sendable {
             guard let self else { return }
             let data = readable.availableData
             guard !data.isEmpty else {
+                readable.readabilityHandler = nil
                 self.finish()
                 return
             }

@@ -14,8 +14,10 @@ internal static class DesktopProcessTree
         foreach (var process in processes)
         {
             try { if (!process.HasExited) _ = process.Handle; }
-            catch (InvalidOperationException) when (process.HasExited) { }
-            catch (Win32Exception) when (process.HasExited) { }
+            catch (InvalidOperationException) when (HasExited(process)) { }
+            catch (Win32Exception) when (HasExited(process)) { }
+            catch (InvalidOperationException ex) { throw new IOException("Could not inspect a Desktop process before switching.", ex); }
+            catch (Win32Exception ex) { throw new IOException("Could not inspect a Desktop process before switching.", ex); }
         }
         var children = ReadParentProcessIds().ToLookup(pair => pair.Parent, pair => pair.Id);
         var included = processes.Select(process => process.Id).ToHashSet();
@@ -24,8 +26,15 @@ internal static class DesktopProcessTree
             var parent = processes[index];
             if (parent.Id == Environment.ProcessId)
                 throw new IOException("Codex Desktop contains the switcher process. Close Desktop manually before switching; the account was not changed.");
-            if (parent.HasExited) continue;
-            var parentStarted = parent.StartTime;
+            DateTime parentStarted;
+            try {
+                if (parent.HasExited) continue;
+                parentStarted = parent.StartTime;
+            }
+            catch (InvalidOperationException) when (HasExited(parent)) { continue; }
+            catch (Win32Exception) when (HasExited(parent)) { continue; }
+            catch (InvalidOperationException ex) { throw new IOException("Could not inspect a Desktop process before switching.", ex); }
+            catch (Win32Exception ex) { throw new IOException("Could not inspect a Desktop process before switching.", ex); }
             foreach (var id in children[parent.Id])
             {
                 if (included.Contains(id)) continue;
@@ -41,11 +50,20 @@ internal static class DesktopProcessTree
                     child = null;
                 }
                 catch (ArgumentException) { } // Exited before opening a handle.
-                catch (InvalidOperationException) when (child?.HasExited == true) { }
-                catch (Win32Exception) when (child?.HasExited == true) { }
+                catch (InvalidOperationException) when (child != null && HasExited(child)) { }
+                catch (Win32Exception) when (child != null && HasExited(child)) { }
+                catch (InvalidOperationException ex) { throw new IOException("Could not inspect a Desktop child process before switching.", ex); }
+                catch (Win32Exception ex) { throw new IOException("Could not inspect a Desktop child process before switching.", ex); }
                 finally { child?.Dispose(); }
             }
         }
+    }
+
+    private static bool HasExited(Process process)
+    {
+        try { return process.HasExited; }
+        catch (InvalidOperationException) { return false; }
+        catch (Win32Exception) { return false; }
     }
 
     private static List<(int Id, int Parent)> ReadParentProcessIds()

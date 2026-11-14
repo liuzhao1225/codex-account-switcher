@@ -151,16 +151,24 @@ public actor AccountStore: AccountStoring {
     }
 
     public func cacheWeeklyUsage(_ usage: WeeklyUsage, profileID: UUID, fetchedAt: Date = Date()) throws {
+        try cacheWeeklyUsage([UsageCacheEntry(profileID: profileID, usage: usage, fetchedAt: fetchedAt)])
+    }
+
+    public func cacheWeeklyUsage(_ entries: [UsageCacheEntry]) throws {
+        guard !entries.isEmpty else { return }
         let registry = try loadRegistry()
-        guard registry.accounts.contains(where: { $0.id == profileID }) else { return }
+        let accountIDs = Set(registry.accounts.map(\.id))
         var cache = try loadUsageCache()
-        let entry = UsageCacheEntry(profileID: profileID, usage: usage, fetchedAt: fetchedAt)
-        if let index = cache.entries.firstIndex(where: { $0.profileID == profileID }) {
-            cache.entries[index] = entry
-        } else {
-            cache.entries.append(entry)
+        var changed = false
+        for entry in entries where accountIDs.contains(entry.profileID) {
+            if let index = cache.entries.firstIndex(where: { $0.profileID == entry.profileID }) {
+                cache.entries[index] = entry
+            } else {
+                cache.entries.append(entry)
+            }
+            changed = true
         }
-        try saveUsageCache(cache)
+        if changed { try saveUsageCache(cache) }
     }
 
     public func profile(id: UUID) throws -> AccountProfile {

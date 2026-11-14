@@ -19,12 +19,18 @@ private struct DesktopAdapter: DesktopControlling {
     func reopenDesktop() async throws { try await host.platform("reopenDesktop") }
 }
 
+private struct SnapshotMessage: Encodable {
+    let kind = "snapshot"
+    let state: AccountSnapshot
+}
+
 @MainActor
 private final class Host {
     private var controller: AccountController?
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var commands: [Int: Task<Void, Never>] = [:]
+    private var isSnapshotPending = false
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -83,9 +89,9 @@ private final class Host {
             let model = AccountController(store: store, codex: codex,
                 switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()))
             controller = model
-            model.onChange = { [weak self] in self?.sendSnapshot() }
+            model.onChange = { [weak self] in self?.scheduleSnapshot() }
             await model.startBackgroundUsageRefresh()
-            sendSnapshot()
+            scheduleSnapshot()
             return
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
@@ -134,12 +140,22 @@ private final class Host {
         }
     }
 
+    private func scheduleSnapshot() {
+        guard !isSnapshotPending else { return }
+        isSnapshotPending = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isSnapshotPending = false
+            self.sendSnapshot()
+        }
+    }
+
     private func sendSnapshot() {
         guard let model = controller else { return }
         do {
-            let bytes = try encoder.encode(model.snapshot)
-            let state = try JSONSerialization.jsonObject(with: bytes)
-            send(["kind": "snapshot", "state": state])
+            var bytes = try encoder.encode(SnapshotMessage(state: model.snapshot))
+            bytes.append(0x0A)
+            try FileHandle.standardOutput.write(contentsOf: bytes)
         } catch { send(["kind": "protocolError", "error": "Could not encode account state."]) }
     }
 
