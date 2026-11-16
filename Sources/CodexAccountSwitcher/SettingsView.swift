@@ -62,6 +62,20 @@ struct SettingsView: View {
                 ))
             }
             rowDivider
+            settingRow("popover_account_rows") {
+                Picker(model.text("popover_account_rows"), selection: Binding(
+                    get: { model.settings.popoverAccountRows },
+                    set: { rows in Task { await model.setPopoverAccountRows(rows) } }
+                )) {
+                    ForEach(PopoverAccountRows.allCases, id: \.self) { rows in
+                        Text(rows.rawValue.formatted()).tag(rows)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
+            rowDivider
             settingRow("language") {
                 Picker(model.text("language"), selection: Binding(
                     get: { model.settings.language },

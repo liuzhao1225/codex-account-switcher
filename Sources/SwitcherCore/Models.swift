@@ -56,12 +56,19 @@ public enum StatusBarUsageWindow: String, Codable, CaseIterable, Identifiable, S
     public var id: String { rawValue }
 }
 
+public enum PopoverAccountRows: Int, Codable, CaseIterable, Sendable {
+    case three = 3
+    case five = 5
+    case eight = 8
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var language: AppLanguage
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
     public var autoResetEnabled: Bool
+    public var popoverAccountRows: PopoverAccountRows
 
     public static let `default` = AppSettings(
         language: .system,
@@ -75,13 +82,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false,
         statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
-        autoResetEnabled: Bool = false
+        autoResetEnabled: Bool = false,
+        popoverAccountRows: PopoverAccountRows = .three
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
         self.statusBarUsageWindow = statusBarUsageWindow
         self.autoResetEnabled = autoResetEnabled
+        self.popoverAccountRows = popoverAccountRows
     }
 
     public init(from decoder: any Decoder) throws {
@@ -102,6 +111,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         autoResetEnabled = try container.decodeIfPresent(
             Bool.self, forKey: .autoResetEnabled
         ) ?? false
+        popoverAccountRows = try container.decodeIfPresent(PopoverAccountRows.self, forKey: .popoverAccountRows) ?? .three
     }
 }
 

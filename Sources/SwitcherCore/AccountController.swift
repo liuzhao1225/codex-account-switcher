@@ -415,6 +415,17 @@ open class AccountController {
         }
     }
 
+    public func setPopoverAccountRows(_ rows: PopoverAccountRows) async {
+        do {
+            var updated = settings
+            updated.popoverAccountRows = rows
+            try await store.saveSettings(updated)
+            settings = updated
+        } catch {
+            showError(error)
+        }
+    }
+
     public func setLanguage(_ language: AppLanguage) async {
         settings.language = language
         do {

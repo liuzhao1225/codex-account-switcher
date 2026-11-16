@@ -25,6 +25,7 @@ public enum L10n {
     private static let tables: [AppLanguage: [String: String]] = [
         .english: [
             "settings_general": "General",
+            "popover_account_rows": "Visible Account Rows",
             "settings_automation": "Automation",
             "auto_reset": "Use resets before expiry",
             "auto_reset_hint": "Uses saved accounts’ resets 10 minutes before expiry. Keep the app running and computer awake.",
@@ -127,6 +128,7 @@ public enum L10n {
         ],
         .simplifiedChinese: [
             "settings_general": "通用",
+            "popover_account_rows": "可见账号行数",
             "settings_automation": "自动化",
             "auto_reset": "到期前自动使用 reset",
             "auto_reset_hint": "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。",
@@ -229,6 +231,7 @@ public enum L10n {
         ],
         .italian: [
             "settings_general": "Generali",
+            "popover_account_rows": "Righe account visibili",
             "settings_automation": "Automazione",
             "auto_reset": "Usa i reset prima della scadenza",
             "auto_reset_hint": "Usa i reset di tutti gli account salvati a partire da 10 minuti prima della scadenza. Tieni l’app aperta e il computer attivo.",
