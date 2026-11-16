@@ -104,6 +104,12 @@ internal static class Program
                 hintPosition.Y >= addPosition.Y && hintPosition.Y + addHint.ActualHeight <= addPosition.Y + addButton.ActualHeight + 1,
                 "The sign-in hint must sit to the right of Add Account within the same row.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
+            var dragLabel = client.State.Text("drag_to_reorder");
+            var handles = All<TextBlock>(window).Where(text => System.Windows.Automation.AutomationProperties.GetName(text) == dragLabel).ToArray();
+            Assert(handles.Length == 2 && handles.All(handle => handle.ToolTip as string == dragLabel),
+                "Each saved account must have a named drag handle.");
+            Assert(All<Border>(window).Count(row => row.ReadLocalValue(UIElement.AllowDropProperty) is true) == 2,
+                "Each account row must accept a drop, including the active account.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
             var languagePicker = All<ComboBox>(window).Single(box => box.Items.Contains("Italiano"));
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
@@ -209,7 +215,7 @@ internal static class Program
                 ["usage"] = "用量", ["resets"] = "重置于", ["reset_credits"] = "重置次数", ["unknown"] = "未知", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
                 ["subscription_until"] = "有效期：%@", ["subscription_snapshot"] = "登录快照", ["subscription_old_snapshot"] = "旧登录快照",
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
-                ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
+                ["accounts"] = "账号", ["drag_to_reorder"] = "拖动调整顺序", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["add_api_key"] = "添加 OpenAI API 密钥", ["api_key"] = "OpenAI API 密钥", ["api_key_name"] = "名称",
                 ["api_key_storage"] = "密钥保存在本机的私有文件中。", ["save_api_key"] = "保存密钥",
@@ -223,7 +229,8 @@ internal static class Program
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });
         }
-        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null) {
+        public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+            Guid? targetAccountID = null) {
             Commands.Add(command + ":" + (language ?? value?.ToString())); return Task.CompletedTask;
         }
     }

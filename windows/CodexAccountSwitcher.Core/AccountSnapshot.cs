@@ -24,5 +24,6 @@ public interface IAccountClient
     Task AddAPIKeyAsync(string displayName, string apiKey);
     AccountSnapshot State { get; }
     event Action? Changed;
-    Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null);
+    Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+        Guid? targetAccountID = null);
 }

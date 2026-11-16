@@ -216,6 +216,16 @@ struct ManageAccountsView: View {
     private func managedAccountRow(_ account: AccountProfile) -> some View {
         let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
         return HStack(spacing: 9) {
+            if model.accounts.count > 1 {
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 28)
+                    .contentShape(Rectangle())
+                    .help(model.text("drag_to_reorder"))
+                    .accessibilityLabel(model.text("drag_to_reorder"))
+                    .draggable(account.id.uuidString)
+            }
+
             Text(account.initials)
                 .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                 .frame(width: 28, height: 28)
@@ -250,6 +260,14 @@ struct ManageAccountsView: View {
         .padding(.vertical, 6)
         .frame(minHeight: 44)
         .contentShape(Rectangle())
+        .dropDestination(for: String.self) { items, _ in
+            guard !model.isMutating, !model.isAddingAccount,
+                  let raw = items.first, let sourceID = UUID(uuidString: raw),
+                  sourceID != account.id,
+                  model.accounts.contains(where: { $0.id == sourceID }) else { return false }
+            Task { await model.moveAccount(id: sourceID, to: account.id) }
+            return true
+        }
     }
 }
 
