@@ -41,8 +41,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     }
 
     public Task InitializeAsync() => SendAsync(new { command = "initialize" });
-    public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null)
-        => SendAsync(new { command, accountID, value, language });
+    public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
+        Guid? targetAccountID = null)
+        => SendAsync(new { command, accountID, value, language, targetAccountID });
 
     private async Task SendAsync(object command)
     {
