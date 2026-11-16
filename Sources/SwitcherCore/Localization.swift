@@ -7,16 +7,19 @@ public enum L10n {
         Dictionary(uniqueKeysWithValues: (tables[.english] ?? [:]).keys.map { ($0, string($0, language: language)) })
     }
     public static func string(_ key: String, language: AppLanguage) -> String {
-        let resolved: AppLanguage
-        switch language {
-        case .system:
-            resolved = Locale.preferredLanguages.first?.hasPrefix("zh") == true
-                ? .simplifiedChinese
-                : .english
-        case .english, .simplifiedChinese:
-            resolved = language
-        }
+        let resolved = language == .system
+            ? systemLanguage(for: Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier)
+            : language
         return tables[resolved]?[key] ?? tables[.english]?[key] ?? key
+    }
+
+    public static func systemLanguage(for identifier: String) -> AppLanguage {
+        let code = identifier.split(whereSeparator: { $0 == "-" || $0 == "_" }).first?.lowercased()
+        switch code {
+        case "zh": return .simplifiedChinese
+        case "it": return .italian
+        default: return .english
+        }
     }
 
     private static let tables: [AppLanguage: [String: String]] = [
@@ -105,6 +108,7 @@ public enum L10n {
             "system_default": "System Default",
             "english": "English",
             "simplified_chinese": "简体中文",
+            "italian": "Italiano",
             "sign_in_hint": "A browser window will open for Codex sign-in.",
             "sign_in_pending_hint": "Complete sign-in in the browser, or cancel here if you closed it.",
             "no_accounts": "No saved accounts",
@@ -201,6 +205,7 @@ public enum L10n {
             "system_default": "跟随系统",
             "english": "English",
             "simplified_chinese": "简体中文",
+            "italian": "Italiano",
             "sign_in_hint": "将打开浏览器进行 Codex 登录。",
             "sign_in_pending_hint": "请在浏览器完成登录；如果已关闭页面，可在此取消。",
             "no_accounts": "暂无已保存账号",
@@ -211,6 +216,103 @@ public enum L10n {
             "active_unconfirmed": "无法确认当前账号",
             "switched_reopen_title": "账号已切换",
             "switched_reopen_message": "所选账号已经生效，但 Codex Desktop 未能重新打开。请手动打开 Codex 继续使用。",
+        ],
+        .italian: [
+            "settings_general": "Generali",
+            "settings_automation": "Automazione",
+            "auto_reset": "Usa i reset prima della scadenza",
+            "auto_reset_hint": "Usa i reset di tutti gli account salvati a partire da 10 minuti prima della scadenza. Tieni l’app aperta e il computer attivo.",
+            "open_reset_log": "Apri cartella dei log",
+            "settings_updates": "Aggiornamenti software",
+            "update_available": "Versione %@ disponibile",
+            "update_action": "Aggiorna…",
+            "update_installing": "Installazione…",
+            "current_version": "Versione %@",
+            "check_for_updates": "Verifica aggiornamenti",
+            "automatically_check_updates": "Verifica automaticamente gli aggiornamenti",
+            "update_check_hint": "Controlla ogni ora. Un punto blu indica una nuova versione.",
+            "update_check_failed": "Verifica degli aggiornamenti non riuscita.",
+            "usage": "Utilizzo",
+            "five_hour": "5 h",
+            "weekly": "7 gg",
+            "usage_unavailable": "Utilizzo non disponibile",
+            "reset_credits": "Reset disponibili",
+            "subscription_until": "Valido fino al: %@",
+            "subscription_unknown": "Validità: sconosciuta",
+            "subscription_snapshot": "dati del login salvato",
+            "subscription_old_snapshot": "dati di un vecchio login",
+            "subscription_detail": "Ultima verifica: %@. È il periodo di abbonamento riportato nel login salvato, non una data di fatturazione o rinnovo aggiornata. Verifica le modifiche nella sezione Fatturazione di ChatGPT.",
+            "subscription_live_pending": "Abbonamento in attesa di sincronizzazione",
+            "subscription_live_until": "Valido fino al %@",
+            "subscription_live_active": "Abbonamento attivo",
+            "subscription_live_inactive": "Nessun abbonamento attivo",
+            "subscription_live_free": "Piano gratuito",
+            "subscription_live_needs_update": "Da aggiornare",
+            "subscription_live_source": "Fonte: servizio abbonamenti di ChatGPT",
+            "subscription_live_updated": "Aggiornato il %@",
+            "subscription_live_plan": "Piano: %@",
+            "subscription_live_status_active": "Stato abbonamento: attivo",
+            "subscription_live_status_inactive": "Stato abbonamento: inattivo",
+            "subscription_live_renew_on": "Rinnovo automatico: attivo",
+            "subscription_live_renew_off": "Rinnovo automatico: disattivato",
+            "subscription_live_renew_unknown": "Rinnovo automatico: sconosciuto",
+            "subscription_live_delinquent_yes": "Pagamento in arretrato: sì",
+            "subscription_live_delinquent_no": "Pagamento in arretrato: no",
+            "subscription_live_delinquent_unknown": "Pagamento in arretrato: stato sconosciuto",
+            "subscription_live_last_success": "Ultimo aggiornamento riuscito: %@",
+            "subscription_live_never_succeeded": "In attesa della prima sincronizzazione riuscita",
+            "subscription_live_stale_hint": "È visualizzato il risultato dell’ultima sincronizzazione riuscita.",
+            "subscription_live_refresh_failed": "Aggiornamento non riuscito: %@",
+            "subscription_live_history": "Dati del login salvato: valido fino al %@, ultima verifica il %@.",
+            "subscription_refresh_pending": "In attesa di aggiornare i dati dell’abbonamento.",
+            "subscription_refresh_failed": "Impossibile aggiornare i dati dell’abbonamento.",
+            "unknown": "Sconosciuto",
+            "tibo_title": "Previsione reset Tibo",
+            "tibo_source_hint": "Previsione sperimentale di codex-reset.com. Apri la fonte per i dettagli.",
+            "tibo_loading": "Caricamento previsione…",
+            "tibo_unavailable": "Previsione pubblica non disponibile",
+            "tibo_24h": "24 h",
+            "tibo_48h": "48 h",
+            "left": "% rimanente",
+            "resets": "Ripristino:",
+            "manage": "Gestisci account",
+            "settings": "Impostazioni",
+            "quit": "Esci",
+            "switch_title": "Passare a %@?",
+            "switch_body_windows": "Codex Desktop e i suoi processi secondari verranno terminati forzatamente, poi Desktop verrà riaperto. Le attività in corso saranno interrotte e i dati non salvati potrebbero andare persi. Completa o interrompi le attività di Desktop prima di cambiare account. Le sessioni CLI avviate separatamente restano aperte; le nuove sessioni CLI useranno l'account selezionato.",
+            "switch_body": "Codex Desktop verrà chiuso e riaperto. Completa o interrompi prima le attività di Desktop in corso. Se Desktop chiede di uscire, conferma la richiesta. Se Desktop non si chiude normalmente, il cambio account si interrompe. Le sessioni CLI esistenti restano aperte; quelle nuove useranno l'account selezionato.",
+            "cancel": "Annulla",
+            "switch": "Cambia account",
+            "accounts": "Account",
+            "back": "Indietro",
+            "add_account": "Aggiungi account",
+            "cancel_add_account": "Annulla aggiunta account",
+            "remove": "Rimuovi",
+            "active": "Attivo",
+            "remove_title": "Rimuovere %@?",
+            "remove_body": "Questa operazione rimuove solo il profilo salvato su questo computer.",
+            "launch_at_login": "Avvia all'accesso",
+            "launch_at_login_requires_approval": "È necessaria l'autorizzazione nelle Impostazioni di Sistema.",
+            "launch_at_login_unavailable": "macOS non trova questo elemento di login.",
+            "open_system_settings": "Apri Impostazioni di Sistema",
+            "show_menu_bar_percentage": "Mostra percentuale nella barra dei menu",
+            "status_bar_usage_window": "Utilizzo nella barra di stato",
+            "show_five_hour_usage": "Mostra utilizzo su 5 ore",
+            "language": "Lingua",
+            "system_default": "Lingua di sistema",
+            "english": "English",
+            "simplified_chinese": "简体中文",
+            "italian": "Italiano",
+            "sign_in_hint": "Si aprirà una finestra del browser per accedere a Codex.",
+            "sign_in_pending_hint": "Completa l'accesso nel browser oppure annulla qui se hai chiuso la finestra.",
+            "no_accounts": "Nessun account salvato",
+            "ok": "OK",
+            "operation_failed": "Operazione non riuscita",
+            "switch_failed": "Cambio account non riuscito",
+            "register_current_account": "Registra account attuale",
+            "active_unconfirmed": "Impossibile verificare l'account attivo",
+            "switched_reopen_title": "Account cambiato",
+            "switched_reopen_message": "L'account selezionato è attivo, ma Codex Desktop non è stato riaperto. Apri Codex manualmente per continuare.",
         ],
     ]
 }
