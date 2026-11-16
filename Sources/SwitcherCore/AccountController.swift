@@ -138,6 +138,11 @@ open class AccountController {
         nextUsageRefreshTask = nil
         resetExpiryTask?.cancel()
         resetExpiryTask = nil
+        usageRefreshTask?.cancel()
+        Task {
+            do { try await codex.stopUsageSessions() }
+            catch { showError(error) }
+        }
     }
 
     private func scheduleNextWeeklyUsageRefresh() {
@@ -286,9 +291,9 @@ open class AccountController {
     public func switchAccount(to id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
             guard id != activeAccountID else { return }
             try await switchService.switchAccount(to: id)
@@ -371,9 +376,9 @@ open class AccountController {
     public func registerCurrentAccount() async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             guard await store.activeCredentialExists() else { throw AccountStoreError.activeCredentialMissing }
             try await syncActiveIdentity()
             await refreshSubscriptionSnapshots()
@@ -384,9 +389,9 @@ open class AccountController {
     public func removeAccount(id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
             try await store.removeAccount(id: id)
             apply(try await store.loadRegistry())
@@ -573,10 +578,11 @@ open class AccountController {
         visibleError = nil
     }
 
-    private func cancelUsageRefresh() async {
+    private func cancelUsageRefresh() async throws {
         usageRefreshTask?.cancel()
         await cancelLiveSubscriptionRefresh()
         await usageRefreshTask?.value
+        try await codex.stopUsageSessions()
     }
 
     private func cancelLiveSubscriptionRefresh() async {

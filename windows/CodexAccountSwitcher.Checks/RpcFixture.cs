@@ -6,12 +6,18 @@ internal static class RpcFixture
     public static async Task RunAsync()
     {
         var home = Environment.GetEnvironmentVariable("CODEX_HOME") ?? throw new Exception("Missing fixture home");
+        await File.AppendAllTextAsync(Path.Combine(home, "launches"), Environment.ProcessId + "\n");
         var scenario = await File.ReadAllTextAsync(Path.Combine(home, "fixture-mode"));
         while (await Console.In.ReadLineAsync() is { } line) {
             using var document = JsonDocument.Parse(line); var message = document.RootElement;
             if (!message.TryGetProperty("id", out var id)) continue;
             var method = message.GetProperty("method").GetString();
-            if (scenario == "timeout") continue;
+            await File.AppendAllTextAsync(Path.Combine(home, "requests"), method + "\n");
+            if (scenario == "timeout" || (scenario == "quota-timeout" && method == "account/rateLimits/read")) continue;
+            if (scenario == "exit-once" && method == "account/rateLimits/read" && !File.Exists(Path.Combine(home, "exited"))) {
+                await File.WriteAllTextAsync(Path.Combine(home, "exited"), "yes");
+                return;
+            }
             object result = method switch {
                 "account/read" => new { account = new { accountId = "fixture", email = "fixture@example.test" } },
                 "account/rateLimits/read" => new { rateLimitResetCredits = new { availableCount = 2 }, rateLimits = new {

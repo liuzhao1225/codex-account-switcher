@@ -3,6 +3,27 @@ import Testing
 @testable import SwitcherCore
 
 struct CredentialSyncTests {
+    @Test @MainActor func sessionCleanupFailureBlocksCredentialMutation() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let first = fixture.profile("personal")
+        let second = fixture.profile("workspace")
+        try fixture.writeLive("personal", token: "personal-token")
+        try await fixture.store.importCurrentProfile(first)
+        let home = try await fixture.store.createProfileDirectory(id: second.id)
+        try fixture.bytes("workspace", token: "workspace-token").write(to: home.appendingPathComponent("auth.json"))
+        try await fixture.store.addProfile(second)
+        let client = CredentialClient(failsStop: true)
+        let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        let original = try Data(contentsOf: fixture.auth)
+        await model.switchAccount(to: second.id)
+        #expect(model.visibleError != nil)
+        #expect(model.activeAccountID == first.id)
+        #expect(try Data(contentsOf: fixture.auth) == original)
+        await model.waitForWeeklyUsageRefresh()
+    }
+
     @Test func refreshCopiesCredentialsToTheirActualAccount() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
@@ -290,7 +311,11 @@ private actor CredentialClient: AccountClient {
     var readStarted = false
     var observer: CheckedContinuation<Void, Never>?
     var blocked: CheckedContinuation<Void, Never>?
-    init(pausesPersonal: Bool = false) { self.pausesPersonal = pausesPersonal }
+    private let failsStop: Bool
+    init(pausesPersonal: Bool = false, failsStop: Bool = false) { self.pausesPersonal = pausesPersonal; self.failsStop = failsStop }
+    func stopUsageSessions() async throws {
+        if failsStop { throw CodexClientError.timeout }
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         guard let identity = try CredentialIdentity.read(from: profileHome) else { throw CodexClientError.identityUnavailable }
         return identity

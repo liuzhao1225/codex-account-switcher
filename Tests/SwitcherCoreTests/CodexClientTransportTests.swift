@@ -65,6 +65,98 @@ struct CodexClientTransportTests {
         catch { #expect(error is CancellationError) }
     }
 
+    @Test func repeatedAndConcurrentQuotaReadsReuseOneProcessPerProfile() async throws {
+        let home = try fixtureHome("normal")
+        let other = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home); try? FileManager.default.removeItem(at: other) }
+        let client = makeClient()
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        try await withThrowingTaskGroup(of: Int.self) { group in
+            for _ in 0..<6 {
+                group.addTask { try await client.readWeeklyUsage(profileHome: home).remainingPercent }
+            }
+            for try await remaining in group { #expect(remaining == 42) }
+        }
+        _ = try await client.readWeeklyUsage(profileHome: other)
+        #expect(try launchCount(home) == 1)
+        #expect(try launchCount(other) == 1)
+        let requests = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
+        #expect(requests.components(separatedBy: "initialize\n").count - 1 == 1)
+        #expect(requests.components(separatedBy: "account/rateLimits/read").count - 1 == 7)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func credentialReplacementAndExplicitStopReopenQuotaSession() async throws {
+        let home = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+        try Data("first".utf8).write(to: home.appendingPathComponent("auth.json"))
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        try Data("replacement".utf8).write(to: home.appendingPathComponent("auth.json"))
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        #expect(try launchCount(home) == 3)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func failedQuotaProcessIsDiscardedAndNextReadRecovers() async throws {
+        let home = try fixtureHome("exit-once")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+        await #expect(throws: (any Error).self) { try await client.readWeeklyUsage(profileHome: home) }
+        #expect(try await client.readWeeklyUsage(profileHome: home).remainingPercent == 42)
+        #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func cancelledQuotaReadStopsTheProcessAndRecovers() async throws {
+        let home = try fixtureHome("quota-timeout")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+        let read = Task { try await client.readWeeklyUsage(profileHome: home) }
+        for _ in 0..<100 {
+            let log = (try? String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)) ?? ""
+            if log.contains("account/rateLimits/read") { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        read.cancel()
+        await #expect(throws: CancellationError.self) { try await read.value }
+        try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
+        #expect(try await client.readWeeklyUsage(profileHome: home).remainingPercent == 42)
+        #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func timedOutQuotaSessionIsDiscarded() async throws {
+        let home = try fixtureHome("quota-timeout")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient(timeout: .milliseconds(500))
+        do { _ = try await client.readWeeklyUsage(profileHome: home); Issue.record("Expected timeout") }
+        catch { #expect(error as? CodexClientError == .timeout) }
+        try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
+        #expect(try await client.readWeeklyUsage(profileHome: home).remainingPercent == 42)
+        #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func unusedQuotaSessionsExpire() async throws {
+        let home = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = CodexClient(locator: .init(explicitURL: URL(fileURLWithPath: fixtureExecutable!)),
+                                 usageSessionIdleTimeout: .milliseconds(50))
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        try await Task.sleep(for: .seconds(1))
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+    }
+
+    private func launchCount(_ home: URL) throws -> Int {
+        try String(contentsOf: home.appendingPathComponent("launches"), encoding: .utf8).split(separator: "\n").count
+    }
+
     private func makeClient(timeout: Duration = .seconds(5)) -> CodexClient {
         CodexClient(locator: .init(explicitURL: URL(fileURLWithPath: fixtureExecutable!)), requestTimeout: timeout,
             openBrowser: { url in #expect(url.host == "example.test") })
