@@ -367,6 +367,20 @@ public sealed class MainWindow : Window
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
             } catch (Exception ex) { localError = ex.Message; Render(); }
         }));
+        var lowUsage = new ComboBox {
+            Width = 160, VerticalAlignment = VerticalAlignment.Center,
+            ItemsSource = Enumerable.Range(0, 100).Select(percent => percent == 0 ? T("low_usage_off") : $"{percent}%"),
+            SelectedIndex = State.Settings.LowUsageThreshold ?? 0,
+        };
+        AutomationProperties.SetName(lowUsage, T("low_usage_reminder"));
+        lowUsage.SelectionChanged += async (_, _) => {
+            if (lowUsage.SelectedIndex < 0) return;
+            try { await client.SetLowUsageThresholdAsync(lowUsage.SelectedIndex == 0 ? null : lowUsage.SelectedIndex); }
+            catch (Exception ex) { localError = ex.Message; Render(); }
+        };
+        var reminderRow = Pair(Text(T("low_usage_reminder")), lowUsage);
+        reminderRow.Height = 48;
+        settings.Children.Add(reminderRow);
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());

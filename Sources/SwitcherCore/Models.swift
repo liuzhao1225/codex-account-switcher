@@ -69,6 +69,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var statusBarUsageWindow: StatusBarUsageWindow
     public var autoResetEnabled: Bool
     public var popoverAccountRows: PopoverAccountRows
+    public var lowUsageThreshold: Int?
+
+    public static let lowUsageThresholdRange = 1...99
 
     public static let `default` = AppSettings(
         language: .system,
@@ -83,7 +86,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showsFiveHourUsage: Bool = false,
         statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
         autoResetEnabled: Bool = false,
-        popoverAccountRows: PopoverAccountRows = .three
+        popoverAccountRows: PopoverAccountRows = .three,
+        lowUsageThreshold: Int? = nil
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
@@ -91,6 +95,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.statusBarUsageWindow = statusBarUsageWindow
         self.autoResetEnabled = autoResetEnabled
         self.popoverAccountRows = popoverAccountRows
+        self.lowUsageThreshold = lowUsageThreshold
     }
 
     public init(from decoder: any Decoder) throws {
@@ -112,6 +117,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
             Bool.self, forKey: .autoResetEnabled
         ) ?? false
         popoverAccountRows = try container.decodeIfPresent(PopoverAccountRows.self, forKey: .popoverAccountRows) ?? .three
+        lowUsageThreshold = try container.decodeIfPresent(Int.self, forKey: .lowUsageThreshold)
+        if let lowUsageThreshold, !Self.lowUsageThresholdRange.contains(lowUsageThreshold) {
+            throw DecodingError.dataCorruptedError(forKey: .lowUsageThreshold, in: container,
+                debugDescription: "Low usage reminder threshold must be between 1 and 99.")
+        }
     }
 }
 
@@ -258,6 +268,7 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case duplicateAccount
     case cannotRemoveActiveAccount
     case accountOperationInProgress
+    case invalidUsageThreshold
 
     public var errorDescription: String? {
         switch self {
@@ -277,6 +288,8 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "The active account cannot be removed."
         case .accountOperationInProgress:
             "Wait for the current account operation to finish."
+        case .invalidUsageThreshold:
+            "The low usage reminder requires a threshold from 1% to 99%."
         }
     }
 }

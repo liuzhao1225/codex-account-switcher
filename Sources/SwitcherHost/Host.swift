@@ -7,6 +7,7 @@ private struct Request: Decodable, Sendable {
     var accountID: UUID?
     var targetAccountID: UUID?
     var note: String?
+    var lowUsageThreshold: Int?
     var value: Bool?
     var language: String?
     var error: String?
@@ -80,6 +81,9 @@ private final class Host {
                 switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()))
             controller = model
             model.onChange = { [weak self] in self?.sendSnapshot() }
+            model.onLowUsage = { [weak self] title, message in
+                self?.send(["kind": "lowUsage", "title": title, "message": message])
+            }
             await model.startBackgroundUsageRefresh()
             sendSnapshot()
             return
@@ -125,6 +129,7 @@ private final class Host {
                 throw HostError.message("Invalid status bar usage window.")
             }
             await model.setStatusBarUsageWindow(window)
+        case "lowUsageThreshold": try await model.setLowUsageThreshold(request.lowUsageThreshold)
         case "dismissError": model.dismissError()
         default: throw HostError.message("Unknown host command.")
         }

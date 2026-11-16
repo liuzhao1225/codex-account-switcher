@@ -130,6 +130,10 @@ internal static class Program
                 "The auto-reset toggle must send the setting to the shared host.");
             languagePicker.SelectedItem = "Italiano";
             Assert(client.Commands.Last() == "language:italian", "Selecting Italian must reach the shared host.");
+            var reminder = All<ComboBox>(window).Single(box => System.Windows.Automation.AutomationProperties.GetName(box) == "低额度提醒");
+            Assert(reminder.SelectedItem as string == "关闭", "Low usage reminders must start off.");
+            reminder.SelectedItem = "10%";
+            Assert(client.Commands.Last() == "lowUsageThreshold:10", "Selecting a threshold must reach the shared host.");
             Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("auto_reset_hint")),
                 "Settings must disclose real reset consumption and runtime requirements.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "保存" or "Save"), "Settings must not have a Save flow.");
@@ -202,6 +206,7 @@ internal static class Program
                 ["edit_account_note"] = "编辑账号备注", ["account_note"] = "账号备注",
                 ["save_account_note"] = "保存备注", ["account_note_hint"] = "留空可移除备注。",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
+                ["low_usage_reminder"] = "低额度提醒", ["low_usage_off"] = "关闭",
                 ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
                 ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
                 ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["language"] = "语言",
@@ -210,6 +215,11 @@ internal static class Program
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });
+        }
+        public Task SetLowUsageThresholdAsync(int? threshold)
+        {
+            Commands.Add("lowUsageThreshold:" + threshold);
+            return Task.CompletedTask;
         }
         public Task SetAccountNoteAsync(Guid accountID, string note)
         {

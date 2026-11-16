@@ -106,6 +106,22 @@ struct SettingsView: View {
             }
             .modifier(SettingsDetail())
 
+            rowDivider
+            settingRow("low_usage_reminder") {
+                Picker(model.text("low_usage_reminder"), selection: Binding(
+                    get: { model.settings.lowUsageThreshold },
+                    set: { threshold in Task { await model.chooseLowUsageThreshold(threshold) } }
+                )) {
+                    Text(model.text("low_usage_off")).tag(nil as Int?)
+                    ForEach(AppSettings.lowUsageThresholdRange, id: \.self) { percent in
+                        Text("\(percent)%").tag(Optional(percent))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
+
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
                 settingSwitch("automatically_check_updates", isOn: Binding(

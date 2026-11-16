@@ -15,7 +15,7 @@ public sealed record SubscriptionSnapshot(DateTimeOffset ActiveUntil, DateTimeOf
 public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError,
     string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null);
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
-    string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false);
+    string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false, int? LowUsageThreshold = null);
 public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountID, Preferences Settings,
     bool IsMutating, bool IsAddingAccount, bool ActiveIdentityConfirmed, string? Error, Dictionary<string, string> Strings)
 {
@@ -29,6 +29,7 @@ public interface IAccountClient
     AccountSnapshot State { get; }
     event Action? Changed;
     Task SetAccountNoteAsync(Guid accountID, string note);
+    Task SetLowUsageThresholdAsync(int? threshold);
     Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
         Guid? targetAccountID = null);
 }
