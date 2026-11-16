@@ -45,6 +45,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
         Guid? targetAccountID = null)
         => SendAsync(new { command, accountID, value, language, targetAccountID });
 
+    public Task SetAccountNoteAsync(Guid accountID, string note)
+        => SendAsync(new { command = "setAccountNote", accountID, note });
+
     private async Task SendAsync(object command)
     {
         var id = Interlocked.Increment(ref nextID);

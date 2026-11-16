@@ -36,6 +36,29 @@ struct AccountControllerTests {
         #expect(registry.activeAccountID == active)
     }
 
+    @Test func accountNotePersistsAndClearsWithoutChangingIdentity() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.model.start()
+        let original = try #require(fixture.model.accounts.first)
+
+        try await fixture.model.setAccountNote(id: original.id, note: "  Work \n")
+        let renamed = try #require(fixture.model.accounts.first)
+        #expect(renamed.note == "Work")
+        #expect(renamed.listTitle == "Work")
+        #expect(renamed.confirmationTitle == "Work")
+        #expect(renamed.labeledEmail == original.email)
+        #expect(renamed.accountID == original.accountID)
+        #expect(fixture.model.activeAccountID == original.id)
+
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.profile(id: original.id).note == "Work")
+        try await fixture.model.setAccountNote(id: original.id, note: "  ")
+        #expect(fixture.model.accounts.first?.note == nil)
+        #expect(fixture.model.accounts.first?.listTitle == original.email)
+    }
+
     @Test func firstActivationInstallsAndCommitsTheSavedAccount() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }

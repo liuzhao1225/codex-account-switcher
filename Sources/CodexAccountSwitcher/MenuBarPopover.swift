@@ -198,7 +198,7 @@ private struct SwitchConfirmationPage: View {
     var body: some View {
         VStack(spacing: 0) {
             PopoverHeader(
-                title: model.format("switch_title", account.displayName),
+                title: model.format("switch_title", account.confirmationTitle),
                 backTitle: model.text("cancel"),
                 onBack: onCancel
             )
@@ -206,6 +206,12 @@ private struct SwitchConfirmationPage: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 14) {
+                if let email = account.labeledEmail {
+                    Text(verbatim: email)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
                 Text(model.text("switch_body"))
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)

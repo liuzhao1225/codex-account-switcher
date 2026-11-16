@@ -396,6 +396,13 @@ open class AccountController {
         }
     }
 
+    public func setAccountNote(id: UUID, note: String) async throws {
+        guard !isMutating, !isAddingAccount else { throw AccountStoreError.accountOperationInProgress }
+        isMutating = true
+        defer { isMutating = false }
+        apply(try await store.setAccountNote(id: id, note: note))
+    }
+
     public func moveAccount(id: UUID, to targetID: UUID) async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true

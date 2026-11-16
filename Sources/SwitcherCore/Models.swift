@@ -9,11 +9,16 @@ public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendab
     public var accountID: String?
     public let createdAt: Date
     public var lastUsedAt: Date?
+    public var note: String?
 
     public init(id: UUID, displayName: String, email: String?, accountID: String?, createdAt: Date, lastUsedAt: Date? = nil) {
         self.id = id; self.displayName = displayName; self.email = email
         self.accountID = accountID; self.createdAt = createdAt; self.lastUsedAt = lastUsedAt
     }
+
+    public var listTitle: String { note ?? email.flatMap { $0.isEmpty ? nil : $0 } ?? displayName }
+    public var labeledEmail: String? { note == nil ? nil : email }
+    public var confirmationTitle: String { note ?? displayName }
 
     public var initials: String {
         let parts = displayName
@@ -242,6 +247,7 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case targetCredentialMissing
     case duplicateAccount
     case cannotRemoveActiveAccount
+    case accountOperationInProgress
 
     public var errorDescription: String? {
         switch self {
@@ -259,6 +265,8 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "This account is already saved. Select the existing account instead."
         case .cannotRemoveActiveAccount:
             "The active account cannot be removed."
+        case .accountOperationInProgress:
+            "Wait for the current account operation to finish."
         }
     }
 }

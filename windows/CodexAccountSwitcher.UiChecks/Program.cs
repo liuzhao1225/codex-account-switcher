@@ -109,6 +109,15 @@ internal static class Program
                 "Each saved account must have a named drag handle.");
             Assert(All<Border>(window).Count(row => row.ReadLocalValue(UIElement.AllowDropProperty) is true) == 2,
                 "Each account row must accept a drop, including the active account.");
+            var noteAction = All<Button>(window).First(button => System.Windows.Automation.AutomationProperties.GetName(button) == "编辑账号备注");
+            noteAction.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.UpdateLayout();
+            All<TextBox>(window).Single().Text = "工作";
+            All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "保存备注")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.UpdateLayout();
+            Assert(All<TextBlock>(window).Any(text => text.Text == "工作"), "Saving a note must update the Manage list.");
+            Assert(All<TextBlock>(window).Any(text => text.Text == "personal@example.test"), "A note must retain the identifiable email.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
             var languagePicker = All<ComboBox>(window).Single(box => box.Items.Contains("Italiano"));
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
@@ -190,6 +199,8 @@ internal static class Program
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
                 ["accounts"] = "账号", ["drag_to_reorder"] = "拖动调整顺序", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
+                ["edit_account_note"] = "编辑账号备注", ["account_note"] = "账号备注",
+                ["save_account_note"] = "保存备注", ["account_note_hint"] = "留空可移除备注。",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
                 ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
                 ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
@@ -199,6 +210,14 @@ internal static class Program
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });
+        }
+        public Task SetAccountNoteAsync(Guid accountID, string note)
+        {
+            State = State with {
+                Accounts = State.Accounts.Select(row => row.Profile.Id == accountID
+                    ? row with { Profile = row.Profile with { Note = note } } : row).ToArray(),
+            };
+            return Task.CompletedTask;
         }
         public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
             Guid? targetAccountID = null) {

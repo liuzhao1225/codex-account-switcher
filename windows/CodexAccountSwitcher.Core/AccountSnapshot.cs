@@ -3,7 +3,12 @@ using System.Text.Json;
 namespace CodexAccountSwitcher.Core;
 
 // Wire DTOs only. Account policy and storage live in Sources/SwitcherCore.
-public sealed record Profile(Guid Id, string DisplayName, string? Email);
+public sealed record Profile(Guid Id, string DisplayName, string? Email, string? Note = null)
+{
+    public string ListTitle => Note ?? (string.IsNullOrEmpty(Email) ? DisplayName : Email);
+    public string? LabeledEmail => Note == null ? null : Email;
+    public string ConfirmationTitle => Note ?? DisplayName;
+}
 public sealed record Usage(int RemainingPercent, DateTimeOffset ResetsAt,
     int? FiveHourRemainingPercent, DateTimeOffset? FiveHourResetsAt, int? ResetCreditsRemaining = null);
 public sealed record SubscriptionSnapshot(DateTimeOffset ActiveUntil, DateTimeOffset LastChecked);
@@ -23,6 +28,7 @@ public interface IAccountClient
 {
     AccountSnapshot State { get; }
     event Action? Changed;
+    Task SetAccountNoteAsync(Guid accountID, string note);
     Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
         Guid? targetAccountID = null);
 }
