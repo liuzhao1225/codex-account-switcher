@@ -21,8 +21,8 @@ public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountI
 
 public interface IAccountClient
 {
+    Task AddAPIKeyAsync(string displayName, string apiKey);
     AccountSnapshot State { get; }
     event Action? Changed;
-    Task AddAPIKeyAsync(string displayName, string apiKey);
     Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null);
 }
