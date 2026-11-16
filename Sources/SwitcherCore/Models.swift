@@ -39,6 +39,7 @@ public enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
     case english
     case simplifiedChinese
+    case italian
 
     public var id: String { rawValue }
 }

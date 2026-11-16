@@ -108,7 +108,7 @@ Run `codex-account-switcher update` to update, `open` to launch, or `uninstall` 
 | **Reset count and plan date** | On macOS, show current data from ChatGPT's subscription service, refreshed when the popover opens and every five minutes. Dates use `YYYY-MM-DD`; the tooltip shows the last successful update, automatic renewal and delinquency status. Windows still shows the saved login (JWT) snapshot. Available reset counts remain alongside the date. |
 | **Extra-reset forecast (macOS)** | A single menu bar row shows a reset icon, the Tibo reset forecast label, two compact 24/48-hour probability boxes and an external-link arrow using the independent site’s experimental forecast. Click the entry to open [codex-reset.com](https://codex-reset.com/) for announcements, history and details. These estimates are not an OpenAI reset schedule or proof that a reset reached your account. |
 | **Use resets before expiry** | Opt in to use expiring resets for all saved accounts, including inactive accounts, starting 10 minutes before expiry. Keep the app running and computer awake; real outcomes and usage readback remain in local logs. |
-| **Native apps on both platforms** | SwiftUI on macOS and WPF on Windows, with English and Simplified Chinese interfaces. |
+| **Native apps on both platforms** | SwiftUI on macOS and WPF on Windows, with English, Simplified Chinese, and Italian interfaces. System Default uses the preferred system language when supported. |
 
 ## How it works
 

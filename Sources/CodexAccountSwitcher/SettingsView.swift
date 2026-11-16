@@ -70,6 +70,7 @@ struct SettingsView: View {
                     Text(model.text("system_default")).tag(AppLanguage.system)
                     Text(model.text("english")).tag(AppLanguage.english)
                     Text(model.text("simplified_chinese")).tag(AppLanguage.simplifiedChinese)
+                    Text(model.text("italian")).tag(AppLanguage.italian)
                 }
                 .labelsHidden()
                 .pickerStyle(.menu)

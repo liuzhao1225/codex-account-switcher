@@ -131,6 +131,21 @@ struct AccountControllerTests {
         #expect(try await fixture.store.loadUsageCache().entries.first?.usage.remainingPercent == 72)
     }
 
+    @Test func italianFollowsSystemLanguageAndPersistsWhenSelected() async throws {
+        #expect(L10n.systemLanguage(for: "it-IT") == .italian)
+        #expect(L10n.systemLanguage(for: "IT_it") == .italian)
+        #expect(L10n.systemLanguage(for: "zh-Hans-CN") == .simplifiedChinese)
+        #expect(L10n.systemLanguage(for: "fr-FR") == .english)
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        await fixture.model.start()
+        await fixture.model.setLanguage(.italian)
+        #expect(fixture.model.text("manage") == "Gestisci account")
+        #expect(fixture.model.snapshot.strings["subscription_live_free"] == "Piano gratuito")
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.loadSettings().language == .italian)
+    }
+
     @Test func settingsAreSavedImmediately() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }
