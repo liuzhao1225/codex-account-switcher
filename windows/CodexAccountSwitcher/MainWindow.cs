@@ -67,13 +67,15 @@ public sealed class MainWindow : Window
         FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
         VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
     };
-    private Button Button(string label, Action action, string? glyph = null, bool left = false)
+    private Button Button(string label, Action? action = null, string? glyph = null, bool left = false)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center };
         if (glyph != null) content.Children.Add(new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), Margin = new Thickness(0, 0, label.Length > 0 ? 7 : 0, 0), VerticalAlignment = VerticalAlignment.Center });
         if (label.Length > 0) content.Children.Add(new TextBlock { Text = label, FontSize = 13, VerticalAlignment = VerticalAlignment.Center });
         var button = new Button { Content = content, IsEnabled = !IsBusy, Padding = new Thickness(12, 6, 12, 6), MinHeight = 32, MinWidth = 32 };
-        AutomationProperties.SetName(button, label); button.Click += (_, _) => action(); return button;
+        AutomationProperties.SetName(button, label);
+        if (action != null) button.Click += (_, _) => action();
+        return button;
     }
     private Border Rule() => new() { Height = 1, Background = B("Line") };
     private Grid Pair(UIElement left, UIElement right)
@@ -238,16 +240,17 @@ public sealed class MainWindow : Window
         form.Children.Add(errorText);
 
         var saving = false;
-        var save = Button(T("save_api_key"), () => _ = SaveAsync());
+        var save = Button(T("save_api_key"));
         save.IsDefault = true;
         save.IsEnabled = false;
-        var cancel = Button(T("cancel"), dialog.Close);
+        var cancel = Button(T("cancel"));
         cancel.IsCancel = true;
         save.Margin = new Thickness(8, 0, 0, 0);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(cancel);
         actions.Children.Add(save);
         form.Children.Add(actions);
+        save.Click += (_, _) => _ = SaveAsync();
         name.TextChanged += (_, _) => UpdateSave();
         key.PasswordChanged += (_, _) => UpdateSave();
         dialog.Closing += (_, e) => e.Cancel = saving;
