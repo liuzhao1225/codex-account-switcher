@@ -17,6 +17,12 @@ struct SwitcherApp: App {
         .commands {
             QuitApplicationCommands(model: appDelegate.model)
         }
+        Settings {
+            ScrollView {
+                SettingsView(model: appDelegate.model, updater: appDelegate.updater, onBack: nil)
+            }
+            .frame(width: 480, height: 560)
+        }
     }
 }
 

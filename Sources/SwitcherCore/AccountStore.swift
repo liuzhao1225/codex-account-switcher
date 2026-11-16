@@ -152,16 +152,24 @@ public actor AccountStore: AccountStoring {
     }
 
     public func cacheWeeklyUsage(_ usage: WeeklyUsage, profileID: UUID, fetchedAt: Date = Date()) throws {
+        try cacheWeeklyUsage([UsageCacheEntry(profileID: profileID, usage: usage, fetchedAt: fetchedAt)])
+    }
+
+    public func cacheWeeklyUsage(_ entries: [UsageCacheEntry]) throws {
+        guard !entries.isEmpty else { return }
         let registry = try loadRegistry()
-        guard registry.accounts.contains(where: { $0.id == profileID }) else { return }
+        let accountIDs = Set(registry.accounts.map(\.id))
         var cache = try loadUsageCache()
-        let entry = UsageCacheEntry(profileID: profileID, usage: usage, fetchedAt: fetchedAt)
-        if let index = cache.entries.firstIndex(where: { $0.profileID == profileID }) {
-            cache.entries[index] = entry
-        } else {
-            cache.entries.append(entry)
+        var changed = false
+        for entry in entries where accountIDs.contains(entry.profileID) {
+            if let index = cache.entries.firstIndex(where: { $0.profileID == entry.profileID }) {
+                cache.entries[index] = entry
+            } else {
+                cache.entries.append(entry)
+            }
+            changed = true
         }
-        try saveUsageCache(cache)
+        if changed { try saveUsageCache(cache) }
     }
 
     private struct SubscriptionCacheEntry: Codable {
@@ -299,6 +307,31 @@ public actor AccountStore: AccountStoring {
         }
         current.accounts.append(profile)
         try saveRegistry(current)
+    }
+
+    public func addAPIKeyProfile(displayName: String, key: String) throws {
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let secret = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !secret.isEmpty, !secret.contains(where: \.isWhitespace) else {
+            throw AccountStoreError.invalidAPIKeyProfile
+        }
+        let identity = try CredentialIdentity.identity(forAPIKey: secret)
+        guard try !loadRegistry().accounts.contains(where: { identity.matches($0) }) else {
+            throw AccountStoreError.duplicateAccount
+        }
+        let id = UUID()
+        let home = try createProfileDirectory(id: id)
+        do {
+            let credential = try JSONSerialization.data(withJSONObject: [
+                "auth_mode": "apikey", "OPENAI_API_KEY": secret,
+            ])
+            try secureAtomicWrite(credential, to: home.appending(path: "auth.json"))
+            try addProfile(AccountProfile(id: id, displayName: name, email: nil,
+                accountID: identity.accountID, createdAt: Date()))
+        } catch {
+            try? discardUnregisteredProfile(id: id)
+            throw error
+        }
     }
 
     public func discardUnregisteredProfile(id: UUID) throws {

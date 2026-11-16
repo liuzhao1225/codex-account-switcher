@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 #if os(Windows)
 import SwitcherPlatform
 #endif
@@ -27,6 +30,12 @@ public struct CredentialIdentity: CodexIdentityReading {
     static func decode(_ data: Data) throws -> AccountIdentity? {
         do {
             let credential = try JSONDecoder().decode(Credential.self, from: data)
+            if credential.auth_mode == "apikey" {
+                guard let key = credential.OPENAI_API_KEY, !key.isEmpty else {
+                    throw CodexClientError.identityUnavailable
+                }
+                return try identity(forAPIKey: key)
+            }
             guard let tokens = credential.tokens else { return nil }
             let claims = try tokens.id_token.map(decodeClaims)
             guard let accountID = nonempty(tokens.account_id) ?? nonempty(claims?.auth?.chatgpt_account_id) else {
@@ -37,6 +46,27 @@ public struct CredentialIdentity: CodexIdentityReading {
             // Decoder diagnostics may contain credential contents. Expose only the failure category.
             throw CodexClientError.identityUnavailable
         }
+    }
+
+    static func identity(forAPIKey key: String) throws -> AccountIdentity {
+        let bytes = Data(key.utf8)
+        let digest: [UInt8]
+        #if os(Windows)
+        var result = [UInt8](repeating: 0, count: 32)
+        let status = bytes.withUnsafeBytes { input in
+            result.withUnsafeMutableBufferPointer { output in
+                switcher_sha256(input.baseAddress, bytes.count, output.baseAddress)
+            }
+        }
+        guard status == 0 else { throw CodexClientError.identityUnavailable }
+        digest = result
+        #elseif canImport(CryptoKit)
+        digest = Array(SHA256.hash(data: bytes))
+        #else
+        throw CodexClientError.identityUnavailable
+        #endif
+        let fingerprint = digest.map { String(format: "%02x", $0) }.joined()
+        return AccountIdentity(accountID: "api-key:\(fingerprint)", email: nil)
     }
 
     private static func nonempty(_ value: String?) -> String? {
@@ -54,7 +84,11 @@ public struct CredentialIdentity: CodexIdentityReading {
         return try JSONDecoder().decode(Claims.self, from: data)
     }
 
-    private struct Credential: Decodable { let tokens: Tokens? }
+    private struct Credential: Decodable {
+        let auth_mode: String?
+        let OPENAI_API_KEY: String?
+        let tokens: Tokens?
+    }
     private struct Tokens: Decodable {
         let account_id: String?
         let id_token: String?

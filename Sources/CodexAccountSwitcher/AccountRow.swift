@@ -25,10 +25,10 @@ struct AccountRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(verbatim: accountTitle)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .help(accountTitle)
+                        .help(accountTitle + "\n" + subscriptionDetail(at: .now))
                     Spacer(minLength: 4)
                     if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))
@@ -66,10 +66,20 @@ struct AccountRow: View {
                     .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
+            if isActive {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityLabel(L10n.string("active", language: language))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(minHeight: 50)
         .padding(.horizontal, 8)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .contentShape(Rectangle())
         .background(
             rowBackground,

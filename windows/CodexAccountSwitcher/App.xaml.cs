@@ -138,8 +138,13 @@ public partial class App : Application
         var dark = IsDark();
         foreach (var pair in new[] { ("ListSurface", dark ? "#2D2D2D" : "#FFFFFF"), ("Surface", dark ? "#282828" : "#F5F5F5"), ("Ink", dark ? "#F5F5F5" : "#1A1A1A"),
             ("Muted", dark ? "#BEBEBE" : "#666666"), ("Line", dark ? "#444444" : "#DDDDDD"),
-            ("Accent", dark ? "#60CDFF" : "#0067C0"), ("Selected", dark ? "#293F50" : "#E2EEFA"), ("Hover", dark ? "#15FFFFFF" : "#0C000000") })
-            Resources[pair.Item1] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(pair.Item2));
+            ("Accent", dark ? "#60CDFF" : "#0067C0"), ("Selected", dark ? "#293F50" : "#E2EEFA"), ("Hover", dark ? "#15FFFFFF" : "#0C000000"),
+            ("Avatar", dark ? "#39434D" : "#E9EEF4"), ("Error", dark ? "#FFB4AB" : "#B3261E") })
+        {
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(pair.Item2);
+            if (Resources[pair.Item1] is SolidColorBrush brush && !brush.IsFrozen) brush.Color = color;
+            else Resources[pair.Item1] = new SolidColorBrush(color);
+        }
     }
     private async Task QuitAsync() {
         if (exiting || window?.IsBusy == true) return;

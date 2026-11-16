@@ -8,6 +8,8 @@ private struct Request: Decodable, Sendable {
     var targetAccountID: UUID?
     var value: Bool?
     var language: String?
+    var displayName: String?
+    var apiKey: String?
     var error: String?
 }
 
@@ -17,12 +19,18 @@ private struct DesktopAdapter: DesktopControlling {
     func reopenDesktop() async throws { try await host.platform("reopenDesktop") }
 }
 
+private struct SnapshotMessage: Encodable {
+    let kind = "snapshot"
+    let state: AccountSnapshot
+}
+
 @MainActor
 private final class Host {
     private var controller: AccountController?
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var commands: [Int: Task<Void, Never>] = [:]
+    private var isSnapshotPending = false
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -70,7 +78,10 @@ private final class Host {
             let environment = ProcessInfo.processInfo.environment
             let store = AccountStore(baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) })
             let codex = CodexClient(openBrowser: { [self] url in
-                guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+                let scheme = url.scheme?.lowercased()
+                let host = url.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).lowercased()
+                let localHTTP = scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(host ?? "")
+                guard scheme == "https" || localHTTP else {
                     throw HostError.message("Unsupported sign-in URL.")
                 }
                 try await platform("openBrowser", url: url)
@@ -78,9 +89,9 @@ private final class Host {
             let model = AccountController(store: store, codex: codex,
                 switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()))
             controller = model
-            model.onChange = { [weak self] in self?.sendSnapshot() }
+            model.onChange = { [weak self] in self?.scheduleSnapshot() }
             await model.startBackgroundUsageRefresh()
-            sendSnapshot()
+            scheduleSnapshot()
             return
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
@@ -89,6 +100,11 @@ private final class Host {
         case "add": model.addAccount()
         case "cancelAdd": model.cancelAddingAccount()
         case "register": await model.registerCurrentAccount()
+        case "addAPIKey":
+            guard let name = request.displayName, let key = request.apiKey else {
+                throw HostError.message("Missing API key or name.")
+            }
+            await model.addAPIKey(displayName: name, key: key)
         case "switch":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.switchAccount(to: id)
@@ -124,12 +140,22 @@ private final class Host {
         }
     }
 
+    private func scheduleSnapshot() {
+        guard !isSnapshotPending else { return }
+        isSnapshotPending = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isSnapshotPending = false
+            self.sendSnapshot()
+        }
+    }
+
     private func sendSnapshot() {
         guard let model = controller else { return }
         do {
-            let bytes = try encoder.encode(model.snapshot)
-            let state = try JSONSerialization.jsonObject(with: bytes)
-            send(["kind": "snapshot", "state": state])
+            var bytes = try encoder.encode(SnapshotMessage(state: model.snapshot))
+            bytes.append(0x0A)
+            try FileHandle.standardOutput.write(contentsOf: bytes)
         } catch { send(["kind": "protocolError", "error": "Could not encode account state."]) }
     }
 

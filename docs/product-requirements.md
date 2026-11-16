@@ -52,7 +52,7 @@ As a user, I can remove an inactive local profile from Manage Accounts.
 
 ### US-5: Change language
 
-As a user, I can choose System Default, English, Simplified Chinese, or Italian.
+As a user, I can choose System Default, English, Simplified Chinese, or Italian. System Default follows the first supported preferred display language.
 
 ## 4. Menu-bar trigger
 
