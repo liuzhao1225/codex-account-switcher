@@ -44,6 +44,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null)
         => SendAsync(new { command, accountID, value, language });
 
+    public Task AddAPIKeyAsync(string displayName, string apiKey)
+        => SendAsync(new { command = "addAPIKey", displayName, apiKey });
+
     private async Task SendAsync(object command)
     {
         var id = Interlocked.Increment(ref nextID);

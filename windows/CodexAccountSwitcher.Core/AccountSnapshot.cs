@@ -8,7 +8,7 @@ public sealed record Usage(int RemainingPercent, DateTimeOffset ResetsAt,
     int? FiveHourRemainingPercent, DateTimeOffset? FiveHourResetsAt, int? ResetCreditsRemaining = null);
 public sealed record SubscriptionSnapshot(DateTimeOffset ActiveUntil, DateTimeOffset LastChecked);
 public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError,
-    string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null);
+    string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null, bool UsesAPIKey = false);
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
     string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false);
 public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountID, Preferences Settings,
@@ -23,5 +23,6 @@ public interface IAccountClient
 {
     AccountSnapshot State { get; }
     event Action? Changed;
+    Task AddAPIKeyAsync(string displayName, string apiKey);
     Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null);
 }

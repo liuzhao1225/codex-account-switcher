@@ -7,6 +7,8 @@ private struct Request: Decodable, Sendable {
     var accountID: UUID?
     var value: Bool?
     var language: String?
+    var displayName: String?
+    var apiKey: String?
     var error: String?
 }
 
@@ -88,6 +90,11 @@ private final class Host {
         case "add": model.addAccount()
         case "cancelAdd": model.cancelAddingAccount()
         case "register": await model.registerCurrentAccount()
+        case "addAPIKey":
+            guard let name = request.displayName, let key = request.apiKey else {
+                throw HostError.message("Missing API key or name.")
+            }
+            try await model.addAPIKey(displayName: name, key: key)
         case "switch":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.switchAccount(to: id)

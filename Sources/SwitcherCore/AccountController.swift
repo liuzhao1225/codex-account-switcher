@@ -169,7 +169,7 @@ open class AccountController {
         guard !Task.isCancelled else { return }
         await refreshSubscriptionSnapshots()
         await withTaskGroup(of: UsageRefreshResult.self) { group in
-            for account in accounts {
+            for account in accounts where !account.usesAPIKey {
                 group.addTask { [store, codex] in
                     do {
                         let home = await store.profileHome(id: account.id)
@@ -217,7 +217,7 @@ open class AccountController {
         // Each service response is account-bound. Authentication recovery runs
         // only after all quota requests have finished, avoiding concurrent writers.
         // Subscription results are cached outside auth.json.
-        for account in accounts {
+        for account in accounts where !account.usesAPIKey {
             guard !Task.isCancelled else { return }
             do {
                 let value = try await readLiveSubscription(account, using: client)
@@ -379,6 +379,15 @@ open class AccountController {
             await refreshSubscriptionSnapshots()
             visibleError = nil
         } catch { showError(error) }
+    }
+
+    public func addAPIKey(displayName: String, key: String) async throws {
+        guard !isMutating, !isAddingAccount else { throw AccountStoreError.accountOperationInProgress }
+        isMutating = true
+        defer { isMutating = false }
+        try await store.addAPIKeyProfile(displayName: displayName, key: key)
+        apply(try await store.loadRegistry())
+        visibleError = nil
     }
 
     public func removeAccount(id: UUID) async {

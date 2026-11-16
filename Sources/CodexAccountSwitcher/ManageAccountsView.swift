@@ -6,6 +6,9 @@ struct ManageAccountsView: View {
     let onBack: () -> Void
 
     @State private var page: ManageAccountsPage = .accounts
+    @State private var apiKeyName = ""
+    @State private var apiKeySecret = ""
+    @State private var apiKeyError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +23,8 @@ struct ManageAccountsView: View {
             switch page {
             case .accounts:
                 accountList
+            case .apiKey:
+                apiKeyForm.onDisappear(perform: clearAPIKeyForm)
             case let .remove(account):
                 removePage(account)
             }
@@ -30,6 +35,8 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             model.text("accounts")
+        case .apiKey:
+            model.text("add_api_key")
         case let .remove(account):
             model.format("remove_title", account.displayName)
         }
@@ -39,7 +46,7 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             onBack()
-        case .remove:
+        case .remove, .apiKey:
             page = .accounts
         }
     }
@@ -112,6 +119,17 @@ struct ManageAccountsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.isMutating || model.isAddingAccount)
+
+                Button {
+                    page = .apiKey
+                } label: {
+                    Label(model.text("add_api_key"), systemImage: "key")
+                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isMutating || model.isAddingAccount)
             }
             .padding(5)
         }
@@ -125,6 +143,47 @@ struct ManageAccountsView: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .help(hint)
+    }
+
+    private var apiKeyForm: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(model.text("api_key_storage"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField(model.text("api_key_name"), text: $apiKeyName)
+                .textFieldStyle(.roundedBorder)
+            SecureField(model.text("api_key"), text: $apiKeySecret)
+                .textFieldStyle(.roundedBorder)
+            if let apiKeyError {
+                Text(apiKeyError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button(model.text("cancel")) { page = .accounts }
+                Button(model.text("save_api_key")) {
+                    Task {
+                        do {
+                            try await model.addAPIKey(displayName: apiKeyName, key: apiKeySecret)
+                            page = .accounts
+                        } catch {
+                            apiKeyError = error.localizedDescription
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(apiKeyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || apiKeySecret.isEmpty)
+            }
+        }
+        .disabled(model.isMutating)
+        .padding(14)
+    }
+
+    private func clearAPIKeyForm() {
+        apiKeyName = ""
+        apiKeySecret = ""
+        apiKeyError = nil
     }
 
     private func removePage(_ account: AccountProfile) -> some View {
@@ -196,6 +255,7 @@ struct ManageAccountsView: View {
 
 private enum ManageAccountsPage {
     case accounts
+    case apiKey
     case remove(AccountProfile)
 }
 

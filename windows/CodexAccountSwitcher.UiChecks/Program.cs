@@ -103,6 +103,28 @@ internal static class Program
                 hintPosition.Y >= addPosition.Y && hintPosition.Y + addHint.ActualHeight <= addPosition.Y + addButton.ActualHeight + 1,
                 "The sign-in hint must sit to the right of Add Account within the same row.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
+            var addKey = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_api_key"));
+            Exception? dialogFailure = null;
+            window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => {
+                var dialog = Application.Current.Windows.OfType<Window>().SingleOrDefault(child => child.Owner == window);
+                try {
+                    Assert(dialog != null, "Manage must open an API key dialog.");
+                    dialog!.UpdateLayout();
+                    var name = All<TextBox>(dialog).Single();
+                    var key = All<PasswordBox>(dialog!).Single();
+                    name.Text = "Development";
+                    key.Password = "synthetic-test-key";
+                    client.PublishState();
+                    Assert(name.Text == "Development" && key.Password == "synthetic-test-key",
+                        "A background snapshot must preserve an unfinished API key form.");
+                } catch (Exception ex) {
+                    dialogFailure = ex;
+                } finally {
+                    dialog?.Close();
+                }
+            }));
+            addKey.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if (dialogFailure != null) throw dialogFailure;
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
             var languagePicker = All<ComboBox>(window).Single(box => box.Items.Contains("Italiano"));
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
@@ -168,7 +190,9 @@ internal static class Program
         using var stream = File.Create(path); encoder.Save(stream);
     }
     private sealed class FixtureClient : IAccountClient {
-        public event Action? Changed { add {} remove {} }
+        public event Action? Changed;
+        public void PublishState() => Changed?.Invoke();
+        public Task AddAPIKeyAsync(string displayName, string apiKey) => Task.CompletedTask;
         public List<string> Commands { get; } = [];
         public AccountSnapshot State { get; set; }
         public FixtureClient() {
@@ -182,6 +206,8 @@ internal static class Program
                 ["usage"] = "用量", ["resets"] = "重置于", ["reset_credits"] = "重置次数", ["unknown"] = "未知", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
                 ["subscription_until"] = "有效期：%@", ["subscription_snapshot"] = "登录快照", ["subscription_old_snapshot"] = "旧登录快照",
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
+                ["add_api_key"] = "添加 OpenAI API 密钥", ["api_key"] = "OpenAI API 密钥", ["api_key_name"] = "名称",
+                ["api_key_storage"] = "密钥保存在本机的私有文件中。", ["save_api_key"] = "保存密钥",
                 ["accounts"] = "账号", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
