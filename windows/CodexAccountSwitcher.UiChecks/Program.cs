@@ -104,13 +104,19 @@ internal static class Program
             Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_api_key")),
                 "Manage must offer API key entry beside sign-in.");
             Assert(All<TextBlock>(window).Count(text => text.Text == "当前") == 1, "Manage identifies the active account.");
+            var dragLabel = client.State.Text("drag_to_reorder");
+            var handles = All<TextBlock>(window).Where(text => System.Windows.Automation.AutomationProperties.GetName(text) == dragLabel).ToArray();
+            Assert(handles.Length == 2 && handles.All(handle => handle.ToolTip as string == dragLabel),
+                "Each saved account must have a named drag handle.");
+            Assert(All<Border>(window).Count(row => row.ReadLocalValue(UIElement.AllowDropProperty) is true) == 2,
+                "Each account row must accept a drop, including the active account.");
             window.Navigate("apiKey"); Render(window, Path.Combine(output, "api-key-zh.png"));
             Assert(All<PasswordBox>(window).Count() == 1, "API keys must use a masked native input.");
             Assert(All<TextBox>(window).Count() == 1, "API key profiles need a name.");
             Assert(All<Button>(window).Any(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("save_api_key")),
                 "API key entry needs a clear save action.");
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
-            var languagePicker = All<ComboBox>(window).Single(box => box.Items.Count == 4);
+            var languagePicker = All<ComboBox>(window).Single(box => box.Items.Contains("Italiano"));
             Assert(languagePicker.Items[3] as string == "Italiano", "Settings must offer Italian as an explicit language choice.");
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
             fiveHour.IsChecked = true; fiveHour.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
@@ -120,7 +126,7 @@ internal static class Program
             experiment.IsChecked = true; experiment.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Assert(client.Commands.SequenceEqual(new[] { "fiveHour:True", "autoReset:True" }),
                 "The auto-reset toggle must send the setting to the shared host.");
-            languagePicker.SelectedIndex = 3;
+            languagePicker.SelectedItem = "Italiano";
             Assert(client.Commands.Last() == "language:italian", "Selecting Italian must reach the shared host.");
             Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("auto_reset_hint")),
                 "Settings must disclose real reset consumption and runtime requirements.");

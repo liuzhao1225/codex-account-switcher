@@ -126,6 +126,15 @@ public sealed class MainWindow : Window
             Child = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled } };
     }
 
+    private Guid? DraggedAccount(IDataObject data, Guid targetID)
+    {
+        if (IsBusy || State.IsAddingAccount || !data.GetDataPresent(AccountDragFormat, autoConvert: false)
+            || !Guid.TryParse(data.GetData(AccountDragFormat, autoConvert: false) as string, out var sourceID))
+            return null;
+        return sourceID != targetID && State.Accounts.Any(account => account.Profile.Id == sourceID)
+            ? sourceID : null;
+    }
+
     private void Accounts(StackPanel body, bool manage)
     {
         if (!manage && !State.ActiveIdentityConfirmed) {
@@ -139,6 +148,7 @@ public sealed class MainWindow : Window
             hint.Margin = new Thickness(14, 10, 14, 2);
             list.Children.Add(hint);
         }
+        var canReorder = manage && State.Accounts.Length > 1;
         foreach (var row in State.Accounts) {
             var avatar = new Border { Width = 36, Height = 36, CornerRadius = new CornerRadius(18), Background = B("Avatar"),
                 Child = Text(row.Initials, 12, bold: true) };
@@ -165,36 +175,35 @@ public sealed class MainWindow : Window
             grid.Children.Add(avatar); Grid.SetColumn(details, 1); grid.Children.Add(details);
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             if (manage) {
-                var handle = Text("☰", 17, muted: true);
-                handle.Width = 26;
-                handle.Cursor = Cursors.SizeAll;
-                handle.ToolTip = T("drag_to_reorder");
-                AutomationProperties.SetName(handle, T("drag_to_reorder"));
-                handle.MouseMove += (_, e) => {
-                    if (!IsBusy && !State.IsAddingAccount && e.LeftButton == MouseButtonState.Pressed)
-                        DragDrop.DoDragDrop(handle, new DataObject(AccountDragFormat, row.Profile.Id.ToString()), DragDropEffects.Move);
-                };
-                grid.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(26) });
-                Grid.SetColumn(avatar, 1);
-                Grid.SetColumn(details, 2);
                 UIElement action = active ? Text(T("active"), 11, muted: true) : Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
-                AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 3); grid.Children.Add(action);
-                Grid.SetColumn(handle, 0); grid.Children.Add(handle);
-                var item = new Border { Padding = new Thickness(14, 9, 14, 9), Child = grid, AllowDrop = true };
-                item.DragOver += (_, e) => {
-                    e.Effects = !IsBusy && !State.IsAddingAccount && e.Data.GetDataPresent(AccountDragFormat)
-                        && Guid.TryParse(e.Data.GetData(AccountDragFormat) as string, out var source)
-                        && source != row.Profile.Id && State.Accounts.Any(account => account.Profile.Id == source)
-                        ? DragDropEffects.Move : DragDropEffects.None;
-                    e.Handled = true;
-                };
-                item.Drop += (_, e) => {
-                    if (!IsBusy && !State.IsAddingAccount && e.Data.GetDataPresent(AccountDragFormat)
-                        && Guid.TryParse(e.Data.GetData(AccountDragFormat) as string, out var source)
-                        && source != row.Profile.Id && State.Accounts.Any(account => account.Profile.Id == source))
-                        _ = Run("move", source, targetAccountID: row.Profile.Id);
-                    e.Handled = true;
-                };
+                AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 2); grid.Children.Add(action);
+                var item = new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid };
+                if (canReorder) {
+                    var handle = Text("☰", 17, muted: true);
+                    handle.Cursor = Cursors.SizeAll;
+                    handle.ToolTip = T("drag_to_reorder");
+                    AutomationProperties.SetName(handle, T("drag_to_reorder"));
+                    handle.MouseMove += (_, e) => {
+                        if (!IsBusy && !State.IsAddingAccount && e.LeftButton == MouseButtonState.Pressed)
+                            DragDrop.DoDragDrop(handle, new DataObject(AccountDragFormat, row.Profile.Id.ToString()), DragDropEffects.Move);
+                    };
+                    grid.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(26) });
+                    Grid.SetColumn(avatar, 1);
+                    Grid.SetColumn(details, 2);
+                    Grid.SetColumn(action, 3);
+                    grid.Children.Add(handle);
+                    item.AllowDrop = true;
+                    item.Background = Brushes.Transparent;
+                    item.DragOver += (_, e) => {
+                        e.Effects = DraggedAccount(e.Data, row.Profile.Id) != null ? DragDropEffects.Move : DragDropEffects.None;
+                        e.Handled = true;
+                    };
+                    item.Drop += (_, e) => {
+                        e.Handled = true;
+                        if (DraggedAccount(e.Data, row.Profile.Id) is { } sourceID)
+                            _ = Run("move", sourceID, targetAccountID: row.Profile.Id);
+                    };
+                }
                 list.Children.Add(item);
             } else {
                 var state = Text(active ? T("active") : "›", active ? 11 : 20, muted: !active, bold: active);

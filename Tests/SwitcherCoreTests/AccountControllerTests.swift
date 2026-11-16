@@ -40,6 +40,38 @@ struct AccountControllerTests {
         #expect(try await reopened.loadRegistry().accounts.map(\.id) == profiles.map(\.id))
     }
 
+    @Test func movingAnAccountUpdatesTheListAndPersistsItsOrder() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.model.start()
+        let active = try #require(fixture.model.activeAccountID)
+        let otherIDs = [UUID(), UUID()]
+        for (index, id) in otherIDs.enumerated() {
+            let profile = AccountProfile(id: id, displayName: "Account \(index)", email: nil,
+                                         accountID: "account-\(index)", createdAt: Date())
+            let home = try await fixture.store.createProfileDirectory(id: id)
+            try Data("fixture".utf8).write(to: home.appendingPathComponent("auth.json"))
+            try await fixture.store.addProfile(profile)
+        }
+
+        await fixture.model.moveAccount(id: otherIDs[1], to: active)
+        #expect(fixture.model.snapshot.accounts.map(\.profile.id) == [otherIDs[1], active, otherIDs[0]])
+        await fixture.model.moveAccount(id: otherIDs[1], to: otherIDs[0])
+        #expect(fixture.model.accounts.map(\.id) == [active, otherIDs[0], otherIDs[1]])
+
+        await fixture.model.moveAccount(id: otherIDs[1], to: UUID())
+        #expect(fixture.model.visibleError != nil)
+        await fixture.model.moveAccount(id: active, to: otherIDs[0])
+        #expect(fixture.model.visibleError == nil)
+        #expect(fixture.model.activeAccountID == active)
+
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        let registry = try await reopened.loadRegistry()
+        #expect(registry.accounts.map(\.id) == [otherIDs[0], active, otherIDs[1]])
+        #expect(registry.activeAccountID == active)
+    }
+
     @Test func firstActivationInstallsAndCommitsTheSavedAccount() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }
@@ -165,6 +197,21 @@ struct AccountControllerTests {
         #expect(fixture.model.usageStates[id]?.displayedUsage?.remainingPercent == 72)
         #expect(fixture.model.usageStates[id]?.refreshError != nil)
         #expect(try await fixture.store.loadUsageCache().entries.first?.usage.remainingPercent == 72)
+    }
+
+    @Test func italianFollowsSystemLanguageAndPersistsWhenSelected() async throws {
+        #expect(L10n.systemLanguage(for: "it-IT") == .italian)
+        #expect(L10n.systemLanguage(for: "IT_it") == .italian)
+        #expect(L10n.systemLanguage(for: "zh-Hans-CN") == .simplifiedChinese)
+        #expect(L10n.systemLanguage(for: "fr-FR") == .english)
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        await fixture.model.start()
+        await fixture.model.setLanguage(.italian)
+        #expect(fixture.model.text("manage") == "Gestisci account")
+        #expect(fixture.model.snapshot.strings["subscription_live_free"] == "Piano gratuito")
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.loadSettings().language == .italian)
     }
 
     @Test func settingsAreSavedImmediately() async throws {

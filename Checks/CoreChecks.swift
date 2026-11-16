@@ -169,6 +169,8 @@ struct CoreChecks {
             L10n.string("show_five_hour_usage", language: .simplifiedChinese) == "显示 5 小时用量",
             "Simplified Chinese five-hour setting label"
         )
+        try await runLiveSubscriptionChecks()
+        try await runSubscriptionControllerChecks()
 
         let credential = try testCredential()
         let subscription = SubscriptionSnapshotReader.read(

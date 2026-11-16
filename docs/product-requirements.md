@@ -287,7 +287,8 @@ Show Percentage in Menu Bar, Show 5-hour Usage, and Language persist in `setting
 
 - System Default;
 - English;
-- 简体中文.
+- 简体中文;
+- Italiano.
 
 Changing any persisted setting updates the visible switcher UI immediately. Show 5-hour Usage affects account rows only; the menu-bar percentage continues to show weekly Usage.
 

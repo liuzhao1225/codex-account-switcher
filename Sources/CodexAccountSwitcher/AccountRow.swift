@@ -5,6 +5,7 @@ struct AccountRow: View {
     let account: AccountProfile
     let usageState: UsageViewState
     let subscription: SubscriptionSnapshot?
+    let subscriptionState: LiveSubscriptionState
     let isActive: Bool
     let language: AppLanguage
     let showsFiveHourUsage: Bool
@@ -27,7 +28,7 @@ struct AccountRow: View {
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .help(accountTitle + "\n" + subscriptionDetail)
+                        .help(accountTitle + "\n" + subscriptionDetail(at: .now))
                     Spacer(minLength: 4)
                     if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))
@@ -45,6 +46,24 @@ struct AccountRow: View {
                 }
 
                 usageContent
+                HStack(spacing: 8) {
+                    TimelineView(.periodic(from: .now, by: 30)) { context in
+                        Text(subscriptionText(at: context.date))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(subscriptionNeedsUpdate(at: context.date) ? Color.orange : Color.secondary)
+                            .help(subscriptionDetail(at: context.date))
+                            .accessibilityHint(subscriptionDetail(at: context.date))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if let usage = usageState.displayedUsage {
+                        Text(resetCreditsText(for: usage))
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+                    .font(.system(size: 10.5).monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
             if isActive {
@@ -178,6 +197,12 @@ struct AccountRow: View {
         resetText(for: usage.resetsAt, includesDate: true)
     }
 
+    private func resetCreditsText(for usage: WeeklyUsage) -> String {
+        let count = usage.resetCreditsRemaining.map(String.init)
+            ?? L10n.string("unknown", language: language)
+        return "\(L10n.string("reset_credits", language: language)): \(count)"
+    }
+
     private var dateLocale: Locale {
         switch language {
         case .simplifiedChinese:
@@ -195,14 +220,94 @@ struct AccountRow: View {
         }
     }
 
-    private var subscriptionDetail: String {
-        guard let subscription else {
-            return L10n.string("subscription_unknown", language: language)
+    private func subscriptionText(at now: Date) -> String {
+        let text: String
+        if let live = subscriptionState.displayedSubscription {
+            if live.planType.lowercased() == "free" {
+                text = subscriptionString("subscription_live_free")
+            } else if !live.isActive {
+                text = subscriptionString("subscription_live_inactive")
+            } else if let activeUntil = live.activeUntil {
+                text = subscriptionFormat("subscription_live_until", subscriptionDate(activeUntil))
+            } else {
+                text = subscriptionString("subscription_live_active")
+            }
+        } else {
+            text = subscriptionString("subscription_live_pending")
         }
-        let checked = subscription.lastChecked.formatted(
-            .dateTime.year().month().day().hour().minute().locale(dateLocale)
-        )
-        return String(format: L10n.string("subscription_detail", language: language), checked)
+        return subscriptionNeedsUpdate(at: now)
+            ? text + " · " + subscriptionString("subscription_live_needs_update")
+            : text
+    }
+
+    private func subscriptionNeedsUpdate(at now: Date) -> Bool {
+        switch subscriptionState {
+        case .stale, .unavailable:
+            return true
+        case let .loaded(live):
+            return now.timeIntervalSince(live.fetchedAt) >= 600
+        case .idle:
+            return false
+        }
+    }
+
+    private func subscriptionDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private func subscriptionTime(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month().day().hour().minute().locale(dateLocale))
+    }
+
+    private func subscriptionDetail(at now: Date) -> String {
+        var lines = [subscriptionString("subscription_live_source")]
+        if let live = subscriptionState.displayedSubscription {
+            lines.append(subscriptionFormat("subscription_live_updated", subscriptionTime(live.fetchedAt)))
+            lines.append(subscriptionFormat("subscription_live_plan", live.planType))
+            lines.append(subscriptionString(live.isActive
+                ? "subscription_live_status_active" : "subscription_live_status_inactive"))
+            if let activeUntil = live.activeUntil {
+                lines.append(subscriptionFormat("subscription_live_until", subscriptionDate(activeUntil)))
+            }
+            lines.append(subscriptionString(live.willRenew.map {
+                $0 ? "subscription_live_renew_on" : "subscription_live_renew_off"
+            } ?? "subscription_live_renew_unknown"))
+            lines.append(subscriptionString(live.isDelinquent.map {
+                $0 ? "subscription_live_delinquent_yes" : "subscription_live_delinquent_no"
+            } ?? "subscription_live_delinquent_unknown"))
+            if subscriptionNeedsUpdate(at: now) {
+                lines.append(subscriptionFormat("subscription_live_last_success", subscriptionTime(live.fetchedAt)))
+                lines.append(subscriptionString("subscription_live_stale_hint"))
+            }
+        } else {
+            lines.append(subscriptionString("subscription_live_never_succeeded"))
+            lines.append(subscriptionString("subscription_live_renew_unknown"))
+            lines.append(subscriptionString("subscription_live_delinquent_unknown"))
+        }
+        if let message = subscriptionState.refreshError {
+            lines.append(message == subscriptionString("subscription_refresh_pending")
+                ? message : subscriptionFormat("subscription_live_refresh_failed", message))
+        }
+        if let subscription {
+            lines.append(subscriptionFormat(
+                "subscription_live_history",
+                subscriptionDate(subscription.activeUntil),
+                subscriptionTime(subscription.lastChecked)
+            ))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func subscriptionString(_ key: String) -> String {
+        L10n.string(key, language: language)
+    }
+
+    private func subscriptionFormat(_ key: String, _ values: CVarArg...) -> String {
+        String(format: subscriptionString(key), arguments: values)
     }
 
     private func resetText(for resetsAt: Date, includesDate: Bool) -> String {

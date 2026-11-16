@@ -212,12 +212,15 @@ struct ManageAccountsView: View {
     private func managedAccountRow(_ account: AccountProfile) -> some View {
         let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
         return HStack(spacing: 9) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.secondary)
-                .frame(width: 20, height: 28)
-                .help(model.text("drag_to_reorder"))
-                .accessibilityLabel(model.text("drag_to_reorder"))
-                .draggable(account.id.uuidString)
+            if model.accounts.count > 1 {
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 28)
+                    .contentShape(Rectangle())
+                    .help(model.text("drag_to_reorder"))
+                    .accessibilityLabel(model.text("drag_to_reorder"))
+                    .draggable(account.id.uuidString)
+            }
 
             Text(account.initials)
                 .font(.system(size: 10.5, weight: .semibold, design: .rounded))
