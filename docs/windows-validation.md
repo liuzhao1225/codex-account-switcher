@@ -1,4 +1,18 @@
-# Windows shared-core preview validation
+# Windows validation
+
+## Desktop process termination regression (2026-11-02)
+
+Validated the Windows fix against the v0.1.26 shared core. The installed v0.1.25 adapter only requests `CloseMainWindow()`; Windows Desktop can remain running after its last window closes. The fix terminates only the discovered installation's processes and their descendants after the existing switch confirmation, then verifies exit before the shared core changes credentials.
+
+- The WPF application and isolated close fixture build with zero warnings or errors.
+- Desktop close checks pass for visible, tray-hidden, minimized, headless, unresponsive and multiple matching processes; child/grandchild exit; an independent CLI using the same binary; unrelated same-name processes; cancellation; self-protection; and Store path rediscovery.
+- WPF checks pass, including the Windows confirmation warning about interrupted tasks and possible loss of unsaved state.
+- The Swift test run passes with 74 tests across 8 suites, including close-stage failure preserving both accounts. The opt-in installed-CLI check is skipped; transport checks use the synthetic RPC executable.
+- The running Store application's identity is inspected read-only. All termination checks use synthetic executables in temporary directories; the user's Desktop and real accounts are untouched.
+
+Forced termination does not run Desktop's normal quit cleanup. Finish active Desktop tasks before confirming a switch. A real-account handoff and a published release are separate acceptance steps; these results do not claim either happened.
+
+## Shared-core preview validation (2026-09-09)
 
 Validated locally on Windows 10 x64 on 2026-09-09, with Swift 6.3.3 and .NET SDK 10.0.401.
 

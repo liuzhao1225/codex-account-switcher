@@ -2,6 +2,7 @@ import SwitcherCore
 import Combine
 import Foundation
 import ServiceManagement
+import AppKit
 
 enum LaunchAtLoginState: Equatable {
     case disabled
@@ -35,7 +36,7 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
 
     override init(store: AccountStore, codex: any AccountClient, switchService: any SwitchServicing,
-                  subscriptionClient: any SubscriptionClient = LiveSubscriptionClient()) {
+                  subscriptionClient: (any SubscriptionClient)? = nil) {
         super.init(store: store, codex: codex, switchService: switchService, subscriptionClient: subscriptionClient)
         onChange = { [weak self] in self?.objectWillChange.send() }
         refreshLaunchAtLoginStatus()
@@ -45,7 +46,8 @@ final class AppModel: AccountController, @MainActor ObservableObject {
         let store = AccountStore()
         let codex = CodexClient()
         return AppModel(store: store, codex: codex,
-                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()))
+                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()),
+                        subscriptionClient: LiveSubscriptionClient())
     }
 
     var launchesAtLogin: Bool { launchAtLoginState.isOn }
@@ -68,4 +70,12 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     }
 
     func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
+
+    func revealResetExpiryLog() {
+        if FileManager.default.fileExists(atPath: resetExpiryLogURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([resetExpiryLogURL])
+        } else {
+            NSWorkspace.shared.activateFileViewerSelecting([resetExpiryLogURL.deletingLastPathComponent()])
+        }
+    }
 }

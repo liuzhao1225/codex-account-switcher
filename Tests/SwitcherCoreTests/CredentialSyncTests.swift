@@ -42,18 +42,28 @@ struct CredentialSyncTests {
         #expect(try await restarted.loadRegistry().accounts.first?.accountID == "personal")
     }
 
-    @Test func registrationRejectsACredentialChangedAfterIdentityRead() async throws {
+    @Test @MainActor func manualRegistrationFollowsTheCurrentLocalLogin() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
         try await fixture.store.importCurrentProfile(profile)
+        let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
+        let original = try Data(contentsOf: saved)
+        let model = AccountController(store: fixture.store, codex: CredentialClient(),
+                                      switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
         try fixture.writeLive("workspace", token: "other")
-        await #expect(throws: AccountStoreError.activeCredentialMismatch) {
-            try await fixture.store.registerActiveIdentity(.init(accountID: "personal", email: "same@example.test"))
-        }
-        #expect(try await fixture.store.loadRegistry().accounts.count == 1)
-        #expect(try await fixture.store.loadRegistry().activeAccountID == profile.id)
+        await model.registerCurrentAccount()
+        await model.waitForWeeklyUsageRefresh()
+        let registry = try await fixture.store.loadRegistry()
+        let workspace = try #require(registry.accounts.first { $0.accountID == "workspace" })
+        #expect(registry.accounts.count == 2)
+        #expect(model.activeAccountID == workspace.id)
+        #expect(try Data(contentsOf: saved) == original)
+        let workspaceAuth = await fixture.store.profileHome(id: workspace.id).appending(path: "auth.json")
+        #expect(try Data(contentsOf: workspaceAuth) == Data(contentsOf: fixture.auth))
+        #expect(model.visibleError == nil)
     }
 
     @Test func workspaceIdentityDoesNotMatchAnEmailOnlyProfile() {
@@ -286,6 +296,9 @@ private actor CredentialClient: AccountClient {
         return identity
     }
     func login(profileHome: URL) async throws -> AccountIdentity { try await readIdentity(profileHome: profileHome) }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        throw CodexClientError.remoteError(code: nil, message: "Unexpected reset consumption in this fixture.")
+    }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         let bytes = try String(contentsOf: profileHome.appending(path: "auth.json"), encoding: .utf8)
         if bytes.contains("revoked") { throw CodexClientError.identityUnavailable }

@@ -66,6 +66,42 @@ public actor AccountStore: AccountStoring {
     private var subscriptionCacheURL: URL { baseURL.appending(path: "subscription-cache.json") }
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
+    public nonisolated var resetExpiryLogURL: URL { baseURL.appending(path: "reset-expiry-experiment.jsonl") }
+
+    func loadResetExpiryLog() throws -> [ResetExpiryEvent] {
+        try prepareDirectories()
+        guard fileManager.fileExists(atPath: resetExpiryLogURL.path) else { return [] }
+        return try readChecked(resetExpiryLogURL).split(separator: 0x0A).map {
+            try Self.decoder.decode(ResetExpiryEvent.self, from: Data($0))
+        }
+    }
+
+    func appendResetExpiryLog(_ events: [ResetExpiryEvent]) throws {
+        try prepareDirectories()
+        try checkPath(resetExpiryLogURL)
+        if !fileManager.fileExists(atPath: resetExpiryLogURL.path) {
+            try secureAtomicWrite(Data(), to: resetExpiryLogURL)
+        }
+        try restrictPermissions(resetExpiryLogURL, directory: false)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        var bytes = Data()
+        for event in events {
+            bytes.append(try encoder.encode(event))
+            bytes.append(0x0A)
+        }
+        let handle = try FileHandle(forWritingTo: resetExpiryLogURL)
+        do {
+            try handle.seekToEnd()
+            try handle.write(contentsOf: bytes)
+            try handle.synchronize()
+        } catch {
+            try? handle.close()
+            throw error
+        }
+        try handle.close()
+    }
 
     public func loadRegistry() throws -> AccountRegistry {
         try prepareDirectories()
@@ -271,23 +307,15 @@ public actor AccountStore: AccountStoring {
         if fileManager.fileExists(atPath: directory.path) { try removeProfileDirectory(directory) }
     }
 
-    public func registerActiveIdentity(_ identity: AccountIdentity) throws {
-        let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
-        try registerActiveIdentity(identity, credential: bytes)
-    }
-
     private func registerActiveIdentity(_ identity: AccountIdentity, credential bytes: Data) throws {
         let current = try loadRegistry()
-        let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
-            email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
-        guard let credentialIdentity = try CredentialIdentity.decode(bytes), credentialIdentity.matches(candidate) else {
-            throw AccountStoreError.activeCredentialMismatch
-        }
         if let profile = current.accounts.first(where: { identity.matches($0) }) {
             let destination = profileHome(id: profile.id).appending(path: "auth.json")
             if try readChecked(destination) != bytes { try secureAtomicWrite(bytes, to: destination) }
             if current.activeAccountID != profile.id { try commitActiveAccountID(profile.id) }
         } else {
+            let candidate = AccountProfile(id: UUID(), displayName: identity.suggestedDisplayName,
+                email: identity.email, accountID: identity.accountID, createdAt: Date(), lastUsedAt: Date())
             try importProfile(candidate, credential: bytes)
         }
     }
@@ -441,16 +469,11 @@ public actor AccountStore: AccountStoring {
 
     private func removeProfileDirectory(_ path: URL) throws {
         #if os(Windows)
-        func checkTree(_ directory: URL) throws {
-            try checkPath(directory)
-            for child in try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) {
-                try checkPath(child)
-                if try child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true { try checkTree(child) }
-            }
-        }
-        try checkTree(path)
-        #endif
+        let error = switcher_remove_directory(path.path)
+        guard error == 0 else { throw windowsError(error) }
+        #else
         try fileManager.removeItem(at: path)
+        #endif
     }
 
     private func secureAtomicWrite(_ bytes: Data, to destination: URL) throws {

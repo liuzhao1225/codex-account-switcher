@@ -40,7 +40,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
         reader = ReadAsync();
     }
 
-    public Task InitializeAsync(string version) => SendAsync(new { command = "initialize", version });
+    public Task InitializeAsync() => SendAsync(new { command = "initialize" });
     public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null)
         => SendAsync(new { command, accountID, value, language });
 

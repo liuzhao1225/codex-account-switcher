@@ -1,9 +1,11 @@
 ## 中文
 
-- 修复切换账号时因 Codex app-server 的 `workspace routing discovery timed out` 报错而中断的问题。macOS 和 Windows 在保存当前凭证、核验目标账号时直接读取本地凭证中的工作区身份。
-- 保留同邮箱不同工作区的身份检查。凭证缺失、损坏或工作区不匹配时仍明确报错；登录和用量查询继续通过 Codex app-server 执行。
+- 修复 Windows 版 Codex Desktop 关闭窗口后仍留在托盘、导致账号切换超时的问题。确认切换后，结束对应安装的 Desktop 及其子进程，确认退出后再更换账号凭据并重新打开 Desktop。
+- 保留独立启动的 CLI 和其他路径下的同名程序，并在切换确认中说明任务中断及未保存状态可能丢失。
+- macOS 保持原有正常退出流程。自动使用 reset 的行为保持不变。
 
 ## English
 
-- Fix account switching interrupted by Codex app-server's `workspace routing discovery timed out` error. Both macOS and Windows now read workspace identity directly from local credentials when saving the current account and verifying the installed target.
-- Preserve identity checks for workspaces sharing an email. Missing, malformed, or mismatched credentials still produce visible errors; login and usage requests continue to use Codex app-server.
+- Fix Windows account-switch timeouts when Codex Desktop remains in the tray after its window closes. After confirmation, terminate the matching Desktop installation and its descendants, verify exit, then replace credentials and reopen Desktop.
+- Preserve independently launched CLI sessions and unrelated same-name executables. The confirmation explains interrupted tasks and possible unsaved-state loss.
+- Keep the macOS normal quit flow and automatic reset behavior unchanged.

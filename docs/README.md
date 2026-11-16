@@ -37,7 +37,7 @@ Preflight
 → close Codex Desktop
 → save the current account's latest credentials
 → atomically activate the target credentials
-→ verify the target identity through Codex
+→ verify the target identity from the installed credential
 → write activeAccountID
 → reopen Codex Desktop
 ```
@@ -47,4 +47,4 @@ The sequence is deliberately linear. Every step either succeeds or returns an er
 ## Windows and platform releases
 
 - [Windows development, packaging and limitations](../windows/README.md)
-- [Independent macOS / Windows versions and tags](platform-releases.md)
+- [Unified macOS / Windows versions and tags](platform-releases.md)

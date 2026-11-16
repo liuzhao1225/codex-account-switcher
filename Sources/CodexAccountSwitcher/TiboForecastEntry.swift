@@ -30,6 +30,7 @@ struct TiboForecastEntry: View {
         .accessibilityValue(summary)
         .help(forecastModel.forecast == nil
               ? model.text(forecastModel.isLoading ? "tibo_loading" : "tibo_unavailable")
+                + (forecastModel.failureMessage.map { "\n" + $0 } ?? "")
                 + "\n" + model.text("tibo_source_hint")
               : model.text("tibo_source_hint"))
     }

@@ -69,7 +69,7 @@ jobs:
         run: node --test scripts/tests/*.test.mjs
       - name: Build Windows application
         run: dotnet build windows/CodexAccountSwitcher -c Release --nologo
-      - name: Check normal close and Store package path refresh
+      - name: Check Desktop termination, process isolation and Store package path refresh
         shell: pwsh
         run: |
           dotnet build windows/CodexAccountSwitcher.CloseFixture -c Release --nologo

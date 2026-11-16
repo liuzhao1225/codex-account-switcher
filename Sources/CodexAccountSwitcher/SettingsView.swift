@@ -76,6 +76,21 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
+            sectionLabel("settings_automation")
+            settingRow("auto_reset") {
+                settingSwitch("auto_reset", isOn: Binding(
+                    get: { model.settings.autoResetEnabled },
+                    set: { enabled in Task { await model.setAutoResetEnabled(enabled) } }
+                ))
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.text("auto_reset_hint"))
+                    .foregroundStyle(.secondary)
+                Button(model.text("open_reset_log")) { model.revealResetExpiryLog() }
+                    .buttonStyle(.link)
+            }
+            .modifier(SettingsDetail())
+
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
                 settingSwitch("automatically_check_updates", isOn: Binding(

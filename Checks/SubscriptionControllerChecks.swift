@@ -7,16 +7,29 @@ private enum SubscriptionFixtureError: Error { case unavailable }
 private actor SubscriptionFixtureClient: SubscriptionClient {
     var fails = false
     var count = 0
+    private var pauseNext = false
+    private var cancelled = 0
     var authFailures: [String: Int] = [:]
     var seenTokens: [String: [String]] = [:]
     let value: LiveSubscription
     init(value: LiveSubscription) { self.value = value }
     func setFails(_ value: Bool) { fails = value }
     func calls() -> Int { count }
+    func pauseNextRequest() { pauseNext = true }
+    func cancelledRequests() -> Int { cancelled }
     func rejectAuthentication(_ accountID: String, times: Int) { authFailures[accountID] = times }
     func tokens(_ accountID: String) -> [String] { seenTokens[accountID] ?? [] }
     func readSubscription(credential: Data, expectedAccountID: String?, expectedEmail: String?) async throws -> LiveSubscription {
         count += 1
+        if pauseNext {
+            pauseNext = false
+            do {
+                try await Task.sleep(for: .seconds(5))
+            } catch is CancellationError {
+                cancelled += 1
+                throw CancellationError()
+            }
+        }
         let key = expectedAccountID ?? ""
         let payload = try JSONSerialization.jsonObject(with: credential) as! [String: Any]
         seenTokens[key, default: []].append((payload["tokens"] as? [String: Any])?["access_token"] as? String ?? "")
@@ -50,6 +63,9 @@ private actor SubscriptionFixtureCodex: AccountClient {
     func login(profileHome: URL) async throws -> AccountIdentity { throw SubscriptionFixtureError.unavailable }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity { throw SubscriptionFixtureError.unavailable }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage { throw SubscriptionFixtureError.unavailable }
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        throw SubscriptionFixtureError.unavailable
+    }
 }
 
 private struct SubscriptionFixtureSwitch: SwitchServicing {
@@ -108,6 +124,19 @@ func runSubscriptionControllerChecks() async throws {
     try require(persisted.count == 2 && persisted[active.id] == latest, "successful service dates persist across launches")
     let attributes = try fm.attributesOfItem(atPath: support.appendingPathComponent("subscription-cache.json").path)
     try require((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600, "derived subscription cache is private")
+    let beforeSlowRequest = await client.calls()
+    await client.pauseNextRequest()
+    controller.refreshWeeklyUsage()
+    for _ in 0..<100 {
+        if await client.calls() > beforeSlowRequest { break }
+        try await Task.sleep(for: .milliseconds(20))
+    }
+    let slowRequestStarted = await client.calls() > beforeSlowRequest
+    try require(slowRequestStarted, "the slow subscription request starts")
+    controller.refreshWeeklyUsage()
+    await controller.waitForWeeklyUsageRefresh()
+    let cancelledRequests = await client.cancelledRequests()
+    try require(cancelledRequests == 1, "a new quota refresh preempts a slow subscription request")
     let newStore = AccountStore(baseURL: support, activeHomeURL: home)
     let reloaded = AccountController(store: newStore, codex: codex, switchService: SubscriptionFixtureSwitch(), subscriptionClient: client)
     await reloaded.start()
@@ -217,7 +246,8 @@ func runSubscriptionControllerChecks() async throws {
     try require(renewedIdentity.accountID == "other-fixture", "forced managed refresh returns the requested profile identity")
     let receipt = try JSONSerialization.jsonObject(with: Data(contentsOf: rpcHome.appendingPathComponent("renewal-request.json"))) as! [String: Any]
     try require(receipt["refresh"] as? Bool == true, "authentication recovery requests official forced renewal")
-    try require((receipt["args"] as? [String])?.contains("cli_auth_credentials_store=\"file\"") == true, "renewed tokens are persisted to the isolated profile file")
+    try require(receipt["args"] as? [String] == ["app-server", "-c", "cli_auth_credentials_store=\"file\""],
+                "renewal uses default stdio and writes only the isolated profile file")
     let childPID = (receipt["pid"] as! NSNumber).int32Value
     try require(Darwin.kill(childPID, 0) != 0, "renewal returns only after its credential writer has exited")
 

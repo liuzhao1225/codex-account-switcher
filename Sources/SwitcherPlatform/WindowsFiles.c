@@ -36,6 +36,101 @@ static DWORD check_path(const wchar_t *path) {
     free(full); return error;
 }
 
+// Foundation's recursive enumeration can report a missing file for existing cache
+// entries beyond MAX_PATH. Use absolute extended-length paths for the entire walk,
+// independently of the process manifest and the machine's long-path setting.
+static wchar_t *extended_path(const wchar_t *path) {
+    DWORD size = GetFullPathNameW(path, 0, NULL, NULL);
+    if (!size) return NULL;
+    wchar_t *full = calloc((size_t)size, sizeof(wchar_t));
+    if (!full) { SetLastError(ERROR_OUTOFMEMORY); return NULL; }
+    DWORD length = GetFullPathNameW(path, size, full, NULL);
+    if (!length || length >= size) {
+        DWORD error = length ? ERROR_INSUFFICIENT_BUFFER : GetLastError();
+        free(full); SetLastError(error); return NULL;
+    }
+    for (DWORD i = 0; i < length; i++) if (full[i] == L'/') full[i] = L'\\';
+    if (wcsncmp(full, L"\\\\?\\", 4) == 0) return full;
+    int unc = wcsncmp(full, L"\\\\", 2) == 0;
+    const wchar_t *prefix = unc ? L"\\\\?\\UNC\\" : L"\\\\?\\";
+    const wchar_t *suffix = full + (unc ? 2 : 0);
+    size_t count = wcslen(prefix) + wcslen(suffix) + 1;
+    wchar_t *extended = calloc(count, sizeof(wchar_t));
+    if (extended) swprintf(extended, count, L"%ls%ls", prefix, suffix);
+    free(full);
+    if (!extended) SetLastError(ERROR_OUTOFMEMORY);
+    return extended;
+}
+
+static wchar_t *child_path(const wchar_t *directory, const wchar_t *name) {
+    size_t count = wcslen(directory) + wcslen(name) + 2;
+    wchar_t *child = calloc(count, sizeof(wchar_t));
+    if (child) swprintf(child, count, L"%ls\\%ls", directory, name);
+    return child;
+}
+
+// Preflight the whole tree before changing anything, preserving the existing
+// reject-links policy. Check again during removal rather than trusting preflight
+// attributes after the directory has been enumerated a second time.
+static DWORD walk_directory(const wchar_t *path, int remove) {
+    DWORD error = check_path(path);
+    if (error) return error;
+    DWORD attributes = GetFileAttributesW(path);
+    if (attributes == INVALID_FILE_ATTRIBUTES) return GetLastError();
+    if (attributes & FILE_ATTRIBUTE_REPARSE_POINT) return ERROR_REPARSE_TAG_INVALID;
+    if (!(attributes & FILE_ATTRIBUTE_DIRECTORY)) return ERROR_DIRECTORY;
+
+    wchar_t *pattern = child_path(path, L"*");
+    if (!pattern) return ERROR_OUTOFMEMORY;
+    WIN32_FIND_DATAW entry;
+    HANDLE search = FindFirstFileW(pattern, &entry);
+    error = search == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
+    free(pattern);
+    if (search == INVALID_HANDLE_VALUE) {
+        if (error != ERROR_FILE_NOT_FOUND) return error;
+    } else {
+        do {
+            if (wcscmp(entry.cFileName, L".") == 0 || wcscmp(entry.cFileName, L"..") == 0) continue;
+            wchar_t *child = child_path(path, entry.cFileName);
+            if (!child) { error = ERROR_OUTOFMEMORY; break; }
+            error = check_path(child);
+            DWORD current = error ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(child);
+            if (!error && current == INVALID_FILE_ATTRIBUTES) error = GetLastError();
+            if (!error && (current & FILE_ATTRIBUTE_REPARSE_POINT)) error = ERROR_REPARSE_TAG_INVALID;
+            if (!error && (current & FILE_ATTRIBUTE_DIRECTORY)) {
+                error = walk_directory(child, remove);
+            } else if (!error && remove) {
+                // Git pack files in downloaded plugin caches can be read-only.
+                if ((current & FILE_ATTRIBUTE_READONLY) &&
+                    !SetFileAttributesW(child, current & ~FILE_ATTRIBUTE_READONLY)) error = GetLastError();
+                if (!error && !DeleteFileW(child)) error = GetLastError();
+            }
+            free(child);
+            if (error) break;
+        } while (FindNextFileW(search, &entry));
+        if (!error) {
+            DWORD last = GetLastError();
+            if (last != ERROR_NO_MORE_FILES) error = last;
+        }
+        FindClose(search);
+        if (error) return error;
+    }
+    if (remove && !RemoveDirectoryW(path)) return GetLastError();
+    return ERROR_SUCCESS;
+}
+
+uint32_t switcher_remove_directory(const char *utf8_path) {
+    wchar_t *path = wide_path(utf8_path);
+    if (!path) return GetLastError();
+    wchar_t *extended = extended_path(path);
+    DWORD error = extended ? ERROR_SUCCESS : GetLastError();
+    free(path);
+    if (!error) error = walk_directory(extended, 0);
+    if (!error) error = walk_directory(extended, 1);
+    free(extended);
+    return error;
+}
+
 static DWORD private_descriptor(PSECURITY_DESCRIPTOR *descriptor, int directory) {
     HANDLE token = NULL;
     if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return GetLastError();
@@ -117,4 +212,5 @@ uint32_t switcher_atomic_write(const char *utf8_path, const void *bytes, size_t 
 uint32_t switcher_restrict_path(const char *path, int directory) { (void)path; (void)directory; return 0; }
 uint32_t switcher_atomic_write(const char *path, const void *bytes, size_t count) { (void)path; (void)bytes; (void)count; return 0; }
 uint32_t switcher_check_path(const char *path) { (void)path; return 0; }
+uint32_t switcher_remove_directory(const char *path) { (void)path; return 0; }
 #endif

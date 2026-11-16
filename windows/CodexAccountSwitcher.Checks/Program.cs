@@ -26,7 +26,7 @@ var active = Path.Combine(root, "active");
 Directory.CreateDirectory(active);
 try {
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
-        await client.InitializeAsync("0.1.0").WaitAsync(TimeSpan.FromSeconds(30));
+        await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
         await UntilAsync(() => client.State.Strings.ContainsKey("manage"));
         Require(client.State.Accounts.Length == 0, "Isolated startup should have no accounts.");
         Require(client.State.Settings.StatusBarUsageWindow == "fiveHour", "Five-hour usage should be the default tray window.");
@@ -45,7 +45,7 @@ try {
             "Shared-core files must grant only the current user access.");
     }
     await using (var second = new CoreClient(Path.GetFullPath(host), data, active)) {
-        await second.InitializeAsync("0.1.0").WaitAsync(TimeSpan.FromSeconds(30));
+        await second.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
         await UntilAsync(() => second.State.Settings.Language == "simplifiedChinese");
         Require(second.State.Settings.ShowsFiveHourUsage, "Settings must survive a host restart.");
         Require(second.State.Settings.StatusBarUsageWindow == "weekly", "Tray usage selection must survive a host restart.");

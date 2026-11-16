@@ -52,11 +52,11 @@ struct MenuBarPopover: View {
         .frame(width: 400)
         .onAppear {
             page = model.isAddingAccount ? .manageAccounts : .accounts
+            Task { await tiboForecast.refreshIfDue() }
         }
         .task {
             await model.start()
             model.refreshWeeklyUsage()
-            await tiboForecast.refreshIfDue()
         }
     }
 

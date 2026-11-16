@@ -60,7 +60,7 @@ The menu-bar item uses a compact account-group icon with an accessibility label.
 
 The popover content width is 400 points.
 
-Manual launch and reopening the running app from Finder or Spotlight show the account list in a separate, content-sized panel. This entry remains available when macOS hides the menu-bar item because the bar is full or the camera housing obstructs it. Closing the panel keeps the menu-bar app running. Login-item launches stay in the background; account loading and refresh start independently of menu-bar visibility.
+macOS uses only a menu-bar entry and its popover. Manual launch, login launch and reopening the running app from Finder or Spotlight do not create a separate account window. Account loading and refresh start independently of menu-bar visibility.
 
 ## 5. Account row
 
@@ -188,7 +188,7 @@ After confirmation, disable additional account actions while the six-stage opera
 - `Saving selected account…`
 - `Opening Codex Desktop…`
 
-If Codex Desktop displays its quit warning for active local chats, the user handles that native dialog. The switcher waits up to 30 seconds for normal exit and never force-quits Desktop. A rejected quit request or timeout stops the switch before credentials change, preserving Desktop's opportunity to flush task history. The user can finish or stop tasks and close Desktop before switching again.
+On macOS, the user handles Codex Desktop's native quit warning; the switcher waits up to 30 seconds for normal exit and does not force-quit. On Windows, the switch confirmation explicitly warns that Desktop and its descendants will be forcibly stopped, interrupting tasks and potentially losing unsaved state. Windows targets the discovered installation's processes and descendants, preserves independently started CLIs, and waits up to 30 seconds for exit without window activation or keyboard simulation. On either platform, a close failure or timeout stops switching before credentials change.
 
 The stages are not configurable. A failure banner identifies the failed stage and retains the underlying diagnostic message.
 
@@ -346,6 +346,6 @@ The tag workflow publishes the signed feed. See the ablation reports and release
 
 ## 14. First activation and external sign-in
 
-With no registered active account and no active auth.json, selecting a saved account activates it directly after Desktop exits normally. Verification or registry persistence failure removes the newly installed active credential and leaves the app signed out. Existing unregistered credentials are never overwritten by this path.
+With no registered active account and no active auth.json, selecting a saved account activates it directly after Desktop exits. Verification or registry persistence failure removes the newly installed active credential and leaves the app signed out. Existing unregistered credentials are never overwritten by this path.
 
 Manage Accounts provides Register Current Account below Add Account. It reads the current shared login identity, updates that same identity’s saved credential or imports a new profile, and records it as active. A mismatch during switching links to Manage Accounts. Other profiles remain unchanged.

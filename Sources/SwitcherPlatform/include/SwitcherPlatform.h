@@ -6,4 +6,6 @@
 uint32_t switcher_restrict_path(const char *utf8_path, int directory);
 uint32_t switcher_atomic_write(const char *utf8_path, const void *bytes, size_t count);
 uint32_t switcher_check_path(const char *utf8_path);
+// Remove a directory tree using extended-length Windows paths, rejecting reparse points.
+uint32_t switcher_remove_directory(const char *utf8_path);
 #endif

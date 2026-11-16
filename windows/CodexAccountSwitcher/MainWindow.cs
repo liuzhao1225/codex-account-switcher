@@ -225,7 +225,7 @@ public sealed class MainWindow : Window
     {
         if (target == null) return;
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-        var copy = T(page == "switch" ? "switch_body" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
+        var copy = T(page == "switch" ? "switch_body_windows" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
         var text = Text(copy, 13, muted: true); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 0, 14); content.Children.Add(text);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Button(T("cancel"), () => Navigate(page == "remove" ? "manage" : "accounts")));
@@ -256,6 +256,15 @@ public sealed class MainWindow : Window
         var language = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = new[] { T("system_default"), T("english"), T("simplified_chinese") }, SelectedIndex = Array.IndexOf(languages, State.Settings.Language) };
         language.SelectionChanged += (_, _) => { if (language.SelectedIndex >= 0) _ = Run("language", language: languages[language.SelectedIndex]); };
         var languageRow = Pair(Text(T("language")), language); languageRow.Height = 48; settings.Children.Add(languageRow);
+        var experimentHeading = Text(T("settings_automation"), 14, bold: true); experimentHeading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(experimentHeading);
+        Toggle(T("auto_reset"), State.Settings.AutoResetEnabled, value => _ = Run("autoReset", value: value));
+        var experimentHint = Text(T("auto_reset_hint"), 10.5, muted: true); experimentHint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(experimentHint);
+        settings.Children.Add(Button(T("open_reset_log"), () => {
+            try {
+                var directory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
+            } catch (Exception ex) { localError = ex.Message; Render(); }
+        }));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());

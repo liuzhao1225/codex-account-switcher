@@ -5,7 +5,7 @@ macOS and Windows share one product version, one immutable `v<major>.<minor>.<pa
 ## Test and publish
 
 1. Push changes and run platform CI on GitHub: shared Swift tests on both systems, macOS CoreChecks, Windows transport/WPF checks and self-contained EXE checks. Interface or account-switch changes also need appropriate real-system validation.
-2. Set the same version in `CITATION.cff`, `scripts/package-local-app.sh`, `Sources/SwitcherCore/CodexClient.swift`, and `windows/Directory.Build.props`. Keep the host/client fallback versions in sync. Write only this release's changes in `.github/release-notes.md`.
+2. Set the same version in `CITATION.cff`, `scripts/package-local-app.sh`, `Sources/SwitcherCore/CodexClient.swift`, and `windows/Directory.Build.props`. The host and public forecast reader use the shared client version; Windows reads its packaged assembly version. Write only this release's changes in `.github/release-notes.md`.
 3. After CI succeeds, create and push an annotated `v*` tag from the intended main commit. Ordinary main pushes run CI without publishing.
 4. `.github/workflows/release.yml` validates all version sources and the tagged commit, then runs macOS and Windows builds in parallel. Windows uses the reusable `.github/workflows/windows.yml`; it never publishes independently.
 5. macOS tests, signs, notarizes, staples and checks the DMG. Windows tests, packages and runs the EXE without SDK/runtime paths. The publish job waits for both jobs, verifies both SHA-256 files and the macOS feed, uploads everything to a draft, then publishes it as Latest.
