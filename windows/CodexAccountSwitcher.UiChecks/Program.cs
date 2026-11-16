@@ -181,6 +181,7 @@ internal static class Program
         }));
         addKey.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (dialogFailure != null) throw dialogFailure;
+        window.UpdateLayout();
     }
     private static void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static IEnumerable<T> All<T>(DependencyObject parent) where T : DependencyObject {
