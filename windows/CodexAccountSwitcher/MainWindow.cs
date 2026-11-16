@@ -14,6 +14,7 @@ namespace CodexAccountSwitcher;
 
 public sealed class MainWindow : Window
 {
+    private const string AccountDragFormat = "CodexAccountSwitcher.AccountID";
     private readonly IAccountClient client;
     private readonly NativeSettings native;
     private string page = "accounts";
@@ -57,9 +58,10 @@ public sealed class MainWindow : Window
         _ = Run("refresh");
     }
     public void Navigate(string destination) { page = destination; target = null; localError = null; Render(); }
-    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null)
+    private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null,
+        Guid? targetAccountID = null)
     {
-        try { await client.CommandAsync(command, id, value, language); }
+        try { await client.CommandAsync(command, id, value, language, targetAccountID); }
         catch (Exception ex) { localError = ex.Message; Render(); }
     }
     private TextBlock Text(string text, double size = 13, bool muted = false, bool bold = false) => new() {
@@ -123,6 +125,15 @@ public sealed class MainWindow : Window
             Child = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled } };
     }
 
+    private Guid? DraggedAccount(IDataObject data, Guid targetID)
+    {
+        if (IsBusy || State.IsAddingAccount || !data.GetDataPresent(AccountDragFormat, autoConvert: false)
+            || !Guid.TryParse(data.GetData(AccountDragFormat, autoConvert: false) as string, out var sourceID))
+            return null;
+        return sourceID != targetID && State.Accounts.Any(account => account.Profile.Id == sourceID)
+            ? sourceID : null;
+    }
+
     private void Accounts(StackPanel body, bool manage)
     {
         if (!manage && !State.ActiveIdentityConfirmed) {
@@ -131,6 +142,7 @@ public sealed class MainWindow : Window
             warning.Children.Add(Button(T("manage"), () => Navigate("manage"), left: true)); body.Children.Add(warning);
         }
         var list = new StackPanel();
+        var canReorder = manage && State.Accounts.Length > 1;
         foreach (var row in State.Accounts) {
             var avatar = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(4), Background = B("Hover"),
                 Child = Text(row.Initials, 11, bold: true) };
@@ -176,7 +188,34 @@ public sealed class MainWindow : Window
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 UIElement action = active ? Text(T("active"), 11, muted: true) : Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
                 AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 2); grid.Children.Add(action);
-                list.Children.Add(new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid });
+                var item = new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid };
+                if (canReorder) {
+                    var handle = Text("☰", 17, muted: true);
+                    handle.Cursor = Cursors.SizeAll;
+                    handle.ToolTip = T("drag_to_reorder");
+                    AutomationProperties.SetName(handle, T("drag_to_reorder"));
+                    handle.MouseMove += (_, e) => {
+                        if (!IsBusy && !State.IsAddingAccount && e.LeftButton == MouseButtonState.Pressed)
+                            DragDrop.DoDragDrop(handle, new DataObject(AccountDragFormat, row.Profile.Id.ToString()), DragDropEffects.Move);
+                    };
+                    grid.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(26) });
+                    Grid.SetColumn(avatar, 1);
+                    Grid.SetColumn(details, 2);
+                    Grid.SetColumn(action, 3);
+                    grid.Children.Add(handle);
+                    item.AllowDrop = true;
+                    item.Background = Brushes.Transparent;
+                    item.DragOver += (_, e) => {
+                        e.Effects = DraggedAccount(e.Data, row.Profile.Id) != null ? DragDropEffects.Move : DragDropEffects.None;
+                        e.Handled = true;
+                    };
+                    item.Drop += (_, e) => {
+                        e.Handled = true;
+                        if (DraggedAccount(e.Data, row.Profile.Id) is { } sourceID)
+                            _ = Run("move", sourceID, targetAccountID: row.Profile.Id);
+                    };
+                }
+                list.Children.Add(item);
             } else {
                 var button = new Button { Content = grid, Style = (Style)FindResource("AccountRow"), Background = active ? B("Selected") : Brushes.Transparent, IsEnabled = !IsBusy };
                 AutomationProperties.SetName(button, title);
