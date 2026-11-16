@@ -77,7 +77,10 @@ var targets: [Target] = [
         .target(name: "SwitcherPlatform", condition: .when(platforms: [.windows])),
     ]),
     .executableTarget(name: "SwitcherHost", dependencies: ["SwitcherCore"]),
-    .testTarget(name: "SwitcherCoreTests", dependencies: ["SwitcherCore"],
+    .testTarget(name: "SwitcherCoreTests", dependencies: [
+        "SwitcherCore",
+        .target(name: "SwitcherPlatform", condition: .when(platforms: [.windows])),
+    ],
                 swiftSettings: testingCompatibilitySettings.0,
                 linkerSettings: testingCompatibilitySettings.1),
 ]
