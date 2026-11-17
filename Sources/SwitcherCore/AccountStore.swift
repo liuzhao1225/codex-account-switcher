@@ -338,6 +338,30 @@ public actor AccountStore: AccountStoring {
         return try loadRegistry()
     }
 
+    /// Stop the matching resident reader before replacing its credential. Recheck
+    /// the live login after suspension so a newer Desktop login is never lost.
+    public func syncActiveCredential(beforeUpdatingProfile: @Sendable (URL) async throws -> Void) async throws -> AccountRegistry {
+        while true {
+            let current = try loadRegistry()
+            guard activeCredentialExists() else { return try syncActiveCredential() }
+            let source = activeHomeURL.appending(path: "auth.json")
+            let bytes = try readChecked(source)
+            guard let identity = try CredentialIdentity.decode(bytes) else { throw CodexClientError.identityUnavailable }
+            if let profile = current.accounts.first(where: { identity.matches($0) }) {
+                let home = profileHome(id: profile.id)
+                if try readChecked(home.appending(path: "auth.json")) != bytes {
+                    try await beforeUpdatingProfile(home)
+                    try Task.checkCancellation()
+                    guard activeCredentialExists(), try readChecked(source) == bytes else { continue }
+                    let latest = try loadRegistry()
+                    guard latest.accounts.first(where: { identity.matches($0) })?.id == profile.id else { continue }
+                }
+            }
+            try registerActiveIdentity(identity, credential: bytes)
+            return try loadRegistry()
+        }
+    }
+
     public func removeAccount(id: UUID) throws {
         var current = try loadRegistry()
         guard current.activeAccountID != id else {

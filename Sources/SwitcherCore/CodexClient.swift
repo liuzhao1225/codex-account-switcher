@@ -212,7 +212,8 @@ private actor JSONRPCSession {
     private let decoder = JSONDecoder()
     private var didTimeout = false
     private var pendingNotifications: [RPCEnvelope] = []
-    private var stopTask: Task<Bool, Never>?
+    private let stopState = SessionStopState()
+    private var didStop = false
 
     public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String],
                 fileCredentials: Bool = false) throws {
@@ -247,6 +248,17 @@ private actor JSONRPCSession {
             throw CodexClientError.processLaunchFailed(error.localizedDescription)
         }
     }
+
+    deinit {
+        output.readabilityHandler = nil
+        errorOutput.readabilityHandler = nil
+        try? input.close()
+        if process.isRunning { process.terminate() }
+        pump.finish()
+        stderrDrain.finish()
+    }
+
+    public var isRunning: Bool { process.isRunning && !didStop }
 
     public func initialize(timeout: Duration, clientVersion: String) async throws {
         try send([
@@ -286,7 +298,7 @@ private actor JSONRPCSession {
 
     @discardableResult
     public func stop() async -> Bool {
-        if let stopTask { return await stopTask.value }
+        didStop = true
         output.readabilityHandler = nil
         errorOutput.readabilityHandler = nil
         try? input.close()
@@ -294,7 +306,7 @@ private actor JSONRPCSession {
         stderrDrain.finish()
         let process = process
         // Cleanup must survive cancellation of the request that owns this session.
-        let task = Task.detached {
+        return await stopState.stop(isRunning: { process.isRunning }) {
             if process.isRunning { process.terminate() }
             for _ in 0..<100 {
                 if !process.isRunning { return true }
@@ -311,8 +323,6 @@ private actor JSONRPCSession {
             }
             return !process.isRunning
         }
-        stopTask = task
-        return await task.value
     }
 
     private func response(id: Int, timeout: Duration) async throws -> RPCEnvelope {
@@ -586,12 +596,19 @@ public enum ResetCreditOutcome: String, Codable, Sendable {
 
 public protocol AccountClient: CodexIdentityReading {
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage
+    func stopUsageSessions() async throws
+    func stopUsageSession(profileHome: URL) async throws
+    func forgetUsageSession(profileHome: URL) async throws
     func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome
     func refreshIdentity(profileHome: URL) async throws -> AccountIdentity
     func login(profileHome: URL) async throws -> AccountIdentity
 }
 
 extension AccountClient {
+    public func stopUsageSessions() async throws {}
+    public func stopUsageSession(profileHome: URL) async throws { try await stopUsageSessions() }
+    public func forgetUsageSession(profileHome: URL) async throws { try await stopUsageSession(profileHome: profileHome) }
+
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
         throw CodexClientError.identityUnavailable
     }
@@ -601,11 +618,14 @@ public struct CodexClient: AccountClient {
     public let locator: CodexExecutableLocator
     public let requestTimeout: Duration
     public let clientVersion: String
+    private let usageSessions: UsageSessions
     private let openBrowser: @Sendable (URL) async throws -> Void
 
     public init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20),
                 clientVersion: String = "0.1.27",
+                usageSessionIdleTimeout: Duration = .seconds(1_200),
                 openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser) {
+        self.usageSessions = UsageSessions(idleTimeout: usageSessionIdleTimeout)
         self.locator = locator
         self.requestTimeout = requestTimeout
         self.clientVersion = clientVersion
@@ -635,13 +655,9 @@ public struct CodexClient: AccountClient {
     }
 
     public func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
-        let result = try await withSession(profileHome: profileHome) { session in
-            try await session.request(
-                method: "account/rateLimits/read",
-                id: 1,
-                timeout: requestTimeout
-            )
-        }
+        let worker = await usageSessions.worker(for: profileHome)
+        let result = try await worker.read(locator: locator, timeout: requestTimeout,
+                                           clientVersion: clientVersion)
         let availableCount = result["rateLimitResetCredits"]?["availableCount"]?.intValue
         let credits: [BankedResetCredit]?
         switch result["rateLimitResetCredits"]?["credits"] {
@@ -672,20 +688,26 @@ public struct CodexClient: AccountClient {
     }
 
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
-        let result = try await withSession(profileHome: profileHome, fileCredentials: true) { session in
-            try await session.request(method: "account/read", id: 1,
-                                      params: ["refreshToken": true], timeout: requestTimeout)
+        let worker = await usageSessions.worker(for: profileHome)
+        let result = try await worker.withStoppedSession {
+            try await withSession(profileHome: profileHome, fileCredentials: true) { session in
+                try await session.request(method: "account/read", id: 1,
+                                          params: ["refreshToken": true], timeout: requestTimeout)
+            }
         }
         return try parseIdentity(result, profileHome: profileHome)
     }
 
     public func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
-        let result = try await withSession(profileHome: profileHome) { session in
-            try await session.request(
-                method: "account/rateLimitResetCredit/consume", id: 1,
-                params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
-                timeout: requestTimeout
-            )
+        let worker = await usageSessions.worker(for: profileHome)
+        let result = try await worker.withStoppedSession {
+            try await withSession(profileHome: profileHome) { session in
+                try await session.request(
+                    method: "account/rateLimitResetCredit/consume", id: 1,
+                    params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
+                    timeout: requestTimeout
+                )
+            }
         }
         guard let value = result["outcome"]?.stringValue,
               let outcome = ResetCreditOutcome(rawValue: value) else {
@@ -731,6 +753,20 @@ public struct CodexClient: AccountClient {
             return try parseIdentity(identityValue, profileHome: profileHome)
         }
     }
+
+    public func stopUsageSessions() async throws {
+        try await usageSessions.stop()
+    }
+
+    public func stopUsageSession(profileHome: URL) async throws {
+        try await usageSessions.stop(for: profileHome)
+    }
+
+    public func forgetUsageSession(profileHome: URL) async throws {
+        try await usageSessions.forget(for: profileHome)
+    }
+
+    var usageSessionCount: Int { get async { await usageSessions.count } }
 
     private func withSession<T: Sendable>(
         profileHome: URL,
@@ -801,5 +837,234 @@ public struct CodexClient: AccountClient {
             windowDurationMins: duration,
             resetsAt: reset
         )
+    }
+}
+
+// One serialized quota channel per profile. Other RPCs retain their short-lived sessions.
+private actor UsageSessions {
+    private var workers: [URL: UsageSession] = [:]
+    private let idleTimeout: Duration
+
+    init(idleTimeout: Duration) { self.idleTimeout = idleTimeout }
+
+    func worker(for home: URL) -> UsageSession {
+        let key = home.standardizedFileURL
+        if let worker = workers[key] { return worker }
+        let worker = UsageSession(home: key, idleTimeout: idleTimeout)
+        workers[key] = worker
+        return worker
+    }
+
+    var count: Int { workers.count }
+
+    func stop(for home: URL) async throws {
+        try await workers[home.standardizedFileURL]?.stop()
+    }
+
+    func forget(for home: URL) async throws {
+        let key = home.standardizedFileURL
+        guard let worker = workers[key] else { return }
+        try await worker.retire()
+        if workers[key] === worker { workers.removeValue(forKey: key) }
+    }
+
+    func stop() async throws {
+        // Keep the workers registered while stopping so concurrent reads serialize
+        // with cleanup rather than opening a second writer for the same profile.
+        let snapshot = Array(workers.values)
+        var firstError: (any Error)?
+        await withTaskGroup(of: (any Error)?.self) { group in
+            for worker in snapshot {
+                group.addTask {
+                    do { try await worker.stop(); return nil }
+                    catch { return error }
+                }
+            }
+            for await error in group { if firstError == nil { firstError = error } }
+        }
+        if let firstError { throw firstError }
+    }
+}
+
+private actor UsageSession {
+    private let home: URL
+    private let idleTimeout: Duration
+    private var session: JSONRPCSession?
+    private var credential: Data?
+    private var executable: URL?
+    private var tail: Task<Void, Never>?
+    private var idleTask: Task<Void, Never>?
+    private var generation = 0
+    private var nextID = 1
+    private var retired = false
+
+    init(home: URL, idleTimeout: Duration) { self.home = home; self.idleTimeout = idleTimeout }
+
+    func read(locator: CodexExecutableLocator, timeout: Duration, clientVersion: String) async throws -> JSONValue {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            return try await self.performRead(locator: locator, timeout: timeout, clientVersion: clientVersion)
+        }
+        tail = Task { _ = await task.result }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: { task.cancel() }
+    }
+
+    func stop() async throws {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try await self.close()
+        }
+        tail = Task { _ = await task.result }
+        try await task.value
+    }
+
+    func withStoppedSession<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            guard !self.retired else { throw CodexClientError.connectionClosed }
+            try await self.close()
+            return try await operation()
+        }
+        tail = Task { _ = await task.result }
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+
+    func retire() async throws {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try await self.close()
+            self.retired = true
+        }
+        tail = Task { _ = await task.result }
+        try await task.value
+    }
+
+    private func cleanup(after error: any Error) async throws -> Never {
+        try await SessionFailure.finish(error, cancelled: Task.isCancelled || error is CancellationError) {
+            try await self.close()
+        }
+    }
+
+    private func close() async throws {
+        idleTask?.cancel()
+        idleTask = nil
+        generation += 1
+        if let session {
+            guard await session.stop() else { throw CodexClientError.timeout }
+        }
+        session = nil
+        credential = nil
+        executable = nil
+    }
+
+    private func performRead(locator: CodexExecutableLocator, timeout: Duration, clientVersion: String) async throws -> JSONValue {
+        guard !retired else { throw CodexClientError.connectionClosed }
+        idleTask?.cancel()
+        let launch: (executable: URL, environment: [String: String])
+        let currentCredential: Data?
+        do {
+            launch = try locator.launchConfiguration()
+            currentCredential = try readCredential()
+        } catch {
+            try await close()
+            throw error
+        }
+        if let session {
+            let running = await session.isRunning
+            if credential != currentCredential || executable != launch.executable || !running { try await close() }
+        }
+        if session == nil {
+            let opened = try JSONRPCSession(executableURL: launch.executable, profileHome: home,
+                                            environment: launch.environment)
+            session = opened
+            executable = launch.executable
+            credential = currentCredential
+            do {
+                try await withTaskCancellationHandler {
+                    try await opened.initialize(timeout: timeout, clientVersion: clientVersion)
+                } onCancel: { Task { await opened.stop() } }
+            } catch {
+                try await cleanup(after: error)
+            }
+        }
+        guard let session else { throw CodexClientError.connectionClosed }
+        let id = nextID
+        nextID += 1
+        do {
+            let value = try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                return try await session.request(method: "account/rateLimits/read", id: id, timeout: timeout)
+            } onCancel: { Task { await session.stop() } }
+            credential = currentCredential
+            generation += 1
+            let token = generation
+            let idleTimeout = idleTimeout
+            idleTask = Task { [weak self] in
+                do { try await Task.sleep(for: idleTimeout) } catch { return }
+                await self?.expire(generation: token)
+            }
+            return value
+        } catch {
+            try await cleanup(after: error)
+        }
+    }
+
+    private func readCredential() throws -> Data? {
+        let url = home.appendingPathComponent("auth.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try Data(contentsOf: url)
+    }
+
+    private func expire(generation token: Int) async {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            if self.generation == token { try await self.close() }
+        }
+        tail = Task { _ = await task.result }
+        _ = await task.result
+    }
+}
+
+// Coalesce concurrent termination attempts, but never memoize a failed exit check.
+actor SessionStopState {
+    private var task: Task<Bool, Never>?
+    private var generation = 0
+
+    func stop(isRunning: @escaping @Sendable () -> Bool,
+              terminate: @escaping @Sendable () async -> Bool) async -> Bool {
+        if !isRunning() { return true }
+        let current: Task<Bool, Never>
+        let token: Int
+        if let task { current = task; token = generation }
+        else {
+            generation += 1
+            token = generation
+            current = Task.detached { await terminate() }
+            task = current
+        }
+        let exited = await current.value || !isRunning()
+        if !exited, generation == token { task = nil }
+        return exited
+    }
+}
+
+// Cancellation describes the caller's request even when cleanup must be retried.
+// The owning worker retains the session on cleanup failure, so mutations still fail closed.
+enum SessionFailure {
+    static func finish(_ failure: any Error, cancelled: Bool,
+                       cleanup: @Sendable () async throws -> Void) async throws -> Never {
+        do { try await cleanup() }
+        catch { if cancelled { throw CancellationError() }; throw error }
+        if cancelled { throw CancellationError() }
+        throw failure
     }
 }

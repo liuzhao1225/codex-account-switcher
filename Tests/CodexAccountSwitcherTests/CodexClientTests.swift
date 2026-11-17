@@ -4,6 +4,34 @@ import Testing
 @testable import CodexAccountSwitcher
 
 struct CodexClientTests {
+    @Test func quotaReadsReuseTheProcessAndStillFetchFreshValues() async throws {
+        let fixture = try ScriptFixture(body: #"""
+        printf '%s\n' "$" >> "$CODEX_HOME/launches"
+        reads=0
+        while IFS= read -r line; do
+          case "$line" in
+            *initialized*) ;;
+            *initialize*) printf '%s\n' '{"id":0,"result":{}}' ;;
+            *rateLimits*)
+              reads=$((reads + 1))
+              id=$(printf '%s' "$line" | /usr/bin/sed -E 's/.*"id":([0-9]+).*/\1/')
+              printf '{"id":%s,"result":{"rateLimits":{"secondary":{"usedPercent":%s,"windowDurationMins":10080,"resetsAt":2000000000}}}}\n' "$id" "$reads"
+              ;;
+          esac
+        done
+        """#)
+        defer { fixture.remove() }
+        let client = CodexClient(locator: .init(explicitURL: fixture.executable), requestTimeout: .seconds(2))
+        #expect(try await client.readWeeklyUsage(profileHome: fixture.root).remainingPercent == 99)
+        #expect(try await client.readWeeklyUsage(profileHome: fixture.root).remainingPercent == 98)
+        let launches = fixture.root.appendingPathComponent("launches")
+        #expect(try String(contentsOf: launches, encoding: .utf8).split(separator: "\n").count == 1)
+        try await client.stopUsageSessions()
+        #expect(try await client.readWeeklyUsage(profileHome: fixture.root).remainingPercent == 99)
+        #expect(try String(contentsOf: launches, encoding: .utf8).split(separator: "\n").count == 2)
+        try await client.stopUsageSessions()
+    }
+
     @Test func fillsMissingWorkspaceIDFromTheSameProfileCredential() async throws {
         let fixture = try ScriptFixture(body: #"""
         while IFS= read -r line; do

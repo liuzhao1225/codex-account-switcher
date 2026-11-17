@@ -255,3 +255,11 @@ New regression cases cover external-login contamination, successful RPC response
 Public release acceptance still requires a signed feed, an increasing Sparkle build version, and a real download/install/relaunch test. Delegate simulations and local codesign verification do not establish those outcomes.
 
 Release follow-up: the full runner now executes 54 tests, including parameterized first-activation success and failure cases. An isolated Sparkle app completed a real signed download/install/relaunch from 0.1.7 to 0.1.8; see the ablation report for the fixture boundaries.
+
+### Reusable quota sessions (issue #52)
+
+Quota polls reuse one serialized app-server session per profile. Offline transport fixtures record process launches and RPC requests: seven reads of one profile (including concurrent calls) must perform seven quota RPCs with one initialization and one process launch. A second profile must get a separate process. Replacing auth.json, explicit shutdown, cancellation, timeout, unexpected process exit and idle expiry exercise session invalidation and reconnection. A cleanup failure must block account switching and preserve the active credential. Windows CI enables these checks with SWITCHER_TEST_RPC_EXE, as in its existing Swift-test step.
+
+The macOS shell regression also changes the reported usage on each request, proving that session reuse does not cache the returned quota. macOS build/runtime execution and a real authenticated network-byte comparison require a Mac. No fixture process-count result establishes a particular GB/day saving. For a traffic comparison, keep the same Codex version, account count and polling interval; compare per-process bytes and app-server launch counts over an idle period before and after the fix. Initial startup, reconnects, quota requests and subscription requests still use the network.
+
+The follow-up [PR #53 audit validation](audit-validation-pr53.md) records per-finding dispositions, credential-sync ordering, shutdown barriers, target-profile serialization, cancellation error preservation and deleted-worker retirement, including validation limits.

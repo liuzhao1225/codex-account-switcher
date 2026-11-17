@@ -260,3 +260,9 @@ Publishing requires the `SPARKLE_PRIVATE_KEY` repository secret and a signed `ap
 See the [whole-project ablation report](docs/project-ablation-2026-09-05.md) for retained mechanisms, repairs, and open design gaps.
 
 Windows checks the unified Release for a new version and opens its download page; download and replace the EXE manually. Windows 0.1.11 preview users need one manual upgrade to 0.1.12.
+
+### Background refresh and network usage
+
+Usage refresh runs every five minutes and when the account panel opens. Each account keeps its own isolated Codex app-server quota session, so successful polls reuse the running process instead of downloading startup metadata through a fresh process every round. The first connection, credential changes, failed processes and reconnects can still download Codex metadata; quota and macOS subscription requests also use the network. Exact traffic depends on the installed Codex version and has not been measured here.
+
+Reusing sessions keeps one Codex process resident per polled account. Sessions close after 20 minutes without a quota read, when background refresh stops, and before account switch/removal/registration, credential renewal or reset consumption. Request errors and cancellation discard the affected session; the next poll can reconnect. The five-minute cadence and reset-expiry scheduling remain unchanged.

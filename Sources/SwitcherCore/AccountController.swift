@@ -27,6 +27,7 @@ open class AccountController {
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
     private var subscriptionRefreshTask: Task<Void, Never>?
+    private var usageTeardownTask: Task<Void, Never>?
     private var nextUsageRefreshTask: Task<Void, Never>?
     private var addAccountTask: Task<Void, Never>?
     private var backgroundUsageRefreshInterval: Duration = .seconds(300)
@@ -97,8 +98,11 @@ open class AccountController {
             scheduleNextWeeklyUsageRefresh()
         }
         guard !isMutating, usageRefreshTask == nil else { return }
+        let teardown = usageTeardownTask
         usageRefreshTask = Task { [weak self] in
             guard let self else { return }
+            await teardown?.value
+            guard !Task.isCancelled else { self.usageRefreshTask = nil; return }
             // A renewal can write the same credentials that the usage client reads.
             await self.cancelLiveSubscriptionRefresh()
             await self.performWeeklyUsageRefresh()
@@ -110,6 +114,7 @@ open class AccountController {
     public func waitForWeeklyUsageRefresh() async {
         await usageRefreshTask?.value
         await subscriptionRefreshTask?.value
+        await usageTeardownTask?.value
     }
 
     private func refreshSubscriptionSnapshots() async {
@@ -138,6 +143,17 @@ open class AccountController {
         nextUsageRefreshTask = nil
         resetExpiryTask?.cancel()
         resetExpiryTask = nil
+        let usage = usageRefreshTask
+        let subscription = subscriptionRefreshTask
+        let previous = usageTeardownTask
+        usage?.cancel()
+        usageTeardownTask = Task { [weak self, codex] in
+            await previous?.value
+            await subscription?.value
+            await usage?.value
+            do { try await codex.stopUsageSessions() }
+            catch { self?.showError(error) }
+        }
     }
 
     private func scheduleNextWeeklyUsageRefresh() {
@@ -286,9 +302,9 @@ open class AccountController {
     public func switchAccount(to id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
             guard id != activeAccountID else { return }
             try await switchService.switchAccount(to: id)
@@ -371,9 +387,9 @@ open class AccountController {
     public func registerCurrentAccount() async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             guard await store.activeCredentialExists() else { throw AccountStoreError.activeCredentialMissing }
             try await syncActiveIdentity()
             await refreshSubscriptionSnapshots()
@@ -384,11 +400,13 @@ open class AccountController {
     public func removeAccount(id: UUID) async {
         guard !isMutating else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
+            let home = await store.profileHome(id: id)
             try await store.removeAccount(id: id)
+            try await codex.forgetUsageSession(profileHome: home)
             apply(try await store.loadRegistry())
             usageStates[id] = nil
         } catch {
@@ -573,10 +591,11 @@ open class AccountController {
         visibleError = nil
     }
 
-    private func cancelUsageRefresh() async {
+    private func cancelUsageRefresh() async throws {
         usageRefreshTask?.cancel()
         await cancelLiveSubscriptionRefresh()
         await usageRefreshTask?.value
+        try await codex.stopUsageSessions()
     }
 
     private func cancelLiveSubscriptionRefresh() async {
@@ -601,7 +620,9 @@ open class AccountController {
 
     private func syncActiveIdentity() async throws {
         do {
-            apply(try await store.syncActiveCredential())
+            apply(try await store.syncActiveCredential(beforeUpdatingProfile: { [codex] home in
+                try await codex.stopUsageSession(profileHome: home)
+            }))
             activeIdentityConfirmed = activeAccountID != nil || accounts.isEmpty
         } catch {
             activeAccountID = nil

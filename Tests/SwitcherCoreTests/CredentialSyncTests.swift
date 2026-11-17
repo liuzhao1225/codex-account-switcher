@@ -3,6 +3,118 @@ import Testing
 @testable import SwitcherCore
 
 struct CredentialSyncTests {
+    @Test @MainActor func backgroundStopDrainsAnInFlightReadBeforeClosingSessions() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        try fixture.writeLive("personal", token: "original")
+        let client = CredentialClient(pausesPersonal: true)
+        let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
+        await model.startBackgroundUsageRefresh(every: .seconds(3600))
+        await client.waitForRead()
+        model.stopBackgroundUsageRefresh()
+        await client.releaseRead()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(await client.stopCalls == 1)
+        #expect(await client.stoppedDuringRead == false)
+    }
+
+    @Test @MainActor func manualRefreshWaitsForPriorBackgroundTeardown() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        try fixture.writeLive("personal", token: "original")
+        let client = CredentialClient()
+        let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        await client.pauseNextStop()
+        model.stopBackgroundUsageRefresh()
+        await client.waitForStop()
+        model.refreshWeeklyUsage()
+        await Task.yield()
+        #expect(await client.usageCalls == 0)
+        await client.releaseStop()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(await client.usageCalls == 1)
+        #expect(await client.stoppedDuringRead == false)
+    }
+
+    @Test @MainActor func liveCredentialSyncStopsOnlyTheChangedProfileBeforeWriting() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let profile = fixture.profile("personal")
+        try fixture.writeLive("personal", token: "old")
+        try await fixture.store.importCurrentProfile(profile)
+        let home = await fixture.store.profileHome(id: profile.id)
+        let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
+        let client = CredentialClient()
+        let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        try fixture.writeLive("personal", token: "rotated")
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(await client.scopedHomes == [home])
+        #expect(await client.scopedCredentials == [original])
+        #expect(try Data(contentsOf: home.appendingPathComponent("auth.json")) == Data(contentsOf: fixture.auth))
+        model.refreshWeeklyUsage()
+        await model.waitForWeeklyUsageRefresh()
+        #expect(await client.scopedHomes.count == 1)
+        #expect(await client.stopCalls == 0)
+    }
+
+    @Test func failedReaderStopPreservesTheSavedCredentialDuringSync() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let profile = fixture.profile("personal")
+        try fixture.writeLive("personal", token: "old")
+        try await fixture.store.importCurrentProfile(profile)
+        let home = await fixture.store.profileHome(id: profile.id)
+        let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
+        try fixture.writeLive("personal", token: "new")
+        await #expect(throws: CodexClientError.timeout) {
+            try await fixture.store.syncActiveCredential(beforeUpdatingProfile: { _ in throw CodexClientError.timeout })
+        }
+        #expect(try Data(contentsOf: home.appendingPathComponent("auth.json")) == original)
+    }
+
+    @Test func liveLoginIsRecheckedAfterWaitingForItsReaderToStop() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let profile = fixture.profile("personal")
+        try fixture.writeLive("personal", token: "old")
+        try await fixture.store.importCurrentProfile(profile)
+        let home = await fixture.store.profileHome(id: profile.id)
+        let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
+        try fixture.writeLive("personal", token: "intermediate")
+        let counter = SyncCounter()
+        _ = try await fixture.store.syncActiveCredential(beforeUpdatingProfile: { stopped in
+            #expect(stopped == home)
+            #expect(try Data(contentsOf: home.appendingPathComponent("auth.json")) == original)
+            if await counter.next() == 1 { try fixture.writeLive("personal", token: "newest") }
+        })
+        #expect(await counter.count == 2)
+        #expect(try Data(contentsOf: home.appendingPathComponent("auth.json")) == Data(contentsOf: fixture.auth))
+    }
+
+    @Test @MainActor func sessionCleanupFailureBlocksCredentialMutation() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let first = fixture.profile("personal")
+        let second = fixture.profile("workspace")
+        try fixture.writeLive("personal", token: "personal-token")
+        try await fixture.store.importCurrentProfile(first)
+        let home = try await fixture.store.createProfileDirectory(id: second.id)
+        try fixture.bytes("workspace", token: "workspace-token").write(to: home.appendingPathComponent("auth.json"))
+        try await fixture.store.addProfile(second)
+        let client = CredentialClient(failsStop: true)
+        let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
+        await model.start()
+        let original = try Data(contentsOf: fixture.auth)
+        await model.switchAccount(to: second.id)
+        #expect(model.visibleError != nil)
+        #expect(model.activeAccountID == first.id)
+        #expect(try Data(contentsOf: fixture.auth) == original)
+        await model.waitForWeeklyUsageRefresh()
+    }
+
     @Test func refreshCopiesCredentialsToTheirActualAccount() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
@@ -290,7 +402,36 @@ private actor CredentialClient: AccountClient {
     var readStarted = false
     var observer: CheckedContinuation<Void, Never>?
     var blocked: CheckedContinuation<Void, Never>?
-    init(pausesPersonal: Bool = false) { self.pausesPersonal = pausesPersonal }
+    private(set) var stopCalls = 0
+    private(set) var usageCalls = 0
+    private(set) var stoppedDuringRead = false
+    private(set) var scopedHomes: [URL] = []
+    private(set) var scopedCredentials: [Data] = []
+    private var pausesStop = false
+    private var stopStarted = false
+    private var stopObserver: CheckedContinuation<Void, Never>?
+    private var stopBlocked: CheckedContinuation<Void, Never>?
+    private let failsStop: Bool
+    init(pausesPersonal: Bool = false, failsStop: Bool = false) { self.pausesPersonal = pausesPersonal; self.failsStop = failsStop }
+    func stopUsageSession(profileHome: URL) async throws {
+        scopedHomes.append(profileHome)
+        scopedCredentials.append(try Data(contentsOf: profileHome.appendingPathComponent("auth.json")))
+        if failsStop { throw CodexClientError.timeout }
+    }
+    func pauseNextStop() { pausesStop = true }
+    func waitForStop() async { if !stopStarted { await withCheckedContinuation { stopObserver = $0 } } }
+    func releaseStop() { stopBlocked?.resume(); stopBlocked = nil }
+    func stopUsageSessions() async throws {
+        stopCalls += 1
+        if blocked != nil { stoppedDuringRead = true }
+        if pausesStop {
+            pausesStop = false
+            stopStarted = true
+            stopObserver?.resume(); stopObserver = nil
+            await withCheckedContinuation { stopBlocked = $0 }
+        }
+        if failsStop { throw CodexClientError.timeout }
+    }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         guard let identity = try CredentialIdentity.read(from: profileHome) else { throw CodexClientError.identityUnavailable }
         return identity
@@ -300,6 +441,7 @@ private actor CredentialClient: AccountClient {
         throw CodexClientError.remoteError(code: nil, message: "Unexpected reset consumption in this fixture.")
     }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
+        usageCalls += 1
         let bytes = try String(contentsOf: profileHome.appending(path: "auth.json"), encoding: .utf8)
         if bytes.contains("revoked") { throw CodexClientError.identityUnavailable }
         if pausesPersonal, bytes.contains("personal") {
@@ -316,4 +458,9 @@ private actor CredentialClient: AccountClient {
         if !readStarted { await withCheckedContinuation { observer = $0 } }
     }
     func releaseRead() { blocked?.resume(); blocked = nil }
+}
+
+private actor SyncCounter {
+    private(set) var count = 0
+    func next() -> Int { count += 1; return count }
 }
