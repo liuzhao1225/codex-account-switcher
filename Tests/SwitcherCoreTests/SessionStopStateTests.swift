@@ -45,4 +45,3 @@ private final class StopProbe: @unchecked Sendable {
         lock.withLock { count += 1; if exits { alive = false }; return !alive }
     }
 }
-
