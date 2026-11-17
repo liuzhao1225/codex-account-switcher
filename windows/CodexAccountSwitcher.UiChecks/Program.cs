@@ -93,6 +93,7 @@ internal static class Program
             Assert(All<TextBlock>(window).Any(text => text.Text.Contains("强制结束") && text.Text.Contains("未保存的状态可能丢失")),
                 "Windows confirmation must explain forced termination before switching.");
             window.Navigate("manage"); Render(window, Path.Combine(output, "manage-zh.png"));
+            CheckAPIKeyDialog(window, client);
             Assert(All<TextBlock>(window).Count(text => text.Text.Contains("@example.test")) == 2, "Manage must show account email addresses.");
             Assert(!All<TextBlock>(window).Any(text => text.Text is "Personal" or "Studio"), "Manage must not duplicate the email with a display-name row.");
             var addHint = All<TextBlock>(window).Single(text => text.Text == client.State.Text("sign_in_hint"));
@@ -157,6 +158,31 @@ internal static class Program
             return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
+    private static void CheckAPIKeyDialog(Window window, FixtureClient client) {
+        var addKey = All<Button>(window).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == client.State.Text("add_api_key"));
+        Exception? dialogFailure = null;
+        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => {
+            var dialog = Application.Current.Windows.OfType<Window>().SingleOrDefault(child => child.Owner == window);
+            try {
+                Assert(dialog != null, "Manage must open an API key dialog.");
+                dialog!.UpdateLayout();
+                var name = All<TextBox>(dialog).Single();
+                var key = All<PasswordBox>(dialog!).Single();
+                name.Text = "Development";
+                key.Password = "synthetic-test-key";
+                client.PublishState();
+                Assert(name.Text == "Development" && key.Password == "synthetic-test-key",
+                    "A background snapshot must preserve an unfinished API key form.");
+            } catch (Exception ex) {
+                dialogFailure = ex;
+            } finally {
+                dialog?.Close();
+            }
+        }));
+        addKey.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (dialogFailure != null) throw dialogFailure;
+        window.UpdateLayout();
+    }
     private static void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static IEnumerable<T> All<T>(DependencyObject parent) where T : DependencyObject {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) {
@@ -174,7 +200,9 @@ internal static class Program
         using var stream = File.Create(path); encoder.Save(stream);
     }
     private sealed class FixtureClient : IAccountClient {
-        public event Action? Changed { add {} remove {} }
+        public event Action? Changed;
+        public void PublishState() => Changed?.Invoke();
+        public Task AddAPIKeyAsync(string displayName, string apiKey) => Task.CompletedTask;
         public List<string> Commands { get; } = [];
         public AccountSnapshot State { get; set; }
         public FixtureClient() {
@@ -190,6 +218,8 @@ internal static class Program
                 ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
                 ["accounts"] = "账号", ["drag_to_reorder"] = "拖动调整顺序", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
+                ["add_api_key"] = "添加 OpenAI API 密钥", ["api_key"] = "OpenAI API 密钥", ["api_key_name"] = "名称",
+                ["api_key_storage"] = "密钥保存在本机的私有文件中。", ["save_api_key"] = "保存密钥",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
                 ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
                 ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",

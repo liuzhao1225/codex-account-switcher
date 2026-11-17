@@ -69,13 +69,15 @@ public sealed class MainWindow : Window
         FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
         VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
     };
-    private Button Button(string label, Action action, string? glyph = null, bool left = false)
+    private Button Button(string label, Action? action = null, string? glyph = null, bool left = false)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = left ? HorizontalAlignment.Left : HorizontalAlignment.Center };
         if (glyph != null) content.Children.Add(new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), Margin = new Thickness(0, 0, label.Length > 0 ? 7 : 0, 0), VerticalAlignment = VerticalAlignment.Center });
         if (label.Length > 0) content.Children.Add(new TextBlock { Text = label, FontSize = 13, VerticalAlignment = VerticalAlignment.Center });
         var button = new Button { Content = content, IsEnabled = !IsBusy, Padding = new Thickness(12, 6, 12, 6), MinHeight = 32, MinWidth = 32 };
-        AutomationProperties.SetName(button, label); button.Click += (_, _) => action(); return button;
+        AutomationProperties.SetName(button, label);
+        if (action != null) button.Click += (_, _) => action();
+        return button;
     }
     private Border Rule() => new() { Height = 1, Background = B("Line") };
     private Grid Pair(UIElement left, UIElement right)
@@ -152,8 +154,9 @@ public sealed class MainWindow : Window
             var title = string.IsNullOrEmpty(row.Profile.Email) ? row.Profile.DisplayName : row.Profile.Email;
             var name = Text(title, 14, bold: true);
             name.ToolTip = title;
-            if (manage) {
+            if (manage || row.UsesAPIKey) {
                 details.Children.Add(name);
+                if (!manage) details.Children.Add(Text(T("api_key"), 10.5, muted: true));
             } else {
                 var reset = Text(row.Usage != null && !State.Settings.ShowsFiveHourUsage ? Reset(row.Usage.ResetsAt) : "", 10.5, muted: true);
                 reset.Margin = new Thickness(7, 0, 0, 0); details.Children.Add(Pair(name, reset));
@@ -242,7 +245,81 @@ public sealed class MainWindow : Window
             actions.Children.Add(addRow);
             var register = Button(T("register_current_account"), () => _ = Run("register"));
             register.IsEnabled &= !State.IsAddingAccount; register.HorizontalAlignment = HorizontalAlignment.Left;
-            actions.Children.Add(register); body.Children.Add(actions);
+            actions.Children.Add(register);
+            var addKey = Button(T("add_api_key"), PromptForAPIKey);
+            addKey.IsEnabled &= !State.IsAddingAccount;
+            addKey.HorizontalAlignment = HorizontalAlignment.Left;
+            addKey.Margin = new Thickness(0, 6, 0, 0);
+            actions.Children.Add(addKey);
+            body.Children.Add(actions);
+        }
+    }
+
+    private void PromptForAPIKey()
+    {
+        var dialog = new Window {
+            Owner = this, Title = T("add_api_key"), Width = 360, SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ShowInTaskbar = false, Background = B("Surface"),
+        };
+        var form = new StackPanel { Margin = new Thickness(16) };
+        var storage = Text(T("api_key_storage"), 11, muted: true);
+        storage.TextWrapping = TextWrapping.Wrap;
+        form.Children.Add(storage);
+        var name = new TextBox { Margin = new Thickness(0, 3, 0, 10), MinHeight = 30 };
+        var key = new PasswordBox { Margin = new Thickness(0, 3, 0, 10), MinHeight = 30 };
+        AutomationProperties.SetName(name, T("api_key_name"));
+        AutomationProperties.SetName(key, T("api_key"));
+        form.Children.Add(Text(T("api_key_name")));
+        form.Children.Add(name);
+        form.Children.Add(Text(T("api_key")));
+        form.Children.Add(key);
+        var errorText = Text("", 11);
+        errorText.TextWrapping = TextWrapping.Wrap;
+        form.Children.Add(errorText);
+
+        var saving = false;
+        var save = Button(T("save_api_key"));
+        save.IsDefault = true;
+        save.IsEnabled = false;
+        var cancel = Button(T("cancel"));
+        cancel.IsCancel = true;
+        save.Margin = new Thickness(8, 0, 0, 0);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        actions.Children.Add(cancel);
+        actions.Children.Add(save);
+        form.Children.Add(actions);
+        save.Click += (_, _) => _ = SaveAsync();
+        name.TextChanged += (_, _) => UpdateSave();
+        key.PasswordChanged += (_, _) => UpdateSave();
+        dialog.Closing += (_, e) => e.Cancel = saving;
+        dialog.Closed += (_, _) => key.Clear();
+        dialog.Content = form;
+        dialog.Loaded += (_, _) => name.Focus();
+        dialog.ShowDialog();
+
+        void UpdateSave() => save.IsEnabled = !saving && !string.IsNullOrWhiteSpace(name.Text) && key.Password.Length != 0;
+
+        async Task SaveAsync()
+        {
+            saving = true;
+            cancel.IsEnabled = false;
+            name.IsEnabled = false;
+            key.IsEnabled = false;
+            UpdateSave();
+            try {
+                await client.AddAPIKeyAsync(name.Text, key.Password);
+            } catch (Exception ex) {
+                errorText.Text = ex.Message;
+                return;
+            } finally {
+                saving = false;
+                cancel.IsEnabled = true;
+                name.IsEnabled = true;
+                key.IsEnabled = true;
+                UpdateSave();
+            }
+            dialog.Close();
         }
     }
 

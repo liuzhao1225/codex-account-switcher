@@ -15,6 +15,10 @@ public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendab
         self.accountID = accountID; self.createdAt = createdAt; self.lastUsedAt = lastUsedAt
     }
 
+    public var usesAPIKey: Bool {
+        accountID?.hasPrefix(AccountIdentity.apiKeyPrefix) == true
+    }
+
     public var initials: String {
         let parts = displayName
             .split(whereSeparator: { $0.isWhitespace })
@@ -165,12 +169,16 @@ public enum UsageViewState: Equatable, Sendable {
 }
 
 public struct AccountIdentity: Equatable, Sendable {
+    static let apiKeyPrefix = "api-key:"
     public let accountID: String?
     public let email: String?
 
     public init(accountID: String?, email: String?) { self.accountID = accountID; self.email = email }
 
     public var suggestedDisplayName: String {
+        if let accountID, accountID.hasPrefix(Self.apiKeyPrefix) {
+            return "API Key " + String(accountID.dropFirst(Self.apiKeyPrefix.count).prefix(6))
+        }
         guard let email, let localPart = email.split(separator: "@").first else {
             return "Codex Account"
         }
@@ -241,6 +249,8 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case activeCredentialMismatch
     case targetCredentialMissing
     case duplicateAccount
+    case invalidAPIKeyProfile
+    case accountOperationInProgress
     case cannotRemoveActiveAccount
 
     public var errorDescription: String? {
@@ -257,6 +267,10 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "The selected account has no saved auth.json file."
         case .duplicateAccount:
             "This account is already saved. Select the existing account instead."
+        case .invalidAPIKeyProfile:
+            "Enter a name and an API key without spaces."
+        case .accountOperationInProgress:
+            "Wait for the current account operation to finish."
         case .cannotRemoveActiveAccount:
             "The active account cannot be removed."
         }

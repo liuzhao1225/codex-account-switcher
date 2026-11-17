@@ -45,25 +45,31 @@ struct AccountRow: View {
                     }
                 }
 
-                usageContent
-                HStack(spacing: 8) {
-                    TimelineView(.periodic(from: .now, by: 30)) { context in
-                        Text(subscriptionText(at: context.date))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.9)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(subscriptionNeedsUpdate(at: context.date) ? Color.orange : Color.secondary)
-                            .help(subscriptionDetail(at: context.date))
-                            .accessibilityHint(subscriptionDetail(at: context.date))
+                if account.usesAPIKey {
+                    Text(L10n.string("api_key", language: language))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                } else {
+                    usageContent
+                    HStack(spacing: 8) {
+                        TimelineView(.periodic(from: .now, by: 30)) { context in
+                            Text(subscriptionText(at: context.date))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .foregroundStyle(subscriptionNeedsUpdate(at: context.date) ? Color.orange : Color.secondary)
+                                .help(subscriptionDetail(at: context.date))
+                                .accessibilityHint(subscriptionDetail(at: context.date))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if let usage = usageState.displayedUsage {
+                            Text(resetCreditsText(for: usage))
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    if let usage = usageState.displayedUsage {
-                        Text(resetCreditsText(for: usage))
-                            .fixedSize(horizontal: true, vertical: false)
-                    }
+                        .font(.system(size: 10.5).monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
         }

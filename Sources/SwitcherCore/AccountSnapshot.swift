@@ -5,6 +5,7 @@ public struct AccountSnapshot: Encodable, Sendable {
     public struct Row: Encodable, Sendable {
         public let profile: AccountProfile
         public let initials: String
+        public let usesAPIKey: Bool
         public let usage: WeeklyUsage?
         public let usageError: String?
         public let usageStatus: String
@@ -26,7 +27,7 @@ extension AccountController {
     public var snapshot: AccountSnapshot {
         AccountSnapshot(
             accounts: accounts.map { account in
-                AccountSnapshot.Row(profile: account, initials: account.initials,
+                AccountSnapshot.Row(profile: account, initials: account.initials, usesAPIKey: account.usesAPIKey,
                     usage: usageStates[account.id]?.displayedUsage,
                     usageError: usageStates[account.id]?.presentationError,
                     usageStatus: usageStates[account.id]?.presentationStatus ?? "idle",

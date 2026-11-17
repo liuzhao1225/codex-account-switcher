@@ -301,6 +301,38 @@ public actor AccountStore: AccountStoring {
         try saveRegistry(current)
     }
 
+    public func addAPIKeyProfile(displayName: String, key: String) throws {
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let secret = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !secret.isEmpty, secret.utf8.allSatisfy({ (33...126).contains($0) }) else {
+            throw AccountStoreError.invalidAPIKeyProfile
+        }
+        let identity = try CredentialIdentity.identity(forAPIKey: secret)
+        guard try !loadRegistry().accounts.contains(where: { identity.matches($0) }) else {
+            throw AccountStoreError.duplicateAccount
+        }
+        let id = UUID()
+        let home = try createProfileDirectory(id: id)
+        do {
+            let credential = try JSONSerialization.data(withJSONObject: [
+                "auth_mode": "apikey", "OPENAI_API_KEY": secret,
+            ])
+            try secureAtomicWrite(credential, to: home.appending(path: "auth.json"))
+            try addProfile(AccountProfile(id: id, displayName: name, email: nil,
+                                          accountID: identity.accountID, createdAt: Date()))
+        } catch {
+            let saveError = error
+            do {
+                try discardUnregisteredProfile(id: id)
+            } catch {
+                throw NSError(domain: "CodexAccountSwitcher.AccountStore", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "\(saveError.localizedDescription) Removing the unfinished profile also failed: \(error.localizedDescription)",
+                ])
+            }
+            throw saveError
+        }
+    }
+
     public func discardUnregisteredProfile(id: UUID) throws {
         guard try !loadRegistry().accounts.contains(where: { $0.id == id }) else { return }
         let directory = profileHome(id: id)

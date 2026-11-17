@@ -202,6 +202,51 @@ struct CredentialSyncTests {
         }
     }
 
+    @Test @MainActor func namedAPIKeyCanBeSavedAndSwitchedBackToChatGPT() async throws {
+        let fixture = try CredentialFixture()
+        defer { fixture.clean() }
+        let chat = try fixture.bytes("personal", token: "synthetic-chat-token")
+        try chat.write(to: fixture.auth)
+        let switchService = SwitchService(desktop: APIKeyFixtureDesktop(), store: fixture.store, codex: CredentialIdentity())
+        let model = AccountController(store: fixture.store, codex: CredentialClient(), switchService: switchService)
+        await model.start()
+        let chatID = try #require(model.activeAccountID)
+
+        try await model.addAPIKey(displayName: "Development", key: "synthetic-api-key")
+        let savedKey = model.accounts.first(where: \.usesAPIKey)
+        let profile = try #require(savedKey)
+        #expect(profile.displayName == "Development")
+        #expect(model.activeAccountID == chatID)
+        let snapshot = String(decoding: try JSONEncoder().encode(model.snapshot), as: UTF8.self)
+        #expect(!snapshot.contains("synthetic-api-key"))
+        await #expect(throws: AccountStoreError.duplicateAccount) {
+            try await model.addAPIKey(displayName: "Duplicate", key: "synthetic-api-key")
+        }
+        await #expect(throws: AccountStoreError.invalidAPIKeyProfile) {
+            try await model.addAPIKey(displayName: "Invalid", key: "embedded spaces")
+        }
+
+        await model.switchAccount(to: profile.id)
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == profile.id)
+        #expect(model.usageStates[profile.id]?.displayedUsage == nil)
+        let identity = try await CredentialIdentity().readIdentity(profileHome: fixture.active)
+        #expect(identity.matches(profile))
+
+        await model.switchAccount(to: chatID)
+        await model.waitForWeeklyUsageRefresh()
+        #expect(model.activeAccountID == chatID)
+        #expect(try Data(contentsOf: fixture.auth) == chat)
+    }
+
+    @Test func apiKeyIdentityStoresOnlyAFingerprint() throws {
+        let credential = Data(#"{"auth_mode":"apikey","OPENAI_API_KEY":"abc"}"#.utf8)
+        let identity = try #require(try CredentialIdentity.decode(credential))
+        #expect(identity.accountID == "api-key:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        #expect(identity.email == nil)
+        #expect(!identity.suggestedDisplayName.contains("abc"))
+    }
+
     @Test @MainActor func usageRefreshReadsTheUpdatedSavedCopy() async throws {
         let fixture = try CredentialFixture()
         defer { fixture.clean() }
@@ -387,6 +432,11 @@ private struct CredentialFixture {
     }
     func writeLive(_ id: String, token: String) throws { try bytes(id, token: token).write(to: auth) }
     func clean() { try? FileManager.default.removeItem(at: root) }
+}
+
+private struct APIKeyFixtureDesktop: DesktopControlling {
+    func closeDesktop() async throws {}
+    func reopenDesktop() async throws {}
 }
 
 private struct CredentialSwitch: SwitchServicing {
