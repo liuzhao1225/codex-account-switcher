@@ -129,10 +129,75 @@ struct CodexClientTransportTests {
         try await client.stopUsageSessions()
     }
 
-    @Test func timedOutQuotaSessionIsDiscarded() async throws {
-        let home = try fixtureHome("quota-timeout")
+    @Test(arguments: ["hold-initialize", "hold-quota"])
+    func credentialReplacementDuringAnRPCIsDetected(_ mode: String) async throws {
+        let home = try fixtureHome(mode)
         defer { try? FileManager.default.removeItem(at: home) }
-        let client = makeClient(timeout: .milliseconds(500))
+        let client = makeClient()
+        try Data("old".utf8).write(to: home.appendingPathComponent("auth.json"))
+        let read = Task { try await client.readWeeklyUsage(profileHome: home) }
+        try await waitForRequest(mode == "hold-initialize" ? "initialize" : "account/rateLimits/read", home: home)
+        try Data("replacement".utf8).write(to: home.appendingPathComponent("auth.json"))
+        try Data().write(to: home.appendingPathComponent("release"))
+        _ = try await read.value
+        try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        #expect(try launchCount(home) == 2)
+        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
+        try await client.stopUsageSessions()
+    }
+
+    @Test func profileOperationsPreserveSiblingSessionsAndEvictRemovedProfiles() async throws {
+        let home = try fixtureHome("normal")
+        let sibling = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home); try? FileManager.default.removeItem(at: sibling) }
+        let client = makeClient()
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        _ = try await client.readWeeklyUsage(profileHome: sibling)
+        _ = try await client.refreshIdentity(profileHome: home)
+        #expect(try await client.consumeResetCredit(profileHome: home, creditID: "test", idempotencyKey: "test") == .reset)
+        _ = try await client.readWeeklyUsage(profileHome: sibling)
+        #expect(try launchCount(sibling) == 1)
+        #expect(await client.usageSessionCount == 2)
+        try await client.forgetUsageSession(profileHome: home)
+        #expect(await client.usageSessionCount == 1)
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        #expect(await client.usageSessionCount == 2)
+        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
+        try await client.stopUsageSessions()
+    }
+
+    @Test func quotaReadWaitsForCredentialRenewalOnTheSameProfile() async throws {
+        let home = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        try Data("hold-identity".utf8).write(to: home.appendingPathComponent("fixture-mode"))
+        let renewal = Task { try await client.refreshIdentity(profileHome: home) }
+        try await waitForRequest("account/read", home: home)
+        let read = Task { try await client.readWeeklyUsage(profileHome: home) }
+        try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
+        try Data().write(to: home.appendingPathComponent("release"))
+        _ = try await renewal.value
+        _ = try await read.value
+        #expect(try launchCount(home) == 3)
+        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
+        try await client.stopUsageSessions()
+    }
+
+    private func waitForRequest(_ method: String, home: URL) async throws {
+        for _ in 0..<250 {
+            let requests = (try? String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)) ?? ""
+            if requests.split(separator: "\n").contains(Substring(method)) { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        throw CodexClientError.timeout
+    }
+
+    @Test func timedOutQuotaSessionIsDiscarded() async throws {
+        let home = try fixtureHome("quota-timeout\r\n")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient(timeout: .seconds(2))
         do { _ = try await client.readWeeklyUsage(profileHome: home); Issue.record("Expected timeout") }
         catch { #expect(error as? CodexClientError == .timeout) }
         try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
