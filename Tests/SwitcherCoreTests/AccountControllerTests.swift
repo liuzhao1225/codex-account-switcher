@@ -36,6 +36,29 @@ struct AccountControllerTests {
         #expect(registry.activeAccountID == active)
     }
 
+    @Test func accountNotePersistsAndClearsWithoutChangingIdentity() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.model.start()
+        let original = try #require(fixture.model.accounts.first)
+
+        try await fixture.model.setAccountNote(id: original.id, note: "  Work \n")
+        let renamed = try #require(fixture.model.accounts.first)
+        #expect(renamed.note == "Work")
+        #expect(renamed.listTitle == "Work")
+        #expect(renamed.confirmationTitle == "Work")
+        #expect(renamed.labeledEmail == original.email)
+        #expect(renamed.accountID == original.accountID)
+        #expect(fixture.model.activeAccountID == original.id)
+
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.profile(id: original.id).note == "Work")
+        try await fixture.model.setAccountNote(id: original.id, note: "  ")
+        #expect(fixture.model.accounts.first?.note == nil)
+        #expect(fixture.model.accounts.first?.listTitle == original.email)
+    }
+
     @Test func firstActivationInstallsAndCommitsTheSavedAccount() async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }
@@ -191,6 +214,41 @@ struct AccountControllerTests {
         #expect(!saved.showsMenuBarPercentage)
         #expect(saved.showsFiveHourUsage)
         #expect(saved.statusBarUsageWindow == .weekly)
+    }
+
+    @Test func lowUsageRemindsOnlyAcrossTheThresholdInTheSelectedWindow() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        await fixture.model.start()
+        #expect(fixture.model.settings.lowUsageThreshold == nil)
+        await fixture.model.setLanguage(.english)
+        try await fixture.model.setLowUsageThreshold(10)
+        var messages: [String] = []
+        fixture.model.onLowUsage = { _, message in messages.append(message) }
+
+        for percent in [18, 10, 9, 14, 7] {
+            await fixture.client.setFiveHourRemaining(percent)
+            fixture.model.refreshWeeklyUsage()
+            await fixture.model.waitForWeeklyUsageRefresh()
+        }
+        #expect(messages.count == 2)
+        #expect(messages.first?.contains("10%") == true)
+        #expect(messages.last?.contains("7%") == true)
+
+        await fixture.model.setStatusBarUsageWindow(.weekly)
+        await fixture.client.setFiveHourRemaining(25)
+        fixture.model.refreshWeeklyUsage()
+        await fixture.model.waitForWeeklyUsageRefresh()
+        await fixture.client.setFiveHourRemaining(5)
+        fixture.model.refreshWeeklyUsage()
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(messages.count == 2)
+
+        let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        #expect(try await reopened.loadSettings().lowUsageThreshold == 10)
+        try await fixture.model.setLowUsageThreshold(nil)
+        #expect(fixture.model.settings.lowUsageThreshold == nil)
     }
 
     @Test func statusBarUsesSelectedUsageWindow() async throws {
@@ -361,6 +419,7 @@ private struct ControllerFixture {
 private actor FixtureClient: AccountClient {
     private(set) var identityReads = 0
     private var usageFails = false
+    private var fiveHourRemaining = 18
     private var resetExpiry: Date?
     private var consumedHomes: Set<URL> = []
     private var resetFails = false
@@ -377,6 +436,7 @@ private actor FixtureClient: AccountClient {
         return .reset
     }
     func failUsage() { usageFails = true }
+    func setFiveHourRemaining(_ percent: Int) { fiveHourRemaining = percent }
     func setResetExpiry(_ date: Date) { resetExpiry = date }
     func readIdentity(profileHome: URL) async throws -> AccountIdentity {
         identityReads += 1
@@ -388,7 +448,7 @@ private actor FixtureClient: AccountClient {
         return WeeklyUsage(
             remainingPercent: resetConsumed ? 100 : 72,
             resetsAt: Date(timeIntervalSince1970: 2_000_000_000),
-            fiveHourRemainingPercent: 18,
+            fiveHourRemainingPercent: fiveHourRemaining,
             resetCreditsRemaining: resetExpiry == nil ? nil : (resetConsumed ? 0 : 1),
             resetCredits: resetConsumed ? [] : resetExpiry.map { [BankedResetCredit(id: "fixture-credit", status: "available", resetType: "codexRateLimits", expiresAt: $0)] }
         )

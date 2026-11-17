@@ -398,6 +398,17 @@ public actor AccountStore: AccountStoring {
         }
     }
 
+    public func setAccountNote(id: UUID, note: String) throws -> AccountRegistry {
+        var current = try loadRegistry()
+        guard let index = current.accounts.firstIndex(where: { $0.id == id }) else {
+            throw AccountStoreError.profileNotFound
+        }
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        current.accounts[index].note = trimmed.isEmpty ? nil : trimmed
+        try saveRegistry(current)
+        return current
+    }
+
     public func moveAccount(id: UUID, to targetID: UUID) throws -> AccountRegistry {
         var current = try loadRegistry()
         guard let source = current.accounts.firstIndex(where: { $0.id == id }),

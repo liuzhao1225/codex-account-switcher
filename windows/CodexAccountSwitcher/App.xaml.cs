@@ -72,6 +72,7 @@ public partial class App : Application
                 if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window.OpenWindow(); }
             };
             client.Changed += RefreshTray;
+            client.LowUsage += ShowLowUsageNotification;
             await client.InitializeAsync();
             if (!e.Args.Contains("--background")) window.OpenWindow();
             updates = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
@@ -83,6 +84,9 @@ public partial class App : Application
             await QuitAsync();
         }
     }
+
+    private void ShowLowUsageNotification(string title, string message)
+        => tray?.ShowBalloonTip(0, title, message, Forms.ToolTipIcon.Warning);
 
     private void RefreshTray()
     {
@@ -145,7 +149,11 @@ public partial class App : Application
         if (exiting || window?.IsBusy == true) return;
         exiting = true; updates?.Stop();
         activationListener?.Unregister(null);
-        if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); }
+        if (client != null) {
+            client.Changed -= RefreshTray;
+            client.LowUsage -= ShowLowUsageNotification;
+            await client.DisposeAsync();
+        }
         window?.CloseForExit();
         Shutdown();
     }

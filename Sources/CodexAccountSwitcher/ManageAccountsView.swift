@@ -6,6 +6,8 @@ struct ManageAccountsView: View {
     let onBack: () -> Void
 
     @State private var page: ManageAccountsPage = .accounts
+    @State private var note = ""
+    @State private var noteError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +22,8 @@ struct ManageAccountsView: View {
             switch page {
             case .accounts:
                 accountList
+            case let .editNote(account):
+                editNote(account)
             case let .remove(account):
                 removePage(account)
             }
@@ -30,8 +34,10 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             model.text("accounts")
+        case .editNote:
+            model.text("edit_account_note")
         case let .remove(account):
-            model.format("remove_title", account.displayName)
+            model.format("remove_title", account.confirmationTitle)
         }
     }
 
@@ -39,7 +45,7 @@ struct ManageAccountsView: View {
         switch page {
         case .accounts:
             onBack()
-        case .remove:
+        case .remove, .editNote:
             page = .accounts
         }
     }
@@ -127,6 +133,40 @@ struct ManageAccountsView: View {
             .help(hint)
     }
 
+    private func editNote(_ account: AccountProfile) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField(model.text("account_note"), text: $note)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel(model.text("account_note"))
+            Text(model.text("account_note_hint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let noteError {
+                Text(noteError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button(model.text("cancel")) { page = .accounts }
+                    .buttonStyle(.bordered)
+                Button(model.text("save_account_note")) {
+                    Task {
+                        do {
+                            try await model.setAccountNote(id: account.id, note: note)
+                            page = .accounts
+                        } catch {
+                            noteError = error.localizedDescription
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(14)
+        .disabled(model.isMutating)
+    }
+
     private func removePage(_ account: AccountProfile) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(model.text("remove_body"))
@@ -155,8 +195,7 @@ struct ManageAccountsView: View {
     }
 
     private func managedAccountRow(_ account: AccountProfile) -> some View {
-        let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
-        return HStack(spacing: 9) {
+        HStack(spacing: 9) {
             if model.accounts.count > 1 {
                 Image(systemName: "line.3.horizontal")
                     .foregroundStyle(.secondary)
@@ -172,13 +211,34 @@ struct ManageAccountsView: View {
                 .frame(width: 28, height: 28)
                 .background(Color.primary.opacity(0.10), in: Circle())
 
-            Text(verbatim: title)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .help(title)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: account.listTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                    .help(account.listTitle)
+                if let email = account.labeledEmail {
+                    Text(verbatim: email)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(email)
+                }
+            }
 
             Spacer(minLength: 5)
+
+            Button {
+                note = account.note ?? ""
+                noteError = nil
+                page = .editNote(account)
+            } label: {
+                Image(systemName: "pencil")
+                    .frame(width: 25, height: 25)
+            }
+            .buttonStyle(.plain)
+            .help(model.text("edit_account_note"))
+            .accessibilityLabel(model.text("edit_account_note"))
+            .disabled(model.isMutating || model.isAddingAccount)
 
             if account.id == model.activeAccountID {
                 Text(model.text("active"))
@@ -192,8 +252,8 @@ struct ManageAccountsView: View {
                         .frame(width: 25, height: 25)
                 }
                 .buttonStyle(.plain)
-                .help(model.format("remove_title", account.displayName))
-                .accessibilityLabel(model.format("remove_title", account.displayName))
+                .help(model.format("remove_title", account.confirmationTitle))
+                .accessibilityLabel(model.format("remove_title", account.confirmationTitle))
                 .disabled(model.isMutating)
             }
         }
@@ -215,6 +275,7 @@ struct ManageAccountsView: View {
 private enum ManageAccountsPage {
     case accounts
     case remove(AccountProfile)
+    case editNote(AccountProfile)
 }
 
 struct PopoverHeader: View {

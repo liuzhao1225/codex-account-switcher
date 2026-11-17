@@ -6,6 +6,8 @@ private struct Request: Decodable, Sendable {
     let command: String
     var accountID: UUID?
     var targetAccountID: UUID?
+    var note: String?
+    var lowUsageThreshold: Int?
     var value: Bool?
     var language: String?
     var error: String?
@@ -79,6 +81,9 @@ private final class Host {
                 switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()))
             controller = model
             model.onChange = { [weak self] in self?.sendSnapshot() }
+            model.onLowUsage = { [weak self] title, message in
+                self?.send(["kind": "lowUsage", "title": title, "message": message])
+            }
             await model.startBackgroundUsageRefresh()
             sendSnapshot()
             return
@@ -95,6 +100,11 @@ private final class Host {
         case "remove":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.removeAccount(id: id)
+        case "setAccountNote":
+            guard let id = request.accountID, let note = request.note else {
+                throw HostError.message("Missing account ID or note.")
+            }
+            try await model.setAccountNote(id: id, note: note)
         case "move":
             guard let id = request.accountID, let targetID = request.targetAccountID else {
                 throw HostError.message("Missing account ID.")
@@ -119,6 +129,7 @@ private final class Host {
                 throw HostError.message("Invalid status bar usage window.")
             }
             await model.setStatusBarUsageWindow(window)
+        case "lowUsageThreshold": try await model.setLowUsageThreshold(request.lowUsageThreshold)
         case "dismissError": model.dismissError()
         default: throw HostError.message("Unknown host command.")
         }

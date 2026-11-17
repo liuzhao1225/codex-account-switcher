@@ -8,6 +8,7 @@ private enum UsageRefreshResult: Sendable {
 @MainActor
 open class AccountController {
     public var onChange: (@MainActor () -> Void)?
+    public var onLowUsage: (@MainActor (_ title: String, _ message: String) -> Void)?
     public private(set) var accounts: [AccountProfile] = [] { didSet { onChange?() } }
     public private(set) var activeAccountID: UUID? { didSet { onChange?() } }
     public private(set) var usageStates: [UUID: UsageViewState] = [:] { didSet { onChange?() } }
@@ -60,9 +61,27 @@ open class AccountController {
     public var activeRemainingPercent: Int? {
         guard let activeAccountID else { return nil }
         guard let usage = usageStates[activeAccountID]?.displayedUsage else { return nil }
-        return settings.statusBarUsageWindow == .fiveHour
-            ? (usage.fiveHourRemainingPercent ?? usage.remainingPercent)
-            : usage.remainingPercent
+        return quotaReading(for: usage).percent
+    }
+
+    private func quotaReading(for usage: WeeklyUsage) -> (window: StatusBarUsageWindow, percent: Int) {
+        if settings.statusBarUsageWindow == .fiveHour, let percent = usage.fiveHourRemainingPercent {
+            return (.fiveHour, percent)
+        }
+        return (.weekly, usage.remainingPercent)
+    }
+
+    private func notifyIfLowUsage(for account: AccountProfile, previous: WeeklyUsage?) {
+        guard !Task.isCancelled, account.id == activeAccountID,
+              let threshold = settings.lowUsageThreshold,
+              let previous, let current = usageStates[account.id]?.displayedUsage else { return }
+        let before = quotaReading(for: previous)
+        let now = quotaReading(for: current)
+        guard before.window == now.window, before.percent > threshold, now.percent <= threshold else { return }
+
+        let window = text(now.window == .fiveHour ? "five_hour" : "weekly")
+        onLowUsage?(text("low_usage_title"),
+            String(format: text("low_usage_message"), account.listTitle, "\(now.percent)%", window))
     }
 
     public func start() async {
@@ -201,6 +220,7 @@ open class AccountController {
                 switch result {
                 case let .success(id, usage):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
+                    let previous = usageStates[id]?.displayedUsage
                     usageStates[id] = .loaded(usage)
                     do {
                         try await store.cacheWeeklyUsage(usage, profileID: id)
@@ -208,6 +228,7 @@ open class AccountController {
                         showError(error)
                     }
                     await observeResetExpiry(profile: account, usage: usage)
+                    notifyIfLowUsage(for: account, previous: previous)
                 case let .failure(id, message):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
                     await observeResetExpiry(profile: account, usage: nil, error: message)
@@ -414,6 +435,13 @@ open class AccountController {
         }
     }
 
+    public func setAccountNote(id: UUID, note: String) async throws {
+        guard !isMutating, !isAddingAccount else { throw AccountStoreError.accountOperationInProgress }
+        isMutating = true
+        defer { isMutating = false }
+        apply(try await store.setAccountNote(id: id, note: note))
+    }
+
     public func moveAccount(id: UUID, to targetID: UUID) async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
@@ -421,6 +449,27 @@ open class AccountController {
         do {
             apply(try await store.moveAccount(id: id, to: targetID))
             visibleError = nil
+        } catch {
+            showError(error)
+        }
+    }
+
+    public func setLowUsageThreshold(_ threshold: Int?) async throws {
+        if let threshold, !AppSettings.lowUsageThresholdRange.contains(threshold) {
+            throw AccountStoreError.invalidUsageThreshold
+        }
+        var updated = settings
+        updated.lowUsageThreshold = threshold
+        try await store.saveSettings(updated)
+        settings = updated
+    }
+
+    public func setPopoverAccountRows(_ rows: PopoverAccountRows) async {
+        do {
+            var updated = settings
+            updated.popoverAccountRows = rows
+            try await store.saveSettings(updated)
+            settings = updated
         } catch {
             showError(error)
         }

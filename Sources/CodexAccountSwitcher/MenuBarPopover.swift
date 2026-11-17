@@ -7,6 +7,7 @@ struct MenuBarPopover: View {
     @ObservedObject var updater: AppUpdater
     @ObservedObject var tiboForecast: TiboForecastModel
     @State private var page: PopoverPage = .accounts
+    @State private var accountListMaxHeight = Self.accountListMaxHeight(on: NSScreen.main)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,6 +53,9 @@ struct MenuBarPopover: View {
         .frame(width: 400)
         .onAppear {
             page = model.isAddingAccount ? .manageAccounts : .accounts
+            accountListMaxHeight = Self.accountListMaxHeight(
+                on: NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+            )
             Task { await tiboForecast.refreshIfDue() }
         }
         .task {
@@ -86,20 +90,13 @@ struct MenuBarPopover: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 28)
             } else {
-                Group {
-                    if model.accounts.count <= 3 {
-                        accountList(model.accounts)
-                    } else {
-                        // The first three rows determine the viewport's intrinsic height.
-                        accountList(Array(model.accounts.prefix(3)))
-                            .hidden()
-                            .overlay {
-                                ScrollView { accountList(model.accounts) }
-                            }
-                    }
-                }
-                // Ignore the initial zero-height probe and the previous page's height.
-                .fixedSize(horizontal: false, vertical: true)
+                accountList(Array(model.accounts.prefix(model.settings.popoverAccountRows.rawValue)))
+                    .hidden()
+                    .accessibilityHidden(true)
+                    .frame(maxHeight: accountListMaxHeight)
+                    .overlay { ScrollView { accountList(model.accounts) } }
+                    // Ignore the initial zero-height probe and the previous page's height.
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -154,6 +151,11 @@ struct MenuBarPopover: View {
         }
     }
 
+    private static func accountListMaxHeight(on screen: NSScreen?) -> CGFloat? {
+        // Leave space for the forecast, footer, and status messages.
+        screen.map { $0.visibleFrame.height * 0.75 }
+    }
+
     private func accountList(_ accounts: [AccountProfile]) -> some View {
         VStack(spacing: 8) {
             ForEach(accounts) { account in
@@ -198,7 +200,7 @@ private struct SwitchConfirmationPage: View {
     var body: some View {
         VStack(spacing: 0) {
             PopoverHeader(
-                title: model.format("switch_title", account.displayName),
+                title: model.format("switch_title", account.confirmationTitle),
                 backTitle: model.text("cancel"),
                 onBack: onCancel
             )
@@ -206,6 +208,12 @@ private struct SwitchConfirmationPage: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 14) {
+                if let email = account.labeledEmail {
+                    Text(verbatim: email)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
                 Text(model.text("switch_body"))
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
