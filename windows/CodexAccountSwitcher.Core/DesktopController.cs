@@ -7,7 +7,7 @@ namespace CodexAccountSwitcher.Core;
 
 public sealed record DesktopInstallation(string Executable, string? AppUserModelId = null);
 
-public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstallation>> discover)
+public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstallation>> discover, bool allowMissingInstallation = false)
 {
     private const int ErrorInsufficientBuffer = 122;
     private const int ErrorSuccess = 0;
@@ -105,7 +105,9 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Store package paths are versioned, so resolve the executable for every handoff.
-        var installation = await discover(cancellationToken);
+        DesktopInstallation installation;
+        try { installation = await discover(cancellationToken); }
+        catch (FileNotFoundException) when (allowMissingInstallation) { return; }
         var processes = FindDesktopProcesses(installation);
         try
         {
@@ -144,7 +146,9 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
     public async Task OpenAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var installation = await discover(cancellationToken);
+        DesktopInstallation installation;
+        try { installation = await discover(cancellationToken); }
+        catch (FileNotFoundException) when (allowMissingInstallation) { return; }
         var info = installation.AppUserModelId == null
             ? new ProcessStartInfo(installation.Executable) { UseShellExecute = true }
             : new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"))

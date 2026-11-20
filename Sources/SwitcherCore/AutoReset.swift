@@ -43,10 +43,14 @@ struct ResetExpiryEvent: Codable, Sendable {
     }
 }
 
-/// Schedules fresh reads and tracks real attempts across application restarts.
+/// Schedules pre-expiry reads and deduplicates reset consumption across restarts.
+/// Normal polls do not emit disk log spam; only checkpoints, attempts, and lifecycle events are persisted.
 struct AutoReset {
     let generation = UUID()
     static let checkpoints = [10, 5, 1]
+    static let maximumLogEntries = 500
+    static let retainedLogEntries = 250
+
     private var latestUsage: [UUID: WeeklyUsage] = [:]
     private var completed: Set<String> = []
     private var stoppedCredits: Set<String> = []
@@ -79,8 +83,7 @@ struct AutoReset {
     mutating func observe(
         profile: AccountProfile, usage: WeeklyUsage?, error: String? = nil, at now: Date
     ) -> [ResetExpiryEvent] {
-        var events = [ResetExpiryEvent(timestamp: now, event: usage == nil ? "read_failed" : "snapshot",
-            profileID: profile.id, account: profile.displayName, usage: usage, error: error)]
+        var events: [ResetExpiryEvent] = []
         let previous = latestUsage[profile.id]?.resetCredits ?? []
         let current = usage?.resetCredits ?? []
         let currentIDs = Set(current.map(\.id))
@@ -108,7 +111,6 @@ struct AutoReset {
                 completed.insert(key)
             }
         }
-        // Unknown details retain only the old schedule; checkpoint decisions still require a fresh read.
         if let usage { updateUsage(usage, profileID: profile.id) }
         return events
     }
@@ -124,6 +126,26 @@ struct AutoReset {
         } else if event.event == "reset_result", event.outcome == .nothingToReset {
             stoppedCredits.remove(key)
         }
+    }
+
+    static func compactedHistory(_ events: [ResetExpiryEvent], now: Date = Date()) -> [ResetExpiryEvent] {
+        guard events.count > maximumLogEntries else { return events }
+        let cutoff = now.addingTimeInterval(-7 * 86_400)
+        var mustKeepIndices = Set<Int>()
+        for (index, event) in events.enumerated() where event.mode == "live" {
+            if let expiry = event.expiresAt, expiry > cutoff {
+                mustKeepIndices.insert(index)
+            } else if event.expiresAt == nil,
+                      event.event == "reset_attempt" || event.event == "reset_result",
+                      event.timestamp > cutoff {
+                mustKeepIndices.insert(index)
+            }
+        }
+        let tailStart = max(0, events.count - retainedLogEntries)
+        for index in tailStart..<events.count {
+            mustKeepIndices.insert(index)
+        }
+        return events.enumerated().compactMap { mustKeepIndices.contains($0.offset) ? $0.element : nil }
     }
 
     private func checkpoint(profileID: UUID, credit: BankedResetCredit, minutes: Int, at now: Date) -> ResetExpiryEvent {

@@ -8,12 +8,13 @@ export function validateReleaseTag(tag, root = path.resolve(path.dirname(fileURL
   const version = match.slice(1).join('.');
   const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
   const versions = [
-    read('CITATION.cff').match(/^version:\s*(\S+)/m)?.[1],
+    read('Sources/SwitcherCore/Models.swift').match(/public static let current = "([^"]+)"/)?.[1],
     read('scripts/package-local-app.sh').match(/APP_VERSION=\$\{RELEASE_VERSION:-([^}]+)\}/)?.[1],
-    read('Sources/SwitcherCore/CodexClient.swift').match(/clientVersion: String = "([^"]+)"/)?.[1],
     read('windows/Directory.Build.props').match(/<Version>([^<]+)<\/Version>/)?.[1],
   ];
-  if (versions.some(v => v !== version)) throw new Error(`Tag ${tag} disagrees with unified version sources: ${versions.join(', ')}.`);
+  if (versions.some(v => v !== version)) {
+    throw new Error(`Tag ${tag} disagrees with unified version sources: ${versions.join(', ')}.`);
+  }
   return version;
 }
 

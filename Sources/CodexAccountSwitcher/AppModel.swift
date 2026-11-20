@@ -32,22 +32,26 @@ enum LaunchAtLoginState: Equatable {
 
 @MainActor
 final class AppModel: AccountController, @MainActor ObservableObject {
-    let objectWillChange = ObservableObjectPublisher()
     @Published private(set) var launchAtLoginState: LaunchAtLoginState = .disabled
+    var onSettledChange: (@MainActor () -> Void)?
 
     override init(store: AccountStore, codex: any AccountClient, switchService: any SwitchServicing,
                   subscriptionClient: (any SubscriptionClient)? = nil) {
         super.init(store: store, codex: codex, switchService: switchService, subscriptionClient: subscriptionClient)
-        onChange = { [weak self] in self?.objectWillChange.send() }
+        onWillChange = { [weak self] in self?.objectWillChange.send() }
+        onChange = { [weak self] in self?.onSettledChange?() }
         refreshLaunchAtLoginStatus()
     }
 
     static func live() -> AppModel {
         let store = AccountStore()
         let codex = CodexClient()
-        return AppModel(store: store, codex: codex,
-                        switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()),
-                        subscriptionClient: LiveSubscriptionClient())
+        return AppModel(
+            store: store,
+            codex: codex,
+            switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()),
+            subscriptionClient: LiveSubscriptionClient()
+        )
     }
 
     var launchesAtLogin: Bool { launchAtLoginState.isOn }
@@ -55,7 +59,10 @@ final class AppModel: AccountController, @MainActor ObservableObject {
     var launchAtLoginUnavailable: Bool { launchAtLoginState == .unavailable }
 
     func refreshLaunchAtLoginStatus() {
-        launchAtLoginState = LaunchAtLoginState(status: SMAppService.mainApp.status)
+        let next = LaunchAtLoginState(status: SMAppService.mainApp.status)
+        if next != launchAtLoginState {
+            launchAtLoginState = next
+        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {

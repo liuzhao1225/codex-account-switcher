@@ -1,11 +1,12 @@
 import Foundation
 
-// Shared product copy; platform names are adapted by the native presentation layer.
+// Shared product copy for both native platform clients.
 
 public enum L10n {
     public static func allStrings(language: AppLanguage) -> [String: String] {
         Dictionary(uniqueKeysWithValues: (tables[.english] ?? [:]).keys.map { ($0, string($0, language: language)) })
     }
+
     public static func string(_ key: String, language: AppLanguage) -> String {
         let resolved = language == .system
             ? systemLanguage(for: Locale.preferredLanguages.first ?? Locale.autoupdatingCurrent.identifier)
@@ -73,12 +74,6 @@ public enum L10n {
             "subscription_refresh_pending": "Waiting to refresh subscription information.",
             "subscription_refresh_failed": "Subscription information could not be refreshed.",
             "unknown": "Unknown",
-            "tibo_title": "Tibo reset forecast",
-            "tibo_source_hint": "Experimental forecast from codex-reset.com. Open the source for details.",
-            "tibo_loading": "Loading forecast…",
-            "tibo_unavailable": "Public forecast unavailable",
-            "tibo_24h": "24h",
-            "tibo_48h": "48h",
             "left": "% left",
             "resets": "Resets",
             "manage": "Manage Accounts",
@@ -98,11 +93,13 @@ public enum L10n {
             "active": "Active",
             "remove_title": "Remove %@?",
             "remove_body": "This removes only the saved local profile from this Mac.",
+            "remove_body_windows": "This removes only the saved local profile from this PC.",
             "launch_at_login": "Launch at Login",
             "launch_at_login_requires_approval": "Approval is required in System Settings.",
             "launch_at_login_unavailable": "macOS could not find this Login Item.",
             "open_system_settings": "Open System Settings",
             "show_menu_bar_percentage": "Show Percentage in Menu Bar",
+            "show_tray_percentage": "Show Percentage in System Tray",
             "status_bar_usage_window": "Status Bar Usage",
             "show_five_hour_usage": "Show 5-hour Usage",
             "language": "Language",
@@ -171,12 +168,6 @@ public enum L10n {
             "subscription_refresh_pending": "正在等待更新订阅信息。",
             "subscription_refresh_failed": "订阅信息暂时无法更新。",
             "unknown": "未知",
-            "tibo_title": "Tibo 重置预测",
-            "tibo_source_hint": "codex-reset.com 的实验性预测，点击查看来源详情。",
-            "tibo_loading": "正在读取预测…",
-            "tibo_unavailable": "公开预测暂不可用",
-            "tibo_24h": "24h",
-            "tibo_48h": "48h",
             "left": "% 剩余",
             "resets": "重置于",
             "manage": "管理账号",
@@ -196,11 +187,13 @@ public enum L10n {
             "active": "当前",
             "remove_title": "移除 %@？",
             "remove_body": "此操作只会移除这台 Mac 上保存的本地账号档案。",
+            "remove_body_windows": "此操作只会移除这台电脑上保存的本地账号档案。",
             "launch_at_login": "登录时自动启动",
             "launch_at_login_requires_approval": "需要在系统设置中允许此登录项。",
             "launch_at_login_unavailable": "macOS 找不到此登录项。",
             "open_system_settings": "打开系统设置",
             "show_menu_bar_percentage": "在菜单栏显示百分比",
+            "show_tray_percentage": "在系统托盘显示百分比",
             "status_bar_usage_window": "状态栏显示额度",
             "show_five_hour_usage": "显示 5 小时用量",
             "language": "语言",
@@ -269,12 +262,6 @@ public enum L10n {
             "subscription_refresh_pending": "In attesa di aggiornare i dati dell’abbonamento.",
             "subscription_refresh_failed": "Impossibile aggiornare i dati dell’abbonamento.",
             "unknown": "Sconosciuto",
-            "tibo_title": "Previsione reset Tibo",
-            "tibo_source_hint": "Previsione sperimentale di codex-reset.com. Apri la fonte per i dettagli.",
-            "tibo_loading": "Caricamento previsione…",
-            "tibo_unavailable": "Previsione pubblica non disponibile",
-            "tibo_24h": "24 h",
-            "tibo_48h": "48 h",
             "left": "% rimanente",
             "resets": "Ripristino:",
             "manage": "Gestisci account",
@@ -293,12 +280,14 @@ public enum L10n {
             "remove": "Rimuovi",
             "active": "Attivo",
             "remove_title": "Rimuovere %@?",
-            "remove_body": "Questa operazione rimuove solo il profilo salvato su questo computer.",
+            "remove_body": "Questa operazione rimuove solo il profilo salvato su questo Mac.",
+            "remove_body_windows": "Questa operazione rimuove solo il profilo salvato su questo PC.",
             "launch_at_login": "Avvia all'accesso",
             "launch_at_login_requires_approval": "È necessaria l'autorizzazione nelle Impostazioni di Sistema.",
             "launch_at_login_unavailable": "macOS non trova questo elemento di login.",
             "open_system_settings": "Apri Impostazioni di Sistema",
             "show_menu_bar_percentage": "Mostra percentuale nella barra dei menu",
+            "show_tray_percentage": "Mostra percentuale nell'area di notifica",
             "status_bar_usage_window": "Utilizzo nella barra di stato",
             "show_five_hour_usage": "Mostra utilizzo su 5 ore",
             "language": "Lingua",

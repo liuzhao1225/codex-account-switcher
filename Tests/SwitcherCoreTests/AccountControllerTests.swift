@@ -173,7 +173,7 @@ struct AccountControllerTests {
         await fixture.model.start()
         await fixture.model.setLanguage(.italian)
         #expect(fixture.model.text("manage") == "Gestisci account")
-        #expect(fixture.model.snapshot.strings["subscription_live_free"] == "Piano gratuito")
+        #expect(fixture.model.snapshot.strings?["subscription_live_free"] == "Piano gratuito")
         let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
         #expect(try await reopened.loadSettings().language == .italian)
     }

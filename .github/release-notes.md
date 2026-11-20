@@ -1,11 +1,13 @@
 ## 中文
 
-- 修复 Windows 版 Codex Desktop 关闭窗口后仍留在托盘、导致账号切换超时的问题。确认切换后，结束对应安装的 Desktop 及其子进程，确认退出后再更换账号凭据并重新打开 Desktop。
-- 保留独立启动的 CLI 和其他路径下的同名程序，并在切换确认中说明任务中断及未保存状态可能丢失。
-- macOS 保持原有正常退出流程。自动使用 reset 的行为保持不变。
+- **核心架构重构**：精简并统一 macOS 与 Windows 共享核心 `SwitcherCore` 及 `SwitcherHost` IPC（合并状态通知、按需传输多语言字典、移除第三方重置时间预测与冗余 npm 包装层）。
+- **双端实时订阅状态**：macOS 与 Windows 统一接入实时订阅状态刷新与本地 `subscription-cache.json` 缓存，支持未激活账号在令牌过期时安全自动续期。
+- **配额会话稳定性与隔离**：修复 `codex app-server` 管道关闭时的 CPU 空转问题；配额查询隔离使用本地文件凭据并禁用插件与远端同步（避免后台拉取大量插件缓存），空闲 90 秒自动回收；兼容 macOS `/Applications/ChatGPT.app`（`com.openai.codex`）及内置 `CodexCLI.app` 启动链路。
+- **自动 Reset 日志瘦身**：将旧版 `reset-expiry-experiment.jsonl` 自动迁移并压缩为有界 `auto-reset.jsonl`，日常轮询不再写入冗余快照日志。
 
 ## English
 
-- Fix Windows account-switch timeouts when Codex Desktop remains in the tray after its window closes. After confirmation, terminate the matching Desktop installation and its descendants, verify exit, then replace credentials and reopen Desktop.
-- Preserve independently launched CLI sessions and unrelated same-name executables. The confirmation explains interrupted tasks and possible unsaved-state loss.
-- Keep the macOS normal quit flow and automatic reset behavior unchanged.
+- **Shared-Core Refactor**: Streamlined and unified the shared `SwitcherCore` and `SwitcherHost` IPC across macOS and Windows (batched snapshot updates, on-demand localization dictionary delivery, and removal of third-party reset forecasts and redundant npm installer layers).
+- **Cross-Platform Live Subscriptions**: Unified live subscription refreshes and `subscription-cache.json` caching across macOS and Windows, with safe background token renewal for inactive accounts when tokens expire.
+- **Quota Session Stability & Isolation**: Fixed CPU spin on `codex app-server` pipe EOF; forced file-backed credential isolation and disabled plugin/app sync during quota queries (preventing large background plugin downloads), with 90-second idle session expiry and full support for macOS `/Applications/ChatGPT.app` (`com.openai.codex`) and its bundled `CodexCLI.app` binary.
+- **Bounded Auto-Reset Log**: Automatically migrates and compacts legacy `reset-expiry-experiment.jsonl` files into a bounded `auto-reset.jsonl`, eliminating routine poll log bloat.

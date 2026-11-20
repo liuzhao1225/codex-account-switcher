@@ -14,7 +14,6 @@
     <link rel="alternate" hreflang="en" href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
     <link rel="alternate" hreflang="zh-CN" href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/">
     <link rel="alternate" hreflang="x-default" href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">
-    <link rel="describedby" href="https://liuzhao1225.github.io/codex-account-switcher/llms.txt" type="text/plain">
     <link rel="author" href="https://liuzhao1225.github.io/codex-account-switcher/about/creator/">
     <link rel="icon" type="image/png" href="../assets/favicon.png">
 
@@ -91,7 +90,7 @@
             <p class="eyebrow">Plain-language privacy record</p>
             <h1>Privacy for Codex Account Switcher</h1>
             <p class="article-lede"><strong>Codex Account Switcher keeps its account registry, saved credentials, settings, and usage cache on your computer.</strong> The project operates no account proxy, traffic router, analytics service, or cloud profile backend.</p>
-            <p class="article-meta">Updated November 2, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.1.27</p>
+            <p class="article-meta">Updated November 20, 2026 · Maintained by <a href="../about/creator/" rel="author">Zhao Liu (liuzhao1225)</a> · Applies to v0.2.0</p>
           </div>
         </header>
 
@@ -113,7 +112,8 @@
                       <tr><th scope="row"><code>accounts/&lt;profile-id&gt;/auth.json</code></th><td>A reusable Codex credential snapshot for that authorized account</td><td>Activate the account selected by the user</td></tr>
                       <tr><th scope="row"><code>settings.json</code></th><td>Language and display preferences</td><td>Keep the chosen app settings</td></tr>
                       <tr><th scope="row"><code>usage-cache.json</code></th><td>Profile ID, last successful weekly usage, optional 5-hour usage, reset times, and fetch time</td><td>Keep useful usage context visible while refreshing</td></tr>
-                      <tr><th scope="row"><code>reset-expiry-experiment.jsonl</code></th><td>When enabled: account display names and profile IDs, banked reset IDs and expiries, usage snapshots, checkpoint times, idempotency keys, outcomes and errors; no credentials</td><td>Record automatic reset attempts, service outcomes and usage readback; retained until you delete the log</td></tr>
+                      <tr><th scope="row"><code>subscription-cache.json</code></th><td>Profile ID, account ID, plan type, subscription validity date, renewal/delinquency flags, and fetch time</td><td>Cache the latest subscription status without storing tokens outside <code>auth.json</code></td></tr>
+                      <tr><th scope="row"><code>auto-reset.jsonl</code></th><td>When enabled: account display names and profile IDs, banked reset IDs and expiries, checkpoint times, idempotency keys, outcomes and errors; no credentials</td><td>Bounded local log of automatic reset checkpoints, service outcomes and usage readback</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -122,9 +122,8 @@
 
               <section id="network">
                 <h2>What network activity occurs?</h2>
-                <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification and usage refreshes launch Codex app-server for the relevant local profile, which may communicate with OpenAI. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
+                <p>Codex Account Switcher has no developer-operated API or profile-sync service. Adding an account starts the standard Codex browser login flow. Identity verification, reset consumption, and usage refreshes launch Codex app-server for the relevant local profile, and subscription refreshes query ChatGPT's subscription endpoint directly using that profile's saved login token. The switcher does not insert itself as a proxy between Codex and OpenAI.</p>
                 <p>macOS uses Sparkle to check the signed update feed hourly and install updates when requested. Windows checks GitHub Releases hourly when enabled and opens the unified download page for manual EXE replacement. These HTTPS requests expose ordinary network request metadata to GitHub and its download providers. Update requests do not include saved account credentials; Sparkle system profiling is disabled. Automatic checks can be disabled in Settings.</p>
-                <p>On macOS, the Tibo reset forecast entry fetches a public feed from <a href="https://codex-reset.com/">codex-reset.com</a> approximately every 15 minutes. The independent site receives ordinary HTTPS request metadata and an app-identifying User-Agent; no saved accounts or credentials are included. Clicking the entry opens that website in your browser.</p>
                 <p>This website is a static GitHub Pages site with no project-added analytics script, advertising tracker, account system, or contact form. GitHub may process normal hosting request data under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</p>
               </section>
 

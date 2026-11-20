@@ -1,7 +1,0 @@
-# GitHub Pages serves this project beneath /codex-account-switcher/.
-# Crawlers use the host-level policy at https://liuzhao1225.github.io/robots.txt.
-# That policy also lists this project's sitemap; this file is informational.
-User-agent: *
-Allow: /
-
-Sitemap: https://liuzhao1225.github.io/codex-account-switcher/sitemap.xml

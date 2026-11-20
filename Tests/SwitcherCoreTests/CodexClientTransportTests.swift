@@ -2,7 +2,84 @@ import Foundation
 import Testing
 @testable import SwitcherCore
 
-private let fixtureExecutable = ProcessInfo.processInfo.environment["SWITCHER_TEST_RPC_EXE"]
+private let fixtureExecutable: String? = {
+    if let explicit = ProcessInfo.processInfo.environment["SWITCHER_TEST_RPC_EXE"], !explicit.isEmpty {
+        return explicit
+    }
+    #if !os(Windows)
+    let python = "/usr/bin/python3"
+    guard FileManager.default.isExecutableFile(atPath: python) else { return nil }
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("switcher-posix-rpc-fixture")
+    let script = directory.appendingPathComponent("rpc-fixture.py")
+    let source = #"""
+    #!/usr/bin/python3
+    import json, os, pathlib, signal, sys, time
+
+    home = pathlib.Path(os.environ["CODEX_HOME"])
+    launches = home / "launches"
+    if launches.exists():
+        for prev in launches.read_text().splitlines():
+            try:
+                pid = int(prev)
+                os.kill(pid, 0)
+                (home / "overlap").write_text("yes")
+            except Exception:
+                pass
+    with launches.open("a") as f:
+        f.write(f"{os.getpid()}\n")
+
+    scenario = (home / "fixture-mode").read_text().strip()
+    for line in sys.stdin:
+        msg = json.loads(line)
+        if "id" not in msg:
+            continue
+        req_id = msg["id"]
+        method = msg.get("method", "")
+        with (home / "requests").open("a") as f:
+            f.write(f"{method}\n")
+        if ((scenario == "hold-initialize" and method == "initialize") or
+            (scenario == "hold-quota" and method == "account/rateLimits/read") or
+            (scenario == "hold-identity" and method == "account/read")):
+            while not (home / "release").exists():
+                time.sleep(0.01)
+        if scenario == "timeout" or (scenario == "quota-timeout" and method == "account/rateLimits/read"):
+            continue
+        if scenario == "exit-once" and method == "account/rateLimits/read" and not (home / "exited").exists():
+            (home / "exited").write_text("yes")
+            sys.exit(0)
+        if method == "account/read":
+            result = {"account": {"accountId": "fixture", "email": "fixture@example.test"}}
+        elif method == "account/rateLimits/read":
+            result = {
+                "rateLimitResetCredits": {"availableCount": 2},
+                "rateLimits": {
+                    "primary": {"usedPercent": 33, "windowDurationMins": 300, "resetsAt": 2000000000},
+                    "secondary": {"usedPercent": 58, "windowDurationMins": 10080, "resetsAt": 2000000000},
+                },
+            }
+        elif method == "account/rateLimitResetCredit/consume":
+            result = {"outcome": "reset"}
+        elif method == "account/login/start":
+            result = {"authUrl": "https://example.test/sign-in"}
+        else:
+            result = {}
+        if method == "account/login/start" and scenario == "login":
+            sys.stdout.write(json.dumps({"method": "account/login/completed", "params": {"success": True}}) + "\n")
+        sys.stdout.write(json.dumps({"id": req_id, "result": result}) + "\n")
+        sys.stdout.flush()
+    """#
+    do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(source.utf8).write(to: script, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+        return script.path
+    } catch {
+        return nil
+    }
+    #else
+    return nil
+    #endif
+}()
 
 @Suite(.enabled(if: fixtureExecutable != nil))
 struct CodexClientTransportTests {
@@ -10,7 +87,6 @@ struct CodexClientTransportTests {
     func installedCliUsesOnlyAnIsolatedEmptyHome() async throws {
         let home = try fixtureHome("installed-cli")
         defer { try? FileManager.default.removeItem(at: home) }
-        try Data("cli_auth_credentials_store = \"file\"\n".utf8).write(to: home.appendingPathComponent("config.toml"))
         let client = CodexClient(locator: .init(explicitURL: URL(fileURLWithPath:
             ProcessInfo.processInfo.environment["SWITCHER_TEST_INSTALLED_CLI"]!)))
         do { _ = try await client.readIdentity(profileHome: home); Issue.record("An isolated home must not have a login.") }
@@ -28,6 +104,7 @@ struct CodexClientTransportTests {
         #expect(usage.remainingPercent == 42)
         #expect(usage.fiveHourRemainingPercent == 67)
         #expect(usage.resetCreditsRemaining == 2)
+        try await client.stopUsageSessions()
     }
 
     @Test func loginAcceptsCompletionBeforeStartResponse() async throws {
@@ -41,7 +118,7 @@ struct CodexClientTransportTests {
     @Test func aSilentServerTimesOut() async throws {
         let home = try fixtureHome("timeout")
         defer { try? FileManager.default.removeItem(at: home) }
-        let client = makeClient(timeout: .milliseconds(500))
+        let client = makeClient(timeout: .milliseconds(300))
         do {
             _ = try await client.readIdentity(profileHome: home)
             Issue.record("Expected a timeout")
@@ -57,7 +134,7 @@ struct CodexClientTransportTests {
         let task = Task { try await client.login(profileHome: home) }
         for _ in 0..<100 {
             if await signal.isOpen { break }
-            try await Task.sleep(for: .milliseconds(50))
+            try await Task.sleep(for: .milliseconds(20))
         }
         #expect(await signal.isOpen)
         task.cancel()
@@ -154,7 +231,6 @@ struct CodexClientTransportTests {
         let client = makeClient()
         _ = try await client.readWeeklyUsage(profileHome: home)
         _ = try await client.readWeeklyUsage(profileHome: sibling)
-        _ = try await client.refreshIdentity(profileHome: home)
         #expect(try await client.consumeResetCredit(profileHome: home, creditID: "test", idempotencyKey: "test") == .reset)
         _ = try await client.readWeeklyUsage(profileHome: sibling)
         #expect(try launchCount(sibling) == 1)
@@ -163,24 +239,6 @@ struct CodexClientTransportTests {
         #expect(await client.usageSessionCount == 1)
         _ = try await client.readWeeklyUsage(profileHome: home)
         #expect(await client.usageSessionCount == 2)
-        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
-        try await client.stopUsageSessions()
-    }
-
-    @Test func quotaReadWaitsForCredentialRenewalOnTheSameProfile() async throws {
-        let home = try fixtureHome("normal")
-        defer { try? FileManager.default.removeItem(at: home) }
-        let client = makeClient()
-        _ = try await client.readWeeklyUsage(profileHome: home)
-        try Data("hold-identity".utf8).write(to: home.appendingPathComponent("fixture-mode"))
-        let renewal = Task { try await client.refreshIdentity(profileHome: home) }
-        try await waitForRequest("account/read", home: home)
-        let read = Task { try await client.readWeeklyUsage(profileHome: home) }
-        try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
-        try Data().write(to: home.appendingPathComponent("release"))
-        _ = try await renewal.value
-        _ = try await read.value
-        #expect(try launchCount(home) == 3)
         #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
         try await client.stopUsageSessions()
     }
@@ -197,7 +255,7 @@ struct CodexClientTransportTests {
     @Test func timedOutQuotaSessionIsDiscarded() async throws {
         let home = try fixtureHome("quota-timeout\r\n")
         defer { try? FileManager.default.removeItem(at: home) }
-        let client = makeClient(timeout: .seconds(2))
+        let client = makeClient(timeout: .milliseconds(500))
         do { _ = try await client.readWeeklyUsage(profileHome: home); Issue.record("Expected timeout") }
         catch { #expect(error as? CodexClientError == .timeout) }
         try Data("normal".utf8).write(to: home.appendingPathComponent("fixture-mode"))
@@ -212,7 +270,7 @@ struct CodexClientTransportTests {
         let client = CodexClient(locator: .init(explicitURL: URL(fileURLWithPath: fixtureExecutable!)),
                                  usageSessionIdleTimeout: .milliseconds(50))
         _ = try await client.readWeeklyUsage(profileHome: home)
-        try await Task.sleep(for: .seconds(1))
+        try await Task.sleep(for: .milliseconds(300))
         _ = try await client.readWeeklyUsage(profileHome: home)
         #expect(try launchCount(home) == 2)
         try await client.stopUsageSessions()

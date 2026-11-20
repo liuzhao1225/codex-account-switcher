@@ -6,11 +6,14 @@ SCRIPT_DIR=${0:A:h}
 PROJECT_DIR=${SCRIPT_DIR:h}
 RESOURCE_BUNDLE="CodexAccountSwitcher_CodexAccountSwitcher.bundle"
 APP_ICON="$PROJECT_DIR/assets/AppIcon.icns"
-APP_VERSION=${RELEASE_VERSION:-0.1.27}
+APP_VERSION=${RELEASE_VERSION:-0.2.0}
 CODESIGN_IDENTITY=${CODESIGN_IDENTITY:--}
 
 cd "$PROJECT_DIR"
 BUILD_ARGUMENTS=(-c release)
+if [[ "$(xcode-select -p 2>/dev/null || true)" == "/Library/Developer/CommandLineTools" ]]; then
+    BUILD_ARGUMENTS+=(--build-system native)
+fi
 if [[ -n "${SWIFT_BUILD_ARCH:-}" ]]; then
     BUILD_ARGUMENTS+=(--arch "$SWIFT_BUILD_ARCH")
 fi

@@ -1,27 +1,11 @@
-# Shared core and native platform clients
-
-This supersedes the initial Windows prototype's separate C# account implementation.
-
-## Required design
-
-- Reuse the existing Swift business implementation as a cross-platform `SwitcherCore` package target.
-- Both clients share account models, persisted settings, localization, account lifecycle, Codex RPC, weekly/5-hour normalization, the ordered switch sequence, and bounded restoration.
-- macOS keeps its SwiftUI menu-bar interface and Sparkle integration. Extracting its core is not a conversion of the Mac application to Windows.
-- Windows uses a compact native tray flyout with the same pages and copy: accounts, account management, switch/remove confirmation, and settings. Use Windows fonts, icons, controls and light/dark colors; do not introduce a dashboard, marketing header, manual-refresh requirement, rename workflow, path-settings page, or separate modal account windows.
-- User-provided screenshots in the Pictures directory are design references only. Do not copy their real account information into fixtures or repository assets.
+# Shared Core and Native Platform Clients
 
 ## Boundaries
 
-`SwitcherCore` owns policy and state. Platform adapters own filesystem permissions/atomic installation, executable discovery and launch, browser opening, Desktop close/open, tray integration, launch-at-login, and update installation. A Windows native client communicates with the Swift host through a private child-process stdio channel; it renders snapshots and invokes commands rather than reconstructing account policy in C#.
-
-Desktop close is platform-specific: macOS requests normal termination, while Windows force-terminates the matched Desktop process trees and verifies exit. Windows uses a dedicated localized confirmation warning about interrupted tasks and unsaved-state loss. Both adapters must finish closing successfully before the shared sequence changes credentials.
-
-The Swift host exists only while the Windows UI is running. It is not a daemon or HTTP service. Credential contents never cross the UI protocol. The Windows EXE must bundle the host and its runtime dependencies so users do not install Swift separately.
-
-## Parity acceptance
-
-The same core tests must run on macOS and Windows. They must cover startup registration, explicit register/add/remove, automatic refresh and cache retention, identity checks, direct switch ordering, failure restoration, and cancellation. Native UI tests separately verify the reference's compact layout, full-row selection, active-row highlight without an extra label, in-place navigation/confirmation, immediate settings, and reopening on the account page.
-
-Both clients now use `AccountController` and the shared account services. Windows no longer has its former C# account store, switch service or Codex RPC implementation. The compact native client receives shared snapshots through `SwitcherHost`.
-
-The Windows package includes the Swift host/runtime and .NET runtime. Its isolated `--self-test` checks that no SDK installation is required. See `docs/windows-validation.md` for completed local checks and the macOS/real-account validation boundary.
+- `SwitcherCore` owns account models, `SwitcherVersion.current`, persisted settings, localization (`L10n`), registry/credential sync (`AccountStore`), Codex JSON-RPC (`CodexClient`), live subscription queries (`LiveSubscriptionClient`), pre-expiry reset consumption (`AutoReset`), and the ordered switch sequence (`SwitchService`).
+- macOS (`Sources/CodexAccountSwitcher`) observes `AccountController` via `AppModel` (`onWillChange` for SwiftUI `ObservableObject` updates and `onSettledChange` for Sparkle install deferral).
+- Windows (`windows/CodexAccountSwitcher`) runs `SwitcherHost.exe` as a private child process over stdio JSON lines:
+  - `AccountController` batches internal state mutations (`withBatchedUpdates`) so `SwitcherHost` emits one settled `AccountSnapshot` per logical state transition.
+  - `SwitcherHost` encodes typed `Encodable` envelopes in a single `JSONEncoder` pass, transmitting the localization dictionary only on initialization and language changes (`CoreClient` retains the last dictionary across lightweight updates).
+  - `HostRuntime` verifies a `.extracted` sentinel per SHA-256 runtime digest to avoid re-hashing DLLs on every startup and cleans up superseded runtime directories automatically.
+  - Credentials and tokens never cross the UI snapshot protocol.

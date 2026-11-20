@@ -27,7 +27,7 @@ Directory.CreateDirectory(active);
 try {
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
         await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
-        await UntilAsync(() => client.State.Strings.ContainsKey("manage"));
+        await UntilAsync(() => client.State.Strings?.ContainsKey("manage") == true);
         Require(client.State.Accounts.Length == 0, "Isolated startup should have no accounts.");
         Require(client.State.Settings.StatusBarUsageWindow == "fiveHour", "Five-hour usage should be the default tray window.");
         await client.CommandAsync("language", language: "simplifiedChinese");

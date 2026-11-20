@@ -10,7 +10,8 @@ public static class SecureFiles
 
     public static void RejectLinks(string path)
     {
-        for (var current = Path.GetFullPath(path); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
+        var current = Path.GetFullPath(path);
+        for (var depth = 0; depth < 4 && !string.IsNullOrEmpty(current); depth++, current = Path.GetDirectoryName(current))
             if ((File.Exists(current) || Directory.Exists(current))
                 && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("Account storage cannot use symbolic links or junctions.");

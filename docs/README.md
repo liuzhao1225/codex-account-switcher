@@ -1,50 +1,6 @@
-# Documentation
+# Documentation Index
 
-- [Official project identity and primary sources](project-identity.md)
-
-This directory defines the MVP for Codex Account Switcher.
-
-## Documents
-
-| Document | Purpose |
-| --- | --- |
-| [Product positioning and messaging](positioning-and-messaging.md) | Shared audience, promise, proof, SEO terms, and claim boundaries |
-| [SEO and GEO maintenance](seo-geo.md) | Page intent, crawler policy, structured-data consistency checks and measurement |
-| [Product decisions](product-decisions.md) | Binding product and architecture decisions |
-| [Product requirements](product-requirements.md) | User-visible behavior and acceptance criteria |
-| [System design](system-design.md) | Components, storage, flows, interfaces, and failure behavior |
-| [Implementation plan](implementation-plan.md) | Concrete milestones and suggested source layout |
-| [Testing](testing.md) | Small, failure-oriented MVP test plan |
-
-## Product definition
-
-Codex Account Switcher is a simple local menu-bar app for ordinary Mac users. The public workflow is: add accounts through browser sign-in once, choose from the menu bar, and let the app complete the confirmed Codex Desktop handoff. It requires no Terminal commands or config-file editing. Internally, the app manages a small set of authentication snapshots and activates the selected snapshot for Codex.
-
-The intended user flow is:
-
-```text
-Open menu
-→ inspect weekly Usage and optional 5-hour Usage
-→ select account
-→ confirm normal switch consequences
-→ switch
-```
-
-The implementation flow is:
-
-```text
-Preflight
-→ close Codex Desktop
-→ save the current account's latest credentials
-→ atomically activate the target credentials
-→ verify the target identity from the installed credential
-→ write activeAccountID
-→ reopen Codex Desktop
-```
-
-The sequence is deliberately linear. Every step either succeeds or returns an error. Verification and registry-commit failures after activation restore the validated original profile credential; the implementation does not add a general recovery state machine around the switch.
-
-## Windows and platform releases
-
-- [Windows development, packaging and limitations](../windows/README.md)
-- [Unified macOS / Windows versions and tags](platform-releases.md)
+- [System Design](system-design.md) — Storage layout, switching state stages, isolated `codex app-server` transport, live subscription refresh, and bounded auto-reset design.
+- [Shared Core & Windows Host](shared-core.md) — Responsibilities between `SwitcherCore`, the macOS SwiftUI client, `SwitcherHost`, and the Windows WPF client.
+- [Testing](testing.md) — Unified Swift Testing suite, transport fixtures, script checks, and Windows integration/UI checks.
+- [Platform Releases](platform-releases.md) — Version sources, tag validation, code signing/notarization, and unified dual-platform GitHub Releases.

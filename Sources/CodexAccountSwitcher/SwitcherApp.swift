@@ -2,14 +2,17 @@ import SwitcherCore
 import AppKit
 import SwiftUI
 
+/// Resolves directly to `SwiftUI.State` property wrapper rather than the SDK macro overload,
+/// allowing builds under both Command Line Tools and full Xcode.
+typealias ViewState<Value> = SwiftUI.State<Value>
+
 @main
 struct SwitcherApp: App {
     @NSApplicationDelegateAdaptor(SwitcherAppDelegate.self) private var appDelegate
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarPopover(model: appDelegate.model, updater: appDelegate.updater,
-                           tiboForecast: appDelegate.tiboForecast)
+            MenuBarPopover(model: appDelegate.model, updater: appDelegate.updater)
         } label: {
             MenuBarStatusLabel(model: appDelegate.model, updater: appDelegate.updater)
         }

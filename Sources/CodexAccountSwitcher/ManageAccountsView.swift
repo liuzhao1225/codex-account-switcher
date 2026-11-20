@@ -5,7 +5,7 @@ struct ManageAccountsView: View {
     @ObservedObject var model: AppModel
     let onBack: () -> Void
 
-    @State private var page: ManageAccountsPage = .accounts
+    @ViewState private var page: ManageAccountsPage = .accounts
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,13 +57,15 @@ struct ManageAccountsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
+            } else if model.accounts.count <= 6 {
+                managedRows(model.accounts)
             } else {
-                VStack(spacing: 2) {
-                    ForEach(model.accounts) { account in
-                        managedAccountRow(account)
+                managedRows(Array(model.accounts.prefix(6)))
+                    .hidden()
+                    .overlay {
+                        ScrollView { managedRows(model.accounts) }
                     }
-                }
-                .padding(5)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -115,6 +117,15 @@ struct ManageAccountsView: View {
             }
             .padding(5)
         }
+    }
+
+    private func managedRows(_ accounts: [AccountProfile]) -> some View {
+        VStack(spacing: 2) {
+            ForEach(accounts) { account in
+                managedAccountRow(account)
+            }
+        }
+        .padding(5)
     }
 
     private var signInHint: some View {

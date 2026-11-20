@@ -37,10 +37,8 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Check release routing and site metadata
-        run: |
-          node --test scripts/tests/*.test.mjs
-          node scripts/check-site-geo.mjs
+      - name: Check release routing
+        run: node --test scripts/tests/*.test.mjs
 
   windows:
     needs: validate
@@ -65,10 +63,7 @@ jobs:
         run: brew install fish
 
       - name: Run release tests
-        run: |
-          set -euo pipefail
-          swift test
-          ./scripts/run-core-checks.sh
+        run: ./scripts/run-tests.sh
 
       - name: Package, notarize, and staple Developer ID signed DMG
         env:
