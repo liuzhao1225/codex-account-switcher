@@ -7,72 +7,172 @@ private let fixtureExecutable: String? = {
         return explicit
     }
     #if !os(Windows)
-    let python = "/usr/bin/python3"
-    guard FileManager.default.isExecutableFile(atPath: python) else { return nil }
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("switcher-posix-rpc-fixture")
-    let script = directory.appendingPathComponent("rpc-fixture.py")
+    let compilerURL = URL(fileURLWithPath: "/usr/bin/cc")
+    guard FileManager.default.isExecutableFile(atPath: compilerURL.path) else { return nil }
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("switcher-posix-rpc-fixture-\(ProcessInfo.processInfo.processIdentifier)")
+    let sourceURL = directory.appendingPathComponent("rpc-fixture.c")
+    let binaryURL = directory.appendingPathComponent("rpc-fixture")
     let source = #"""
-    #!/usr/bin/python3
-    import json, os, pathlib, signal, sys, time
+    #include <signal.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <unistd.h>
 
-    home = pathlib.Path(os.environ["CODEX_HOME"])
-    launches = home / "launches"
-    if launches.exists():
-        for prev in launches.read_text().splitlines():
-            try:
-                pid = int(prev)
-                os.kill(pid, 0)
-                (home / "overlap").write_text("yes")
-            except Exception:
-                pass
-    with launches.open("a") as f:
-        f.write(f"{os.getpid()}\n")
+    static void join_path(char *out, size_t cap, const char *dir, const char *name) {
+        snprintf(out, cap, "%s/%s", dir, name);
+    }
 
-    scenario = (home / "fixture-mode").read_text().strip()
-    for line in sys.stdin:
-        msg = json.loads(line)
-        if "id" not in msg:
-            continue
-        req_id = msg["id"]
-        method = msg.get("method", "")
-        with (home / "requests").open("a") as f:
-            f.write(f"{method}\n")
-        if ((scenario == "hold-initialize" and method == "initialize") or
-            (scenario == "hold-quota" and method == "account/rateLimits/read") or
-            (scenario == "hold-identity" and method == "account/read")):
-            while not (home / "release").exists():
-                time.sleep(0.01)
-        if scenario == "timeout" or (scenario == "quota-timeout" and method == "account/rateLimits/read"):
-            continue
-        if scenario == "exit-once" and method == "account/rateLimits/read" and not (home / "exited").exists():
-            (home / "exited").write_text("yes")
-            sys.exit(0)
-        if method == "account/read":
-            result = {"account": {"accountId": "fixture", "email": "fixture@example.test"}}
-        elif method == "account/rateLimits/read":
-            result = {
-                "rateLimitResetCredits": {"availableCount": 2},
-                "rateLimits": {
-                    "primary": {"usedPercent": 33, "windowDurationMins": 300, "resetsAt": 2000000000},
-                    "secondary": {"usedPercent": 58, "windowDurationMins": 10080, "resetsAt": 2000000000},
-                },
+    static void write_file(const char *path, const char *text, const char *mode) {
+        FILE *f = fopen(path, mode);
+        if (f) {
+            fputs(text, f);
+            fclose(f);
+        }
+    }
+
+    static int parse_id(const char *line, long *out_id) {
+        const char *p = strstr(line, "\"id\"");
+        if (!p) return 0;
+        p += 4;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != ':') return 0;
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+        char *end = NULL;
+        long val = strtol(p, &end, 10);
+        if (end == p) return 0;
+        *out_id = val;
+        return 1;
+    }
+
+    static void parse_method(const char *line, char *out, size_t cap) {
+        out[0] = '\0';
+        const char *p = strstr(line, "\"method\"");
+        if (!p) return;
+        p += 8;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != ':') return;
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != '"') return;
+        p++;
+        size_t i = 0;
+        while (*p && *p != '"' && i + 1 < cap) {
+            if (*p == '\\' && p[1]) p++;
+            out[i++] = *p++;
+        }
+        out[i] = '\0';
+    }
+
+    int main(void) {
+        const char *home = getenv("CODEX_HOME");
+        if (!home || !*home) return 1;
+
+        char launches_path[1024], overlap_path[1024], mode_path[1024];
+        char requests_path[1024], release_path[1024], exited_path[1024];
+        join_path(launches_path, sizeof(launches_path), home, "launches");
+        join_path(overlap_path, sizeof(overlap_path), home, "overlap");
+        join_path(mode_path, sizeof(mode_path), home, "fixture-mode");
+        join_path(requests_path, sizeof(requests_path), home, "requests");
+        join_path(release_path, sizeof(release_path), home, "release");
+        join_path(exited_path, sizeof(exited_path), home, "exited");
+
+        FILE *lf = fopen(launches_path, "r");
+        if (lf) {
+            char buf[64];
+            while (fgets(buf, sizeof(buf), lf)) {
+                long pid = strtol(buf, NULL, 10);
+                if (pid > 0 && pid != (long)getpid() && kill((pid_t)pid, 0) == 0) {
+                    write_file(overlap_path, "yes", "w");
+                }
             }
-        elif method == "account/rateLimitResetCredit/consume":
-            result = {"outcome": "reset"}
-        elif method == "account/login/start":
-            result = {"authUrl": "https://example.test/sign-in"}
-        else:
-            result = {}
-        if method == "account/login/start" and scenario == "login":
-            sys.stdout.write(json.dumps({"method": "account/login/completed", "params": {"success": True}}) + "\n")
-        sys.stdout.write(json.dumps({"id": req_id, "result": result}) + "\n")
-        sys.stdout.flush()
+            fclose(lf);
+        }
+        lf = fopen(launches_path, "a");
+        if (lf) {
+            fprintf(lf, "%ld\n", (long)getpid());
+            fclose(lf);
+        }
+
+        char scenario[128] = {0};
+        FILE *mf = fopen(mode_path, "r");
+        if (!mf) return 1;
+        if (fgets(scenario, sizeof(scenario), mf)) {
+            size_t len = strlen(scenario);
+            while (len > 0 && (scenario[len - 1] == '\n' || scenario[len - 1] == '\r' || scenario[len - 1] == ' ')) {
+                scenario[--len] = '\0';
+            }
+        }
+        fclose(mf);
+
+        char *line = NULL;
+        size_t cap = 0;
+        while (getline(&line, &cap, stdin) > 0) {
+            long req_id = 0;
+            if (!parse_id(line, &req_id)) continue;
+            char method[128];
+            parse_method(line, method, sizeof(method));
+
+            FILE *rf = fopen(requests_path, "a");
+            if (rf) {
+                fprintf(rf, "%s\n", method);
+                fclose(rf);
+            }
+
+            if ((strcmp(scenario, "hold-initialize") == 0 && strcmp(method, "initialize") == 0) ||
+                (strcmp(scenario, "hold-quota") == 0 && strcmp(method, "account/rateLimits/read") == 0) ||
+                (strcmp(scenario, "hold-identity") == 0 && strcmp(method, "account/read") == 0)) {
+                while (access(release_path, F_OK) != 0) {
+                    usleep(10000);
+                }
+            }
+            if (strcmp(scenario, "timeout") == 0 ||
+                (strcmp(scenario, "quota-timeout") == 0 && strcmp(method, "account/rateLimits/read") == 0)) {
+                continue;
+            }
+            if (strcmp(scenario, "exit-once") == 0 &&
+                strcmp(method, "account/rateLimits/read") == 0 &&
+                access(exited_path, F_OK) != 0) {
+                write_file(exited_path, "yes", "w");
+                free(line);
+                return 0;
+            }
+
+            const char *result = "{}";
+            if (strcmp(method, "account/read") == 0) {
+                result = "{\"account\":{\"accountId\":\"fixture\",\"email\":\"fixture@example.test\"}}";
+            } else if (strcmp(method, "account/rateLimits/read") == 0) {
+                result = "{\"rateLimitResetCredits\":{\"availableCount\":2},\"rateLimits\":{\"primary\":{\"usedPercent\":33,\"windowDurationMins\":300,\"resetsAt\":2000000000},\"secondary\":{\"usedPercent\":58,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
+            } else if (strcmp(method, "account/rateLimitResetCredit/consume") == 0) {
+                result = "{\"outcome\":\"reset\"}";
+            } else if (strcmp(method, "account/login/start") == 0) {
+                result = "{\"authUrl\":\"https://example.test/sign-in\"}";
+            }
+
+            if (strcmp(method, "account/login/start") == 0 && strcmp(scenario, "login") == 0) {
+                fputs("{\"method\":\"account/login/completed\",\"params\":{\"success\":true}}\n", stdout);
+            }
+            printf("{\"id\":%ld,\"result\":%s}\n", req_id, result);
+            fflush(stdout);
+        }
+        free(line);
+        return 0;
+    }
     """#
     do {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data(source.utf8).write(to: script, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
-        return script.path
+        try Data(source.utf8).write(to: sourceURL, options: .atomic)
+        let compiler = Process()
+        compiler.executableURL = compilerURL
+        compiler.arguments = [sourceURL.path, "-O2", "-Wall", "-Werror", "-o", binaryURL.path]
+        compiler.standardOutput = FileHandle.nullDevice
+        compiler.standardError = FileHandle.nullDevice
+        try compiler.run()
+        compiler.waitUntilExit()
+        guard compiler.terminationStatus == 0 else { return nil }
+        return binaryURL.path
     } catch {
         return nil
     }
