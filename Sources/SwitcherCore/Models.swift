@@ -3,7 +3,7 @@ import Foundation
 // Shared account and usage types for both native platform clients.
 
 public enum SwitcherVersion {
-    public static let current = "0.2.0"
+    public static let current = "0.2.1"
 }
 
 public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendable {

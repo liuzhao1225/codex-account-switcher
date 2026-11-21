@@ -244,6 +244,10 @@ jobs:
           pattern: Codex-Account-Switcher-*
           path: dist
           merge-multiple: true
+      - name: Sign the Windows update feed
+        env:
+          WINDOWS_UPDATE_PRIVATE_KEY: ${{ secrets.WINDOWS_UPDATE_PRIVATE_KEY }}
+        run: node scripts/sign-windows-update.mjs dist "$GITHUB_REF_NAME"
       - name: Verify both platform packages and publish together
         env:
           GH_TOKEN: ${{ github.token }}
@@ -256,6 +260,7 @@ jobs:
             dist/Codex-Account-Switcher-windows-x64.exe \
             dist/Codex-Account-Switcher-windows-x64.exe.sha256 \
             dist/appcast.xml \
+            dist/windows-update.json \
             --title "$GITHUB_REF_NAME" --notes-file .github/release-notes.md \
             --draft --verify-tag
           gh release edit "$GITHUB_REF_NAME" --draft=false --latest

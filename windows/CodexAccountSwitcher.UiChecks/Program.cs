@@ -18,24 +18,23 @@ internal static class Program
     {
         var output = Path.GetFullPath(args.FirstOrDefault() ?? Path.Combine("windows", "artifacts", "ui"));
         try {
-            using var releases = System.Text.Json.JsonDocument.Parse("""
-                [
-                  {"tag_name":"macos-v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"windows-v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v9.0.0","draft":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v8.0.0","draft":false,"prerelease":true,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v7.0.0","draft":false,"assets":[]},
-                  {"tag_name":"v06.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v0.1.9","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]},
-                  {"tag_name":"v0.1.12","draft":false,"assets":[{"name":"Codex-Account-Switcher-windows-x64.exe"}]}
-                ]
-                """);
-            Assert(NativeSettings.LatestWindowsVersion(releases.RootElement) == new Version(0, 1, 12),
-                "Updates must select stable unified releases with a Windows EXE, ordered by version.");
-            using var macOnly = System.Text.Json.JsonDocument.Parse("""
-                [{"tag_name":"v99.0.0","draft":false,"assets":[{"name":"Codex-Account-Switcher-macos-arm64.dmg"}]}]
-                """);
-            Assert(NativeSettings.LatestWindowsVersion(macOnly.RootElement) == null, "A release without a Windows EXE must never prompt a Windows update.");
+            const string testPubKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkeWTKfZIKx3GnWkh5xBlkyWt10Uhd7iJ0vnjlxDR8Ola1nSSc+wDED/iA8UNoy9bDrU7lHQCfN5dZo5MFByp7A==";
+            const string signedFeed = """
+                {
+                  "version": "0.2.1",
+                  "tag": "v0.2.1",
+                  "url": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
+                  "size": 123456,
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "releaseNotesUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.2.1",
+                  "signature": "ejLJeqnLSWnne4afPqt0SqG+CuCuSf+JHyuSA8AmO+WVkOiwAEijmvx4XyjNK3HuOQfBq03c+0iuJwHO2BQr1g=="
+                }
+                """;
+            var parsed = WindowsUpdater.ParseAndVerifyManifest(signedFeed, new Version(0, 2, 0), testPubKey);
+            Assert(parsed != null && parsed.Version == new Version(0, 2, 1),
+                "Updates must accept valid signed unified releases newer than the current version.");
+            Assert(WindowsUpdater.ParseAndVerifyManifest(signedFeed, new Version(0, 2, 1), testPubKey) == null,
+                "Updates must ignore the same or older versions.");
             Directory.CreateDirectory(output);
             var app = new App(false); app.InitializeComponent();
             var client = new FixtureClient();
@@ -197,6 +196,9 @@ internal static class Program
                 ["remove_body_windows"] = "此操作只会移除这台电脑上保存的本地账号档案。",
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["italian"] = "Italiano", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
                 ["automatically_check_updates"] = "自动检查更新", ["update_check_hint"] = "每小时检查一次，有新版本时显示蓝点。",
+                ["update_available"] = "发现新版本 %@", ["update_action"] = "更新…", ["update_installing"] = "正在安装…",
+                ["update_downloading"] = "正在下载更新… %@%", ["update_download_failed"] = "更新下载失败。",
+                ["update_verify_failed"] = "更新签名校验失败，已丢弃安装包。", ["update_readonly_fallback"] = "当前目录不可写，已改为打开下载页面。",
                 ["current_version"] = "当前版本 %@", ["check_for_updates"] = "检查更新", ["cancel"] = "取消", ["switch"] = "切换账号",
                 ["switch_title"] = "切换到 %@？", ["switch_body_windows"] = "将强制结束 Codex Desktop 及其子进程，然后重新打开 Desktop。正在运行的任务会被中断，未保存的状态可能丢失。请先完成或停止 Desktop 任务再切换。独立启动的 CLI 会话保持运行，新 CLI 会话将使用所选账号。"
             });

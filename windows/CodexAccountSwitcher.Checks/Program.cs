@@ -15,6 +15,10 @@ if (args.FirstOrDefault() == "desktop-close") {
     return await DesktopCloseChecks.RunAsync(fixture);
 }
 
+if (args.FirstOrDefault() == "windows-update") {
+    return await UpdateChecks.RunAsync();
+}
+
 var host = args.FirstOrDefault() ?? Environment.GetEnvironmentVariable("CODEX_SWITCHER_HOST_PATH");
 if (string.IsNullOrEmpty(host) || !File.Exists(host)) {
     Console.Error.WriteLine("Pass the built SwitcherHost.exe path to run native/shared-core integration checks.");

@@ -7,6 +7,9 @@ on:
     paths:
       - "site/**"
       - "scripts/prepare-macos-feed.mjs"
+      - "scripts/prepare-windows-feed.mjs"
+      - "scripts/sign-windows-update.mjs"
+      - "scripts/windows-update-public-key.txt"
       - ".github/workflows/pages.yml"
   workflow_run:
     workflows: ["Release"]
@@ -37,6 +40,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/prepare-macos-feed.mjs
+
+      - name: Prepare the signed Windows update feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-windows-feed.mjs
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4

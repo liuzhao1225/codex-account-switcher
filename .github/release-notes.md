@@ -1,13 +1,9 @@
 ## 中文
 
-- **核心架构重构**：精简并统一 macOS 与 Windows 共享核心 `SwitcherCore` 及 `SwitcherHost` IPC（合并状态通知、按需传输多语言字典、移除第三方重置时间预测与冗余 npm 包装层）。
-- **双端实时订阅状态**：macOS 与 Windows 统一接入实时订阅状态刷新与本地 `subscription-cache.json` 缓存，支持未激活账号在令牌过期时安全自动续期。
-- **配额会话稳定性与隔离**：修复 `codex app-server` 管道关闭时的 CPU 空转问题；配额查询隔离使用本地文件凭据并禁用插件与远端同步（避免后台拉取大量插件缓存），空闲 90 秒自动回收；兼容 macOS `/Applications/ChatGPT.app`（`com.openai.codex`）及内置 `CodexCLI.app` 启动链路。
-- **自动 Reset 日志瘦身**：将旧版 `reset-expiry-experiment.jsonl` 自动迁移并压缩为有界 `auto-reset.jsonl`，日常轮询不再写入冗余快照日志。
+- **Windows 应用内自动更新**：Windows 版新增与 macOS 对齐的自动更新体验。点击「更新…」后直接后台流式下载安装包并展示进度（支持取消），通过内置公钥校验 ECDSA P-256 签名与 SHA-256 摘要，随后自动关闭并原子替换原程序且重启应用（若所在目录只读则回退至打开下载页）。
+- **签名托管更新源**：GitHub Pages 同步发布经非对称签名的 `updates/windows/latest.json`，避免 GitHub API 匿名限流并保证更新完整性。
 
 ## English
 
-- **Shared-Core Refactor**: Streamlined and unified the shared `SwitcherCore` and `SwitcherHost` IPC across macOS and Windows (batched snapshot updates, on-demand localization dictionary delivery, and removal of third-party reset forecasts and redundant npm installer layers).
-- **Cross-Platform Live Subscriptions**: Unified live subscription refreshes and `subscription-cache.json` caching across macOS and Windows, with safe background token renewal for inactive accounts when tokens expire.
-- **Quota Session Stability & Isolation**: Fixed CPU spin on `codex app-server` pipe EOF; forced file-backed credential isolation and disabled plugin/app sync during quota queries (preventing large background plugin downloads), with 90-second idle session expiry and full support for macOS `/Applications/ChatGPT.app` (`com.openai.codex`) and its bundled `CodexCLI.app` binary.
-- **Bounded Auto-Reset Log**: Automatically migrates and compacts legacy `reset-expiry-experiment.jsonl` files into a bounded `auto-reset.jsonl`, eliminating routine poll log bloat.
+- **Signed In-App Auto-Updates on Windows**: Windows now updates inside the app just like macOS. Clicking Update streams the release binary with live progress and cancellation support, verifies its ECDSA P-256 signature and SHA-256 digest using the embedded public key, and atomically replaces and relaunches the running executable (falling back to the release download page if the install folder is read-only).
+- **Signed Update Feed**: GitHub Pages now serves the signed `updates/windows/latest.json` feed alongside macOS `appcast.xml`, avoiding anonymous GitHub API rate limits and ensuring update integrity.

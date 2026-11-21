@@ -76,6 +76,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Desktop close fixture build failed.' }
           dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- desktop-close "$pwd/windows/CodexAccountSwitcher.CloseFixture/bin/Release/net10.0-windows/ChatGPT.exe"
           if ($LASTEXITCODE -ne 0) { throw 'Desktop close and package update check failed.' }
+      - name: Check Windows signed auto-update verification, swap, rollback, and cleanup
+        run: dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- windows-update
       - name: Test the same Swift core used by macOS
         shell: pwsh
         run: |

@@ -17,6 +17,9 @@ public sealed class MainWindow : Window
     private const string AccountDragFormat = "CodexAccountSwitcher.AccountID";
     private readonly IAccountClient client;
     private readonly NativeSettings native;
+    private readonly Func<Task<bool>>? prepareForUpdateRestart;
+    private readonly string updatesRoot;
+    private readonly bool launchedInBackground;
     private readonly List<ComboBox> activeComboBoxes = [];
     private ScrollViewer? scrollViewer;
     private string page = "accounts";
@@ -31,9 +34,21 @@ public sealed class MainWindow : Window
     private string T(string key) => State.Text(key);
     private Brush B(string key) => (Brush)FindResource(key);
 
-    public MainWindow(IAccountClient client, NativeSettings? native = null)
+    public MainWindow(
+        IAccountClient client,
+        NativeSettings? native = null,
+        Func<Task<bool>>? prepareForUpdateRestart = null,
+        string? updatesRoot = null,
+        bool launchedInBackground = false)
     {
-        this.client = client; this.native = native ?? new NativeSettings();
+        this.client = client;
+        this.native = native ?? new NativeSettings();
+        this.prepareForUpdateRestart = prepareForUpdateRestart;
+        this.updatesRoot = updatesRoot ?? System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Codex Account Switcher",
+            "updates");
+        this.launchedInBackground = launchedInBackground;
         Icon = System.Windows.Media.Imaging.BitmapFrame.Create(App.IconUri);
         Title = "Codex Account Switcher"; Width = 420; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanMinimize;
@@ -375,8 +390,29 @@ public sealed class MainWindow : Window
         }));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
-        var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());
-        var check = Button(T(native.UpdatePage == null ? "check_for_updates" : "update_action"), async () => { if (native.UpdatePage != null) native.OpenUpdate(); else await native.CheckUpdatesAsync(); }); check.IsEnabled = !native.IsChecking;
+        string hintText;
+        Button check;
+        if (native.IsInstalling) {
+            hintText = native.DownloadPercent is { } pct
+                ? T("update_downloading").Replace("%@", pct.ToString(CultureInfo.InvariantCulture))
+                : T("update_installing");
+            check = Button(T("cancel"), () => native.CancelUpdate());
+            check.IsEnabled = native.CanCancelInstall;
+        } else if (native.AvailableUpdate is { } available) {
+            hintText = native.UpdateError != null
+                ? T(native.UpdateError)
+                : T("update_available").Replace("%@", available.Version.ToString(3));
+            check = Button(T("update_action"), async () => await native.InstallUpdateAsync(
+                prepareForUpdateRestart ?? (() => Task.FromResult(false)),
+                launchedInBackground,
+                updatesRoot));
+            check.IsEnabled = !IsBusy && !State.IsAddingAccount;
+        } else {
+            hintText = T(native.UpdateError ?? "update_check_hint");
+            check = Button(T("check_for_updates"), async () => await native.CheckUpdatesAsync());
+            check.IsEnabled = !native.IsChecking && !IsBusy;
+        }
+        var hint = Text(hintText, 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());
         var version = Pair(Text(T("current_version").Replace("%@", native.Version), 12), check); version.Margin = new Thickness(0, 12, 0, 0); settings.Children.Add(version); body.Children.Add(settings);
     }
 }
