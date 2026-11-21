@@ -106,6 +106,8 @@ internal static class UpdateChecks
             Require(progressReports.Contains(100), "Progress reporting must reach 100%.");
             var acl = new FileInfo(staged.ExecutablePath).GetAccessControl();
             Require(acl.AreAccessRulesProtected, "Staged update binary must use a private user ACL.");
+            Require(acl.GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier)).Count == 1,
+                "Staged update binary must grant only the current user access.");
             SecureFiles.DeleteOwnedDirectory(updatesRoot, staged.StagingDirectory);
         }
 

@@ -188,8 +188,7 @@ public static class WindowsUpdater
             var lastReported = -1;
             using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             await using (var network = await response.Content.ReadAsStreamAsync(ct))
-            await using (var destination = new FileStream(
-                stagedExe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            await using (var destination = SecureFiles.CreatePrivateFileStream(stagedExe, 81920, FileOptions.Asynchronous))
             {
                 var buffer = new byte[81920];
                 int read;

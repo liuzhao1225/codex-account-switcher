@@ -30,16 +30,37 @@ public static class SecureFiles
         directory.SetAccessControl(security);
     }
 
+    private static FileSecurity CreateFileSecurity()
+    {
+        var security = new FileSecurity();
+        security.SetOwner(User);
+        security.SetAccessRuleProtection(true, false);
+        security.AddAccessRule(new FileSystemAccessRule(User, FileSystemRights.FullControl, AccessControlType.Allow));
+        return security;
+    }
+
+    public static FileStream CreatePrivateFileStream(string path, int bufferSize = 81920, FileOptions options = FileOptions.None)
+    {
+        RejectLinks(path);
+        var fullPath = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        return FileSystemAclExtensions.Create(
+            new FileInfo(fullPath),
+            FileMode.CreateNew,
+            FileSystemRights.FullControl,
+            FileShare.None,
+            bufferSize,
+            options,
+            CreateFileSecurity());
+    }
+
     public static void AtomicWrite(string destination, byte[] bytes)
     {
         RejectLinks(destination);
         var directory = Path.GetDirectoryName(Path.GetFullPath(destination))!;
         Directory.CreateDirectory(directory);
         var temporary = Path.Combine(directory, $".switcher-{Guid.NewGuid():N}.tmp");
-        var security = new FileSecurity();
-        security.SetOwner(User);
-        security.SetAccessRuleProtection(true, false);
-        security.AddAccessRule(new FileSystemAccessRule(User, FileSystemRights.FullControl, AccessControlType.Allow));
+        var security = CreateFileSecurity();
         try
         {
             using (var stream = FileSystemAclExtensions.Create(new FileInfo(temporary), FileMode.CreateNew,
