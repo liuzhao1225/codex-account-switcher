@@ -48,6 +48,16 @@ Get the [latest unified release](https://github.com/liuzhao1225/codex-account-sw
 | macOS | macOS 14+, Apple Silicon (arm64) | [Download DMG](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg), open it, and drag the app to Applications |
 | Windows | Windows 10/11, x64 | [Download EXE](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe) and run it; no separate .NET or Swift SDK required |
 
+### First launch on macOS for fork releases
+
+This fork's macOS DMG uses ad hoc signing. If macOS blocks the first launch, verify that you downloaded the DMG from this fork before continuing. [Fork releases](https://github.com/4379711/codex-account-switcher/releases)
+
+1. Open the DMG, drag **Codex Account Switcher** to **Applications**, then try opening the app from there.
+2. Go to **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway**.
+3. Click **Open** in the confirmation dialog. macOS saves an exception for this app, so you can open it normally next time.
+
+[Apple's guide to opening apps on Mac](https://support.apple.com/en-us/102445)
+
 ## Features
 
 | Feature | Details |

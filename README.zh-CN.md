@@ -48,6 +48,16 @@ Codex Account Switcher 是一款免费开源的 macOS 与 Windows 原生多账�
 | macOS | macOS 14+，Apple Silicon (arm64) | [下载签名公证 DMG](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)，打开后拖入“应用程序” |
 | Windows | Windows 10/11，x64 | [下载便携版 EXE](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe) 直接运行，无需额外安装 .NET 或 Swift 运行时 |
 
+### Fork 版 macOS 安装包首次启动
+
+本 fork 发布的 macOS DMG 使用 ad hoc 签名。如果 macOS 拦截首次启动，请先确认 DMG 来自本 fork 再继续。[Fork 发布页](https://github.com/4379711/codex-account-switcher/releases)
+
+1. 打开 DMG，将 **Codex Account Switcher** 拖入「应用程序」，然后在「应用程序」中尝试打开它。
+2. 前往 **系统设置 → 隐私与安全性**，向下滚动到「安全性」，点击 **仍要打开**。
+3. 在弹窗中点击 **打开**。macOS 会为这份 App 保存例外，下次可以直接双击打开。
+
+[Apple 官方打开说明](https://support.apple.com/zh-cn/102445)
+
 ## 核心功能
 
 | 功能 | 说明 |
