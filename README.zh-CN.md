@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases"><img alt="Release" src="https://img.shields.io/github/v/release/liuzhao1225/codex-account-switcher?sort=semver&label=release&color=2563eb"></a>
+  <a href="https://github.com/4379711/codex-account-switcher/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/4379711/codex-account-switcher?label=release&color=2563eb"></a>
   <img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-171513?logo=apple&logoColor=white">
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-171513">
   <img alt="Windows 10/11 x64" src="https://img.shields.io/badge/Windows-10%2F11%20x64-171513">
@@ -21,8 +21,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg"><b>免费下载 Mac 版</b></a> ·
-  <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe"><b>免费下载 Windows 版</b></a> ·
+  <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg"><b>免费下载 Mac 版</b></a> ·
+  <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe"><b>免费下载 Windows 版</b></a> ·
   <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/"><b>项目官网</b></a> ·
   <a href="https://github.com/liuzhao1225/codex-account-switcher/discussions"><b>交流讨论</b></a>
 </p>
@@ -41,12 +41,12 @@ Codex Account Switcher 是一款免费开源的 macOS 与 Windows 原生多账�
 
 ## 下载安装
 
-前往 [GitHub 最新统一发布页](https://github.com/liuzhao1225/codex-account-switcher/releases/latest) 获取双端安装包与 SHA-256 校验值：
+在本 fork 的最新 Release 中可以下载两个平台的安装包和 SHA-256 校验文件。[查看最新 Release](https://github.com/4379711/codex-account-switcher/releases/latest)
 
 | 平台 | 系统要求 | 下载与安装 |
 | --- | --- | --- |
-| macOS | macOS 14+，Apple Silicon (arm64) | [下载签名公证 DMG](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)，打开后拖入“应用程序” |
-| Windows | Windows 10/11，x64 | [下载便携版 EXE](https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe) 直接运行，无需额外安装 .NET 或 Swift 运行时 |
+| macOS | macOS 14+，Apple Silicon (arm64) | [下载 DMG](https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg)，打开后拖入“应用程序” |
+| Windows | Windows 10/11，x64 | [下载便携版 EXE](https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe) 直接运行，无需额外安装 .NET 或 Swift 运行时 |
 
 ### Fork 版 macOS 安装包首次启动
 
