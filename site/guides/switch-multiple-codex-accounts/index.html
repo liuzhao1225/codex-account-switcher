@@ -137,7 +137,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
           <a class="text-control language-link" href="../../zh-CN/guides/codex-multiple-accounts/" hreflang="zh-CN" lang="zh-CN" aria-label="View the website in Chinese" title="中文"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="View Codex Account Switcher on GitHub" title="GitHub"><img src="../../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest" aria-label="Download Codex Account Switcher for macOS and Windows" title="Download latest release"></a>
+          <a class="button button-small download-link" href="https://github.com/4379711/codex-account-switcher/releases/latest" aria-label="Download Codex Account Switcher for macOS and Windows" title="Download latest release"></a>
         </div>
       </nav>
     </header>
@@ -182,9 +182,9 @@
                 <h2>Install Codex Account Switcher on Mac or Windows</h2>
                 <p>Use accounts you own or are authorized to access. Both apps need a working Codex runtime and the same active Codex home as Codex Desktop.</p>
                 <h3 id="install-macos">Mac: macOS 14+ on Apple Silicon</h3>
-                <p>Download the <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">signed, Apple-notarized DMG</a>, open it and drag Codex Account Switcher into Applications. Launch it and use its menu-bar icon. The published Mac build targets Apple Silicon.</p>
+                <p>Download the Apple Silicon <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">DMG</a>, open it, and drag Codex Account Switcher into Applications. The DMG uses ad hoc signing. If macOS blocks the first launch, choose <strong>Open Anyway</strong> in <strong>System Settings → Privacy &amp; Security</strong>.</p>
                 <h3 id="install-windows">Windows: Windows 10/11 x64</h3>
-                <p>Download <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a> and run it from a folder you intend to keep. This portable EXE includes its .NET and Swift runtimes; you do not need developer SDKs. The current Windows EXE is unsigned.</p>
+                <p>Download <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a> and run it from a folder you intend to keep. This portable EXE includes its .NET and Swift runtimes; you do not need developer SDKs. The current Windows EXE is unsigned.</p>
                 <p>The native window shows your accounts. Closing its title bar hides it; left-click the system-tray icon to reopen it. Right-click the tray icon and choose Quit to exit. See the <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/windows/README.md">Windows interface and packaging record</a>.</p>
               </section>
 
@@ -229,7 +229,7 @@
 
               <section id="updates">
                 <h2>How to update on Mac and Windows</h2>
-                <p>Both platforms use one version and <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">one latest Release</a>. macOS uses Sparkle to download and install a chosen update. Windows checks for updates and opens the download page: quit Switcher from its tray menu, replace the portable EXE, then reopen it. The account data directory is separate from the EXE.</p>
+                <p>Both platforms use one version and <a href="https://github.com/4379711/codex-account-switcher/releases/latest">one latest fork release</a>. To update a fork build, quit Switcher, replace the app or portable EXE with the new build, then reopen it. Account data is stored separately. The built-in update checks still use the upstream feeds.</p>
                 <p>Release assets include SHA-256 checksum files for both downloads. See <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/platform-releases.md">release and update behavior</a>.</p>
               </section>
 
@@ -242,7 +242,7 @@
                 <h3 id="missing-five-hour">The 5-hour usage row is missing</h3>
                 <p>Turn on 5-hour usage in Settings. The row appears only when Codex supplies an exact 300-minute window; weekly usage is a separate value. See <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/WeeklyUsageNormalizer.swift">window normalization</a>.</p>
                 <h3 id="runtime-not-found">Codex cannot be found after a Desktop update</h3>
-                <p>Check the Switcher version and the exact error, then use the latest <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">release</a>. The runtime locator checks both current and older bundled Mac locations; Windows rediscovers its Desktop installation during handoff. If discovery still fails, report the OS, Desktop version and error through <a href="../../contact/">support</a>.</p>
+                <p>Check the Switcher version and the exact error, then use the latest <a href="https://github.com/4379711/codex-account-switcher/releases/latest">release</a>. The runtime locator checks both current and older bundled Mac locations; Windows rediscovers its Desktop installation during handoff. If discovery still fails, report the OS, Desktop version and error through <a href="../../contact/">support</a>.</p>
                 <h3 id="switch-stage">A switch stops before Desktop reopens</h3>
                 <p>Read the reported stage before trying again. Complete any normal Desktop quit dialog. After a credential or identity mismatch, verify the account in Codex before registering it again. The <a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">ordered handoff</a> stops on errors; include the visible stage in a report without sharing credential files.</p>
               </section>
@@ -268,8 +268,8 @@
                 <h2>Keep every authorized Codex account within reach.</h2>
                 <p>Download the macOS DMG or portable Windows EXE from the same release, or inspect the shared core and native interfaces on GitHub.</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Download free for Mac</a>
-                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Download free for Windows</a>
+                  <a class="button" href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">Download free for Mac</a>
+                  <a class="button button-secondary" href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Download free for Windows</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">View source</a>
                 </div>
               </div>
@@ -311,7 +311,7 @@
           <a href="../../about/">About</a>
           <a href="../codex-account/">Codex account reference</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
-          <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">Releases</a>
+          <a href="https://github.com/4379711/codex-account-switcher/releases">Releases</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/privacy/">Privacy</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/contact/">Contact</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/terms/">Terms</a>

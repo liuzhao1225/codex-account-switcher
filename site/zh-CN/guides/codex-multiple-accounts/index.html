@@ -137,7 +137,7 @@
           <button class="text-control theme-toggle" type="button" data-theme-toggle aria-label="切换到深色模式"></button>
           <a class="text-control language-link" href="../../../guides/switch-multiple-codex-accounts/" hreflang="en" lang="en" aria-label="查看英文网站" title="English"></a>
           <a class="github-link" href="https://github.com/liuzhao1225/codex-account-switcher" aria-label="在 GitHub 查看 Codex Account Switcher" title="GitHub"><img src="../../../assets/github.svg" alt=""></a>
-          <a class="button button-small download-link" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest" aria-label="下载 Codex Account Switcher macOS 与 Windows 版" title="下载最新版本"></a>
+          <a class="button button-small download-link" href="https://github.com/4379711/codex-account-switcher/releases/latest" aria-label="下载 Codex Account Switcher macOS 与 Windows 版" title="下载最新版本"></a>
         </div>
       </nav>
     </header>
@@ -182,9 +182,9 @@
                 <h2>在 Mac 或 Windows 上安装 Codex Account Switcher</h2>
                 <p>只使用本人拥有或获准使用的账号。两端均需要可用的 Codex 运行时，并与 Codex Desktop 使用同一个活动 Codex 目录。</p>
                 <h3 id="install-macos">Mac：macOS 14+ 与 Apple Silicon</h3>
-                <p>下载<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">已签名并通过 Apple 公证的 DMG</a>，打开后把 Codex Account Switcher 拖入“应用程序”。启动后从菜单栏图标进入。当前发布的 Mac 安装包适用于 Apple Silicon。</p>
+                <p>下载适用于 Apple 芯片 Mac 的 <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">DMG</a>，打开后将 Codex Account Switcher 拖入「应用程序」。DMG 使用 ad hoc 签名。如果首次启动被拦截，请在<strong>系统设置 → 隐私与安全性</strong>中选择<strong>仍要打开</strong>。</p>
                 <h3 id="install-windows">Windows：Windows 10/11 x64</h3>
-                <p>下载 <a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a>，放入准备长期保留的文件夹后运行。免安装 EXE 已包含 .NET 和 Swift 运行时，无需另装开发 SDK。当前 Windows EXE 尚未签名。</p>
+                <p>下载 <a href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">Codex-Account-Switcher-windows-x64.exe</a>，放入准备长期保留的文件夹后运行。免安装 EXE 已包含 .NET 和 Swift 运行时，无需另装开发 SDK。当前 Windows EXE 尚未签名。</p>
                 <p>原生窗口显示账号列表。点击标题栏关闭按钮会隐藏窗口；左键点击系统托盘图标可重新打开，右键选择“退出”才会结束应用。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/windows/README.md">Windows 界面与打包说明</a>。</p>
               </section>
 
@@ -229,7 +229,7 @@
 
               <section id="updates">
                 <h2>Mac 和 Windows 如何更新版本</h2>
-                <p>两端使用统一版本号与<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">同一个最新 Release</a>。macOS 通过 Sparkle 下载并安装用户选择的更新。Windows 检查新版本后打开下载页：从托盘菜单退出切换器，替换免安装 EXE，再重新打开。账号数据目录与 EXE 分开保存。</p>
+                <p>两端使用同一个版本，可从<a href="https://github.com/4379711/codex-account-switcher/releases/latest">本 fork 的最新 Release</a> 下载。更新 fork 版本时，先退出切换器，替换应用或免安装 EXE，再重新打开。账号数据单独保存。应用内更新检查仍使用原仓的更新源。</p>
                 <p>发布页同时提供两个安装包的 SHA-256 校验文件，详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/docs/platform-releases.md">发布与更新机制</a>。</p>
               </section>
 
@@ -242,7 +242,7 @@
                 <h3 id="missing-five-hour">为什么没有显示 5 小时用量</h3>
                 <p>先在设置中开启 5 小时用量。只有 Codex 服务端提供精确 300 分钟窗口时才会显示该行；每周用量是独立数据。详见<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/WeeklyUsageNormalizer.swift">窗口识别实现</a>。</p>
                 <h3 id="runtime-not-found">更新 Codex Desktop 后提示找不到运行时</h3>
-                <p>先核对切换器版本和完整错误，再使用<a href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest">最新发布版本</a>。运行时查找已覆盖 Mac 新旧内置路径；Windows 会在交接时重新查找 Desktop 安装位置。仍无法识别时，通过<a href="../../contact/">支持渠道</a>提供系统版本、Desktop 版本和错误信息。</p>
+                <p>先核对切换器版本和完整错误，再使用<a href="https://github.com/4379711/codex-account-switcher/releases/latest">最新发布版本</a>。运行时查找已覆盖 Mac 新旧内置路径；Windows 会在交接时重新查找 Desktop 安装位置。仍无法识别时，通过<a href="../../contact/">支持渠道</a>提供系统版本、Desktop 版本和错误信息。</p>
                 <h3 id="switch-stage">切换停在某一步，Desktop 没有重新打开</h3>
                 <p>先查看界面报告的失败阶段，并处理 Codex 正常退出对话框。发生凭据或身份不一致时，先核对 Codex 中的账号，再登记当前登录。<a href="https://github.com/liuzhao1225/codex-account-switcher/blob/main/Sources/SwitcherCore/SwitchService.swift">顺序交接实现</a>会在错误处停止；反馈时记录可见阶段，并隐去凭据文件内容。</p>
               </section>
@@ -268,8 +268,8 @@
                 <h2>让每个获准使用的 Codex 账号始终一步直达。</h2>
                 <p>下载 Apple Silicon DMG 或 Windows x64 EXE，也可在 GitHub 查看源码与产品设计文档。</p>
                 <div class="download-actions">
-                  <a class="button" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">免费下载 Mac 版</a>
-                  <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">免费下载 Windows 版</a>
+                  <a class="button" href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-macos-arm64.dmg">免费下载 Mac 版</a>
+                  <a class="button button-secondary" href="https://github.com/4379711/codex-account-switcher/releases/latest/download/Codex-Account-Switcher-windows-x64.exe">免费下载 Windows 版</a>
                   <a class="button button-secondary" href="https://github.com/liuzhao1225/codex-account-switcher">查看源码</a>
                 </div>
               </div>
@@ -311,7 +311,7 @@
           <a href="../../about/">关于</a>
           <a href="../codex-account/">Codex 账号原理</a>
           <a href="https://github.com/liuzhao1225/codex-account-switcher">GitHub</a>
-          <a href="https://github.com/liuzhao1225/codex-account-switcher/releases">版本发布</a>
+          <a href="https://github.com/4379711/codex-account-switcher/releases">版本发布</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/privacy/">隐私</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/contact/">联系</a>
           <a href="https://liuzhao1225.github.io/codex-account-switcher/zh-CN/terms/">使用条款</a>
