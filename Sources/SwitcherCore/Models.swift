@@ -111,6 +111,8 @@ public struct WeeklyUsage: Codable, Equatable, Sendable {
     public let fiveHourResetsAt: Date?
     public let resetCreditsRemaining: Int?
     public let resetCredits: [BankedResetCredit]?
+    public let weeklyWindow: RateLimitWindow?
+    public let ordinaryUsageAllowed: Bool?
 
     public init(
         remainingPercent: Int,
@@ -118,7 +120,9 @@ public struct WeeklyUsage: Codable, Equatable, Sendable {
         fiveHourRemainingPercent: Int? = nil,
         fiveHourResetsAt: Date? = nil,
         resetCreditsRemaining: Int? = nil,
-        resetCredits: [BankedResetCredit]? = nil
+        resetCredits: [BankedResetCredit]? = nil,
+        weeklyWindow: RateLimitWindow? = nil,
+        ordinaryUsageAllowed: Bool? = nil
     ) {
         self.remainingPercent = remainingPercent
         self.resetsAt = resetsAt
@@ -126,6 +130,8 @@ public struct WeeklyUsage: Codable, Equatable, Sendable {
         self.fiveHourResetsAt = fiveHourResetsAt
         self.resetCreditsRemaining = resetCreditsRemaining
         self.resetCredits = resetCredits
+        self.weeklyWindow = weeklyWindow
+        self.ordinaryUsageAllowed = ordinaryUsageAllowed
     }
 }
 

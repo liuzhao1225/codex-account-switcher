@@ -142,13 +142,30 @@ private let fixtureExecutable: String? = {
 
             const char *result = "{}";
             if (strcmp(method, "account/read") == 0) {
-                result = "{\"account\":{\"accountId\":\"fixture\",\"email\":\"fixture@example.test\"}}";
+                result = strcmp(scenario, "turn-api-key") == 0
+                    ? "{\"account\":{\"type\":\"apiKey\"}}"
+                    : "{\"account\":{\"type\":\"chatgpt\",\"accountId\":\"fixture\",\"email\":\"fixture@example.test\"}}";
             } else if (strcmp(method, "account/rateLimits/read") == 0) {
-                result = "{\"rateLimitResetCredits\":{\"availableCount\":2},\"rateLimits\":{\"primary\":{\"usedPercent\":33,\"windowDurationMins\":300,\"resetsAt\":2000000000},\"secondary\":{\"usedPercent\":58,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
+                result = "{\"rateLimitResetCredits\":{\"availableCount\":2},\"rateLimits\":{\"ordinaryUsageAllowed\":true,\"primary\":{\"usedPercent\":33,\"windowDurationMins\":300,\"resetsAt\":2000000000},\"secondary\":{\"usedPercent\":58,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
             } else if (strcmp(method, "account/rateLimitResetCredit/consume") == 0) {
                 result = "{\"outcome\":\"reset\"}";
             } else if (strcmp(method, "account/login/start") == 0) {
                 result = "{\"authUrl\":\"https://example.test/sign-in\"}";
+            } else if (strcmp(method, "thread/start") == 0) {
+                if (strstr(line, "\"ephemeral\":true") && strstr(line, "\"sandbox\":\"read-only\"")) {
+                    result = "{\"thread\":{\"id\":\"quota-thread\"}}";
+                }
+            } else if (strcmp(method, "turn/start") == 0) {
+                if (strstr(line, "\"threadId\":\"quota-thread\"") && strstr(line, "\"text\":\"只回复 OK\"") &&
+                    strstr(line, "\"serviceTier\":\"default\"")) {
+                    result = "{\"turn\":{\"id\":\"quota-turn\",\"status\":\"inProgress\"}}";
+                    fputs("{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"other-thread\",\"turn\":{\"id\":\"quota-turn\",\"status\":\"failed\"}}}\n", stdout);
+                    fputs("{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"quota-thread\",\"turn\":{\"id\":\"other-turn\",\"status\":\"failed\"}}}\n", stdout);
+                    if (strcmp(scenario, "turn-timeout") != 0) {
+                        const char *status = strcmp(scenario, "turn-failed") == 0 ? "failed" : "completed";
+                        printf("{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"quota-thread\",\"turn\":{\"id\":\"quota-turn\",\"status\":\"%s\"}}}\n", status);
+                    }
+                }
             }
 
             if (strcmp(method, "account/login/start") == 0 && strcmp(scenario, "login") == 0) {
@@ -204,6 +221,9 @@ struct CodexClientTransportTests {
         #expect(usage.remainingPercent == 42)
         #expect(usage.fiveHourRemainingPercent == 67)
         #expect(usage.resetCreditsRemaining == 2)
+        #if os(macOS)
+        #expect(usage.ordinaryUsageAllowed == true)
+        #endif
         try await client.stopUsageSessions()
     }
 
@@ -342,6 +362,59 @@ struct CodexClientTransportTests {
         #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
         try await client.stopUsageSessions()
     }
+
+    #if os(macOS)
+    @Test func usageStartSendsOneEphemeralTurnInTheTargetProfile() async throws {
+        let home = try fixtureHome("turn-completed")
+        let sibling = try fixtureHome("normal")
+        defer { try? FileManager.default.removeItem(at: home); try? FileManager.default.removeItem(at: sibling) }
+        let client = makeClient()
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        _ = try await client.readWeeklyUsage(profileHome: sibling)
+
+        try await client.startWeeklyUsageWindow(profileHome: home)
+
+        let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
+            .split(separator: "\n")
+        #expect(methods.suffix(3) == ["account/read", "thread/start", "turn/start"])
+        #expect(methods.filter { $0 == "turn/start" }.count == 1)
+        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
+        _ = try await client.readWeeklyUsage(profileHome: sibling)
+        #expect(try launchCount(sibling) == 1)
+        try await client.stopUsageSessions()
+    }
+
+    @Test(arguments: [
+        ("turn-failed", CodexClientError.remoteError(code: nil, message: "The weekly usage request ended with status failed.")),
+        ("turn-timeout", CodexClientError.timeout),
+    ])
+    func usageStartPropagatesFailureWithoutRepeatingTheTurn(_ fixture: (String, CodexClientError)) async throws {
+        let (mode, expectedError) = fixture
+        let home = try fixtureHome(mode)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient(timeout: .seconds(2))
+
+        await #expect(throws: expectedError) { try await client.startWeeklyUsageWindow(profileHome: home) }
+
+        let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
+            .split(separator: "\n")
+        #expect(methods.filter { $0 == "turn/start" }.count == 1)
+    }
+
+    @Test func usageStartRequiresChatGPTAuthentication() async throws {
+        let home = try fixtureHome("turn-api-key")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+
+        await #expect(throws: CodexClientError.identityUnavailable) {
+            try await client.startWeeklyUsageWindow(profileHome: home)
+        }
+
+        let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
+            .split(separator: "\n")
+        #expect(!methods.contains("thread/start"))
+    }
+    #endif
 
     private func waitForRequest(_ method: String, home: URL) async throws {
         for _ in 0..<250 {

@@ -161,6 +161,56 @@ public actor AccountStore: AccountStoring {
         try writeJSON(settings, to: settingsURL)
     }
 
+    func enabledWeeklyUsageAutoStartAccounts() throws -> Set<UUID> {
+        Set(try loadRegistry().accounts.compactMap { profile in
+            (try? loadWeeklyUsageAutoStart(for: profile.id).enabled) == true ? profile.id : nil
+        })
+    }
+
+    func setWeeklyUsageAutoStartEnabled(_ enabled: Bool, for profileID: UUID) throws {
+        _ = try profile(id: profileID)
+        var record = try loadWeeklyUsageAutoStart(for: profileID)
+        guard record.enabled != enabled else { return }
+        record.enabled = enabled
+        record.state.resetObservations()
+        try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
+    }
+
+    func observeWeeklyUsageAutoStart(
+        _ window: RateLimitWindow, for profileID: UUID, at now: Date
+    ) throws -> (expiredAt: Date?, nextCheckAt: Date?) {
+        var record = try loadWeeklyUsageAutoStart(for: profileID)
+        guard record.enabled else { return (nil, nil) }
+        let previous = record.state
+        let expiredAt = record.state.observe(window, at: now)
+        if record.state != previous {
+            try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
+        }
+        return (expiredAt, record.state.nextCheckAt(after: now))
+    }
+
+    func recordWeeklyUsageAutoStartAttempt(for profileID: UUID, expiredAt: Date) throws -> Bool {
+        var record = try loadWeeklyUsageAutoStart(for: profileID)
+        guard record.enabled, record.state.markAttempt(for: expiredAt) else { return false }
+        try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
+        return true
+    }
+
+    private struct WeeklyUsageAutoStartRecord: Codable {
+        var enabled = false
+        var state = WeeklyUsageAutoStartState()
+    }
+
+    private func weeklyUsageAutoStartURL(for profileID: UUID) -> URL {
+        profileHome(id: profileID).appending(path: "weekly-usage-auto-start.json")
+    }
+
+    private func loadWeeklyUsageAutoStart(for profileID: UUID) throws -> WeeklyUsageAutoStartRecord {
+        let url = weeklyUsageAutoStartURL(for: profileID)
+        guard fileManager.fileExists(atPath: url.path) else { return WeeklyUsageAutoStartRecord() }
+        return try Self.decoder.decode(WeeklyUsageAutoStartRecord.self, from: readChecked(url))
+    }
+
     public func loadUsageCache() throws -> UsageCache {
         try prepareDirectories()
         if let usageCache { return usageCache }

@@ -301,15 +301,20 @@ private actor JSONRPCSession {
         params: [String: Any] = [:],
         timeout: Duration
     ) async throws -> JSONValue {
+        try Task.checkCancellation()
         try send(["method": method, "id": id, "params": params])
         let envelope = try await response(id: id, timeout: timeout)
         guard let result = envelope.result else { throw CodexClientError.malformedResponse }
         return result
     }
 
-    public func notification(method: String, timeout: Duration) async throws -> JSONValue {
+    public func notification(
+        method: String,
+        timeout: Duration,
+        matching matches: @escaping @Sendable (JSONValue) -> Bool = { _ in true }
+    ) async throws -> JSONValue {
         let envelope = try await receive(
-            where: { $0.method == method && $0.id == nil },
+            where: { $0.method == method && $0.id == nil && matches($0.params ?? .object([:])) },
             timeout: timeout
         )
         return envelope.params ?? .object([:])
@@ -374,7 +379,7 @@ private actor JSONRPCSession {
                 }
                 return message
             }
-            if message.method == "account/login/completed", message.id == nil {
+            if message.id == nil, message.method == "account/login/completed" || message.method == "turn/completed" {
                 pendingNotifications.append(message)
                 if pendingNotifications.count > 16 { pendingNotifications.removeFirst() }
             }
@@ -801,6 +806,7 @@ public protocol AccountClient: CodexIdentityReading {
     func stopUsageSession(profileHome: URL) async throws
     func forgetUsageSession(profileHome: URL) async throws
     func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome
+    func startWeeklyUsageWindow(profileHome: URL) async throws
     func refreshIdentity(profileHome: URL) async throws -> AccountIdentity
     func login(profileHome: URL) async throws -> AccountIdentity
 }
@@ -809,6 +815,10 @@ extension AccountClient {
     public func stopUsageSessions() async throws {}
     public func stopUsageSession(profileHome: URL) async throws { try await stopUsageSessions() }
     public func forgetUsageSession(profileHome: URL) async throws { try await stopUsageSession(profileHome: profileHome) }
+
+    public func startWeeklyUsageWindow(profileHome: URL) async throws {
+        throw CodexClientError.remoteError(code: nil, message: "Starting a weekly usage window is unavailable.")
+    }
 
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
         throw CodexClientError.identityUnavailable
@@ -865,7 +875,10 @@ public struct CodexClient: AccountClient {
         let locator = locator
         let launchCache = launchCache
         let result = try await worker.read(
-            resolveLaunch: { try await launchCache.resolve(using: locator, requireDirectExecutable: false) },
+            resolveLaunch: {
+                let launch = try await launchCache.resolve(using: locator, requireDirectExecutable: false)
+                return (launch.executable, Self.profileEnvironment(launch.environment))
+            },
             timeout: requestTimeout,
             clientVersion: clientVersion
         )
@@ -891,10 +904,12 @@ public struct CodexClient: AccountClient {
         case .none, .null: credits = nil
         default: throw CodexClientError.malformedResponse
         }
+        let bucket = result["rateLimitsByLimitId"]?["codex"] ?? result["rateLimits"]
         return try WeeklyUsageNormalizer.normalize(
-            parseWindows(result),
+            [bucket?["primary"], bucket?["secondary"]].compactMap(parseWindow),
             resetCreditsRemaining: availableCount.flatMap { $0 >= 0 ? $0 : nil },
-            resetCredits: credits
+            resetCredits: credits,
+            ordinaryUsageAllowed: bucket?["ordinaryUsageAllowed"]?.boolValue
         )
     }
 
@@ -925,6 +940,59 @@ public struct CodexClient: AccountClient {
             throw CodexClientError.malformedResponse
         }
         return outcome
+    }
+
+    public func startWeeklyUsageWindow(profileHome: URL) async throws {
+        let worker = await usageSessions.worker(for: profileHome)
+        try await worker.withStoppedSession {
+            try await withSession(profileHome: profileHome, requireDirectExecutable: true,
+                                  useProfileAuthenticationOnly: true) { session in
+                let account = try await session.request(
+                    method: "account/read", id: 1, params: ["refreshToken": false], timeout: requestTimeout
+                )
+                guard account["account"]?["type"]?.stringValue == "chatgpt" else {
+                    throw CodexClientError.identityUnavailable
+                }
+
+                let thread = try await session.request(
+                    method: "thread/start", id: 2,
+                    params: [
+                        "ephemeral": true,
+                        "modelProvider": "openai",
+                        "approvalPolicy": "never",
+                        "sandbox": "read-only",
+                        "cwd": FileManager.default.temporaryDirectory.path,
+                        "baseInstructions": "Reply with exactly OK. Do not use tools.",
+                    ],
+                    timeout: requestTimeout
+                )
+                guard let threadID = thread["thread"]?["id"]?.stringValue else {
+                    throw CodexClientError.malformedResponse
+                }
+
+                let started = try await session.request(
+                    method: "turn/start", id: 3,
+                    params: [
+                        "threadId": threadID,
+                        "input": [["type": "text", "text": "只回复 OK"]],
+                        "serviceTier": "default",
+                    ],
+                    timeout: requestTimeout
+                )
+                guard let turnID = started["turn"]?["id"]?.stringValue else {
+                    throw CodexClientError.malformedResponse
+                }
+                let completed = try await session.notification(method: "turn/completed", timeout: requestTimeout) {
+                    $0["threadId"]?.stringValue == threadID && $0["turn"]?["id"]?.stringValue == turnID
+                }
+                guard let status = completed["turn"]?["status"]?.stringValue else {
+                    throw CodexClientError.malformedResponse
+                }
+                guard status == "completed" else {
+                    throw CodexClientError.remoteError(code: nil, message: "The weekly usage request ended with status \(status).")
+                }
+            }
+        }
     }
 
     public func login(profileHome: URL) async throws -> AccountIdentity {
@@ -982,11 +1050,13 @@ public struct CodexClient: AccountClient {
     private func withSession<T: Sendable>(
         profileHome: URL,
         requireDirectExecutable: Bool = false,
+        useProfileAuthenticationOnly: Bool = false,
         operation: (JSONRPCSession) async throws -> T
     ) async throws -> T {
         let launch = try await launchCache.resolve(using: locator, requireDirectExecutable: requireDirectExecutable)
+        let environment = useProfileAuthenticationOnly ? Self.profileEnvironment(launch.environment) : launch.environment
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome,
-                                         environment: launch.environment)
+                                         environment: environment)
         return try await withTaskCancellationHandler {
             do {
                 try Task.checkCancellation()
@@ -1003,6 +1073,17 @@ public struct CodexClient: AccountClient {
         } onCancel: {
             Task { await session.stop() }
         }
+    }
+
+    private static func profileEnvironment(_ environment: [String: String]) -> [String: String] {
+        // Read quota and start turns for the saved profile even if the app inherited another login or endpoint.
+        var isolated = environment
+        for name in ["CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "OPENAI_API_KEY", "OPENAI_BASE_URL",
+                     "OPENAI_FEDERATION_RULE_ID", "OPENAI_IDENTITY_TOKEN_FILE", "CODEX_SQLITE_HOME",
+                     "CODEX_REFRESH_TOKEN_URL_OVERRIDE", "CODEX_REVOKE_TOKEN_URL_OVERRIDE"] {
+            isolated.removeValue(forKey: name)
+        }
+        return isolated
     }
 
     private func parseIdentity(_ value: JSONValue, profileHome: URL) throws -> AccountIdentity {
@@ -1025,13 +1106,6 @@ public struct CodexClient: AccountClient {
             throw CodexClientError.identityUnavailable
         }
         return AccountIdentity(accountID: accountID, email: email)
-    }
-
-    private func parseWindows(_ value: JSONValue) -> [RateLimitWindow] {
-        guard let bucket = value["rateLimitsByLimitId"]?["codex"] ?? value["rateLimits"] else {
-            return []
-        }
-        return [bucket["primary"], bucket["secondary"]].compactMap(parseWindow)
     }
 
     private func parseWindow(_ value: JSONValue?) -> RateLimitWindow? {

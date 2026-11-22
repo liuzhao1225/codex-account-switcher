@@ -68,6 +68,16 @@ struct ManageAccountsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if !model.accounts.isEmpty {
+                Text(model.text("weekly_auto_start_hint"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 13)
+                    .padding(.bottom, 9)
+            }
+
             Divider()
 
             VStack(alignment: .leading, spacing: 3) {
@@ -167,7 +177,36 @@ struct ManageAccountsView: View {
 
     private func managedAccountRow(_ account: AccountProfile) -> some View {
         let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
-        return HStack(spacing: 9) {
+        return VStack(alignment: .leading, spacing: 4) {
+            accountIdentityRow(account, title: title)
+
+            Toggle(model.text("weekly_auto_start"), isOn: Binding(
+                get: { model.isWeeklyUsageAutoStartEnabled(for: account.id) },
+                set: { enabled in
+                    Task { await model.setWeeklyUsageAutoStartEnabled(enabled, for: account.id) }
+                }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .font(.system(size: 11))
+            .accessibilityLabel(model.format("weekly_auto_start_for_account", title))
+            .disabled(model.isMutating || model.isAddingAccount)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .dropDestination(for: String.self) { items, _ in
+            guard !model.isMutating, !model.isAddingAccount,
+                  let raw = items.first, let sourceID = UUID(uuidString: raw),
+                  sourceID != account.id,
+                  model.accounts.contains(where: { $0.id == sourceID }) else { return false }
+            Task { await model.moveAccount(id: sourceID, to: account.id) }
+            return true
+        }
+    }
+
+    private func accountIdentityRow(_ account: AccountProfile, title: String) -> some View {
+        HStack(spacing: 9) {
             if model.accounts.count > 1 {
                 Image(systemName: "line.3.horizontal")
                     .foregroundStyle(.secondary)
@@ -207,18 +246,6 @@ struct ManageAccountsView: View {
                 .accessibilityLabel(model.format("remove_title", account.displayName))
                 .disabled(model.isMutating)
             }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
-        .dropDestination(for: String.self) { items, _ in
-            guard !model.isMutating, !model.isAddingAccount,
-                  let raw = items.first, let sourceID = UUID(uuidString: raw),
-                  sourceID != account.id,
-                  model.accounts.contains(where: { $0.id == sourceID }) else { return false }
-            Task { await model.moveAccount(id: sourceID, to: account.id) }
-            return true
         }
     }
 }

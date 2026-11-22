@@ -1,7 +1,7 @@
 import Foundation
 
 private enum UsageRefreshResult: Sendable {
-    case success(UUID, WeeklyUsage)
+    case success(UUID, WeeklyUsage, observedAt: Date)
     case failure(UUID, String)
 }
 
@@ -70,6 +70,11 @@ open class AccountController {
     private var isBackgroundUsageRefreshEnabled = false
     private var autoReset: AutoReset?
     private var resetExpiryTask: Task<Void, Never>?
+    private var weeklyUsageAutoStartAccounts: Set<UUID> = [] {
+        willSet { if newValue != weeklyUsageAutoStartAccounts { prepareForMutation() } }
+        didSet { if weeklyUsageAutoStartAccounts != oldValue { finishMutation() } }
+    }
+    private var weeklyUsageAutoStartChecks: [UUID: Date] = [:]
 
     public var resetExpiryLogURL: URL { store.resetExpiryLogURL }
 
@@ -145,6 +150,13 @@ open class AccountController {
                 apply(loadedRegistry)
             }
             try await syncActiveIdentity()
+            #if os(macOS)
+            do {
+                weeklyUsageAutoStartAccounts = try await store.enabledWeeklyUsageAutoStartAccounts()
+            } catch {
+                showError(error)
+            }
+            #endif
             await refreshSubscriptionSnapshots()
             do {
                 let cache = try await store.loadUsageCache()
@@ -182,6 +194,9 @@ open class AccountController {
             await self.performWeeklyUsageRefresh()
             self.usageRefreshTask = nil
             self.scheduleResetExpiryCheck()
+            if self.isBackgroundUsageRefreshEnabled, !self.weeklyUsageAutoStartAccounts.isEmpty, !Task.isCancelled {
+                self.scheduleNextWeeklyUsageRefresh()
+            }
         }
     }
 
@@ -232,7 +247,11 @@ open class AccountController {
 
     private func scheduleNextWeeklyUsageRefresh() {
         nextUsageRefreshTask?.cancel()
-        let interval = backgroundUsageRefreshInterval
+        let now = Date()
+        let deadline = weeklyUsageAutoStartChecks.values.filter { $0 > now }.min()
+        let interval = deadline.map {
+            min(backgroundUsageRefreshInterval, .seconds($0.timeIntervalSince(now)))
+        } ?? backgroundUsageRefreshInterval
         nextUsageRefreshTask = Task { [weak self] in
             do {
                 try await Task.sleep(for: interval)
@@ -264,7 +283,8 @@ open class AccountController {
                     do {
                         let home = await store.profileHome(id: account.id)
                         try Task.checkCancellation()
-                        return .success(account.id, try await codex.readWeeklyUsage(profileHome: home))
+                        let usage = try await codex.readWeeklyUsage(profileHome: home)
+                        return .success(account.id, usage, observedAt: Date())
                     } catch {
                         return .failure(account.id, error.localizedDescription)
                     }
@@ -273,15 +293,18 @@ open class AccountController {
             for await result in group {
                 guard !Task.isCancelled else { continue }
                 switch result {
-                case let .success(id, usage):
+                case let .success(id, usage, observedAt):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
                     usageStates[id] = .loaded(usage)
                     do {
-                        try await store.cacheWeeklyUsage(usage, profileID: id)
+                        try await store.cacheWeeklyUsage(usage, profileID: id, fetchedAt: observedAt)
                     } catch {
                         showError(error)
                     }
-                    await observeResetExpiry(profile: account, usage: usage)
+                    let latestUsage = await startWeeklyUsageIfDue(
+                        profile: account, usage: usage, observedAt: observedAt
+                    )
+                    await observeResetExpiry(profile: account, usage: latestUsage)
                 case let .failure(id, message):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
                     await observeResetExpiry(profile: account, usage: nil, error: message)
@@ -562,6 +585,81 @@ open class AccountController {
         }
     }
 
+    public func isWeeklyUsageAutoStartEnabled(for profileID: UUID) -> Bool {
+        weeklyUsageAutoStartAccounts.contains(profileID)
+    }
+
+    public func setWeeklyUsageAutoStartEnabled(_ enabled: Bool, for profileID: UUID) async {
+        guard isWeeklyUsageAutoStartEnabled(for: profileID) != enabled else { return }
+        do {
+            try await store.setWeeklyUsageAutoStartEnabled(enabled, for: profileID)
+            if enabled {
+                weeklyUsageAutoStartAccounts.insert(profileID)
+                refreshWeeklyUsage()
+            } else {
+                weeklyUsageAutoStartAccounts.remove(profileID)
+                weeklyUsageAutoStartChecks[profileID] = nil
+            }
+        } catch {
+            showError(error)
+        }
+    }
+
+    private func startWeeklyUsageIfDue(
+        profile: AccountProfile, usage: WeeklyUsage, observedAt: Date
+    ) async -> WeeklyUsage {
+        let id = profile.id
+        guard isWeeklyUsageAutoStartEnabled(for: id) else { return usage }
+        var latestUsage = usage
+        var latestObservation = observedAt
+        do {
+            try Task.checkCancellation()
+            let home = await store.profileHome(id: id)
+            // A sibling's turn may have delayed handling this read. Recheck before using stale eligibility.
+            if Date().timeIntervalSince(observedAt) > 5 {
+                latestUsage = try await codex.readWeeklyUsage(profileHome: home)
+                latestObservation = Date()
+                usageStates[id] = .loaded(latestUsage)
+                try await store.cacheWeeklyUsage(latestUsage, profileID: id, fetchedAt: latestObservation)
+            }
+            guard let window = latestUsage.weeklyWindow else {
+                weeklyUsageAutoStartChecks[id] = nil
+                return latestUsage
+            }
+            let observation = try await store.observeWeeklyUsageAutoStart(window, for: id, at: latestObservation)
+            weeklyUsageAutoStartChecks[id] = observation.nextCheckAt
+            guard let expiredAt = observation.expiredAt else { return latestUsage }
+            guard latestUsage.ordinaryUsageAllowed != false, latestUsage.fiveHourRemainingPercent != 0 else {
+                weeklyUsageAutoStartChecks[id] = latestUsage.fiveHourResetsAt
+                return latestUsage
+            }
+
+            try Task.checkCancellation()
+            // Persist the attempt before sending so a timeout or restart does not submit it again.
+            guard try await store.recordWeeklyUsageAutoStartAttempt(for: id, expiredAt: expiredAt) else {
+                return latestUsage
+            }
+            weeklyUsageAutoStartChecks[id] = nil
+            try Task.checkCancellation()
+            guard isWeeklyUsageAutoStartEnabled(for: id) else { return latestUsage }
+            try await codex.startWeeklyUsageWindow(profileHome: home)
+            try Task.checkCancellation()
+            let refreshed = try await codex.readWeeklyUsage(profileHome: home)
+            if let window = refreshed.weeklyWindow {
+                let readback = try await store.observeWeeklyUsageAutoStart(window, for: id, at: Date())
+                weeklyUsageAutoStartChecks[id] = readback.nextCheckAt
+            }
+            usageStates[id] = .loaded(refreshed)
+            try await store.cacheWeeklyUsage(refreshed, profileID: id)
+            return refreshed
+        } catch is CancellationError {
+            return latestUsage
+        } catch {
+            showError(error)
+            return latestUsage
+        }
+    }
+
     private func beginAutoReset(event: String) async throws {
         let history = try await store.loadResetExpiryLog()
         guard settings.autoResetEnabled else { return }
@@ -683,6 +781,8 @@ open class AccountController {
         usageStates = usageStates.filter { validIDs.contains($0.key) }
         subscriptionStates = subscriptionStates.filter { validIDs.contains($0.key) }
         subscriptionSnapshots = subscriptionSnapshots.filter { validIDs.contains($0.key) }
+        weeklyUsageAutoStartAccounts.formIntersection(validIDs)
+        weeklyUsageAutoStartChecks = weeklyUsageAutoStartChecks.filter { validIDs.contains($0.key) }
     }
 
     private func apply(_ cache: UsageCache) {

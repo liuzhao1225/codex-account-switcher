@@ -163,6 +163,65 @@ struct AccountControllerTests {
         #expect(try await fixture.store.loadUsageCache().entries.first?.usage.remainingPercent == 72)
     }
 
+    #if os(macOS)
+    @Test func weeklyAutoStartIsOptInAndUsesOnlyTheDueAccount() async throws {
+        let fixture = try ControllerFixture()
+        defer { fixture.clean() }
+        try fixture.writeActiveCredential()
+        let secondID = UUID()
+        let second = AccountProfile(id: secondID, displayName: "Other", email: nil,
+            accountID: "other-account", createdAt: Date())
+        let secondHome = try await fixture.store.createProfileDirectory(id: secondID)
+        try Data("fixture".utf8).write(to: secondHome.appending(path: "auth.json"))
+        try await fixture.store.addProfile(second)
+        await fixture.model.start()
+        let activeID = try #require(fixture.model.activeAccountID)
+        let activeHome = await fixture.store.profileHome(id: activeID)
+        #expect(!fixture.model.isWeeklyUsageAutoStartEnabled(for: activeID))
+        #expect(!fixture.model.isWeeklyUsageAutoStartEnabled(for: secondID))
+
+        await fixture.model.setWeeklyUsageAutoStartEnabled(true, for: secondID)
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(fixture.model.isWeeklyUsageAutoStartEnabled(for: secondID))
+        #expect(!fixture.model.isWeeklyUsageAutoStartEnabled(for: activeID))
+
+        let now = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970))
+        let oldExpiry = now.addingTimeInterval(-60)
+        let firstFullRead = now.addingTimeInterval(-25)
+        let week = TimeInterval(7 * 24 * 60 * 60)
+        func window(_ used: Double, _ reset: Date) -> RateLimitWindow {
+            RateLimitWindow(usedPercent: used, windowDurationMins: 10_080, resetsAt: reset.timeIntervalSince1970)
+        }
+        _ = try await fixture.store.observeWeeklyUsageAutoStart(
+            window(37, oldExpiry), for: secondID, at: oldExpiry.addingTimeInterval(-120)
+        )
+        _ = try await fixture.store.observeWeeklyUsageAutoStart(
+            window(0, firstFullRead.addingTimeInterval(week)), for: secondID, at: firstFullRead
+        )
+        await fixture.client.setWeeklyWindow(window(0, now.addingTimeInterval(week)), for: activeHome)
+        await fixture.client.setWeeklyWindow(window(0, now.addingTimeInterval(week)), for: secondHome)
+
+        fixture.model.refreshWeeklyUsage()
+        await fixture.model.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.weeklyStartHomes == [secondHome])
+        #expect(fixture.model.activeAccountID == activeID)
+        #expect(fixture.model.usageStates[secondID]?.displayedUsage?.remainingPercent == 98)
+
+        let reopenedStore = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
+        let reopened = AccountController(store: reopenedStore, codex: fixture.client,
+            switchService: SwitchService(desktop: FixtureDesktop(), store: reopenedStore, codex: fixture.client))
+        await reopened.start()
+        #expect(reopened.isWeeklyUsageAutoStartEnabled(for: secondID))
+        #expect(!reopened.isWeeklyUsageAutoStartEnabled(for: activeID))
+        reopened.refreshWeeklyUsage()
+        await reopened.waitForWeeklyUsageRefresh()
+        #expect(await fixture.client.weeklyStartHomes == [secondHome])
+
+        await reopened.setWeeklyUsageAutoStartEnabled(false, for: secondID)
+        #expect(try await reopenedStore.enabledWeeklyUsageAutoStartAccounts().isEmpty)
+    }
+    #endif
+
     @Test func italianFollowsSystemLanguageAndPersistsWhenSelected() async throws {
         #expect(L10n.systemLanguage(for: "it-IT") == .italian)
         #expect(L10n.systemLanguage(for: "IT_it") == .italian)
@@ -366,6 +425,19 @@ private actor FixtureClient: AccountClient {
     private var resetFails = false
     private var confirmsConsumption = true
     private(set) var consumeCalls = 0
+    private var weeklyWindows: [URL: RateLimitWindow] = [:]
+    private(set) var weeklyStartHomes: [URL] = []
+    func setWeeklyWindow(_ window: RateLimitWindow, for home: URL) {
+        weeklyWindows[home] = window
+    }
+    func startWeeklyUsageWindow(profileHome: URL) async throws {
+        weeklyStartHomes.append(profileHome)
+        if let window = weeklyWindows[profileHome] {
+            weeklyWindows[profileHome] = RateLimitWindow(
+                usedPercent: 2, windowDurationMins: window.windowDurationMins, resetsAt: window.resetsAt
+            )
+        }
+    }
     func failReset() { resetFails = true }
     func doNotConfirmConsumption() { confirmsConsumption = false }
     func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
@@ -384,6 +456,9 @@ private actor FixtureClient: AccountClient {
     }
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
         if usageFails { throw CodexClientError.connectionClosed }
+        if let window = weeklyWindows[profileHome] {
+            return try WeeklyUsageNormalizer.normalize([window])
+        }
         let resetConsumed = consumedHomes.contains(profileHome)
         return WeeklyUsage(
             remainingPercent: resetConsumed ? 100 : 72,
