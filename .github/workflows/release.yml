@@ -9,11 +9,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.repository }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  DMG_NAME: Codex-Account-Switcher-macos-arm64.dmg
+  EXE_NAME: Codex-Account-Switcher-windows-x64.exe
 
 jobs:
   validate:
+    if: github.repository == '4379711/codex-account-switcher' && !github.event.deleted
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -21,22 +26,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - name: Validate the unified version and tagged commit
+          persist-credentials: false
+
+      - name: Validate the version and tagged commit
         id: version
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           version=$(node scripts/validate-release-tag.mjs "$GITHUB_REF_NAME")
-          git fetch origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse $GITHUB_REF_NAME^{commit})"
-          git merge-base --is-ancestor HEAD origin/main
-          tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
-          if grep -Fxq "$GITHUB_REF_NAME" <<< "$tags"; then
-            echo "Release $GITHUB_REF_NAME already exists; refusing to replace it." >&2
-            exit 1
-          fi
+          test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "refs/tags/${GITHUB_REF_NAME}^{commit}")"
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Check release routing
         run: node --test scripts/tests/*.test.mjs
 
@@ -48,219 +48,96 @@ jobs:
     needs: validate
     runs-on: macos-26
     env:
+      CODESIGN_IDENTITY: "-"
       SWIFT_BUILD_ARCH: arm64
       RELEASE_VERSION: ${{ needs.validate.outputs.version }}
-      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Validate release toolchain
+        with:
+          persist-credentials: false
+
+      - name: Run release tests
         run: |
           set -euo pipefail
           test "$(uname -m)" = "arm64"
           swift --version
+          brew install fish
+          ./scripts/run-tests.sh
 
-      - name: Install fish for login-shell regression tests
-        run: brew install fish
-
-      - name: Run release tests
-        run: ./scripts/run-tests.sh
-
-      - name: Package, notarize, and staple Developer ID signed DMG
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: Package and verify the ad hoc signed DMG
         run: |
           set -euo pipefail
-          certificate_path="$RUNNER_TEMP/build-certificate.p12"
-          api_key_path="$RUNNER_TEMP/AuthKey.p8"
-          intermediate_path="$RUNNER_TEMP/DeveloperIDG2CA.cer"
-          keychain_path="$RUNNER_TEMP/app-signing.keychain-db"
-          keychain_password="$(uuidgen)"
-          login_keychain=$(security default-keychain -d user | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')
-          mount_point="$RUNNER_TEMP/dmg-mount"
+          work_dir=$(mktemp -d "$RUNNER_TEMP/codex-release.XXXXXX")
+          dmg_root="$work_dir/root"
+          mount_point="$work_dir/mount"
           mount_attached=false
 
           cleanup() {
             if [[ "$mount_attached" == true ]]; then
               hdiutil detach "$mount_point" >/dev/null 2>&1 || true
             fi
-            security list-keychains -d user -s "$login_keychain" >/dev/null 2>&1 || true
-            security delete-keychain "$keychain_path" >/dev/null 2>&1 || true
-            rm -f "$certificate_path" "$api_key_path" "$intermediate_path"
+            rm -rf "$work_dir"
           }
           trap cleanup EXIT
 
-          printf '%s' "$BUILD_CERTIFICATE_BASE64" | /usr/bin/base64 -D > "$certificate_path"
-          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | /usr/bin/base64 -D > "$api_key_path"
-          test -s "$certificate_path"
-          test -s "$api_key_path"
-          test -n "$APP_STORE_CONNECT_KEY_ID"
-          test -n "$APP_STORE_CONNECT_ISSUER_ID"
-          chmod 600 "$api_key_path"
-          curl --fail --silent --show-error --location \
-            'https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer' \
-            --output "$intermediate_path"
-          echo "f16cd3c54c7f83cea4bf1a3e6a0819c8aaa8e4a1528fd144715f350643d2df3a  $intermediate_path" \
-            | shasum -a 256 -c -
-
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" -k "$keychain_path" -P "$P12_PASSWORD" -T /usr/bin/codesign
-          security add-certificates -k "$keychain_path" "$intermediate_path"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path" >/dev/null
-          security list-keychains -d user -s "$keychain_path" "$login_keychain"
-
-          signing_identity=$(security find-identity -v -p codesigning | awk '/Developer ID Application:/ {print $2; exit}')
-          test -n "$signing_identity"
-
-          export CODESIGN_IDENTITY="$signing_identity"
           app_path=$(./scripts/package-local-app.sh | tail -n 1)
-          app_archive="$RUNNER_TEMP/Codex-Account-Switcher.app.zip"
-          artifact=".build/artifacts/Codex-Account-Switcher-macos-arm64.dmg"
-          dmg_root="$RUNNER_TEMP/dmg-root"
-
-          mkdir -p .build/artifacts
-          codesign --verify --deep --strict --verbose=4 "$app_path"
-          file "$app_path/Contents/MacOS/CodexAccountSwitcher"
-
-          ditto -c -k --sequesterRsrc --keepParent "$app_path" "$app_archive"
-          xcrun notarytool submit "$app_archive" \
-            --key "$api_key_path" \
-            --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --wait \
-            --timeout 30m \
-            --output-format json > "$RUNNER_TEMP/app-notarization.json"
-          ruby -rjson -e '
-            result = JSON.parse(File.read(ARGV.fetch(0)))
-            puts "app_notarization_id=#{result.fetch("id", "unknown")}"
-            status = result.fetch("status", "missing")
-            abort "app_notarization_status=#{status}" unless status == "Accepted"
-            puts "app_notarization_status=#{status}"
-          ' "$RUNNER_TEMP/app-notarization.json"
-          xcrun stapler staple -v "$app_path"
-          xcrun stapler validate -v "$app_path"
-          spctl --assess --type execute --verbose=4 "$app_path"
-
-          mkdir -p "$dmg_root"
+          mkdir -p "$dmg_root" "$mount_point" dist
           ditto "$app_path" "$dmg_root/Codex Account Switcher.app"
           cp LICENSE "$dmg_root/LICENSE.txt"
           ln -s /Applications "$dmg_root/Applications"
-          hdiutil create \
-            -volname "Codex Account Switcher" \
-            -srcfolder "$dmg_root" \
-            -format UDZO \
-            "$artifact"
-          codesign --force --timestamp --sign "$signing_identity" "$artifact"
-          codesign --verify --verbose=4 "$artifact"
-          xcrun notarytool submit "$artifact" \
-            --key "$api_key_path" \
-            --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --wait \
-            --timeout 30m \
-            --output-format json > "$RUNNER_TEMP/dmg-notarization.json"
-          ruby -rjson -e '
-            result = JSON.parse(File.read(ARGV.fetch(0)))
-            puts "dmg_notarization_id=#{result.fetch("id", "unknown")}"
-            status = result.fetch("status", "missing")
-            abort "dmg_notarization_status=#{status}" unless status == "Accepted"
-            puts "dmg_notarization_status=#{status}"
-          ' "$RUNNER_TEMP/dmg-notarization.json"
-          xcrun stapler staple -v "$artifact"
-          xcrun stapler validate -v "$artifact"
-          spctl --assess --type open --context context:primary-signature --verbose=4 "$artifact"
 
-          mkdir -p "$mount_point"
+          artifact="dist/$DMG_NAME"
+          hdiutil create -volname "Codex Account Switcher" -srcfolder "$dmg_root" -format UDZO "$artifact"
+          codesign --force --sign - "$artifact"
+          codesign --verify --verbose=2 "$artifact"
+          hdiutil verify "$artifact"
+
           hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "$artifact"
           mount_attached=true
           mounted_app="$mount_point/Codex Account Switcher.app"
-          mounted_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mounted_app/Contents/Info.plist")
-          test "$mounted_version" = "$RELEASE_VERSION"
-          mounted_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$mounted_app/Contents/Info.plist")
-          test "$mounted_build" = "$RELEASE_VERSION"
-          mounted_icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$mounted_app/Contents/Info.plist")
-          test "$mounted_icon" = "AppIcon"
+          info_plist="$mounted_app/Contents/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")" = "$RELEASE_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")" = "$RELEASE_VERSION"
+          test "$(lipo -archs "$mounted_app/Contents/MacOS/CodexAccountSwitcher")" = "$SWIFT_BUILD_ARCH"
           test -s "$mounted_app/Contents/Resources/AppIcon.icns"
-          file "$mounted_app/Contents/Resources/AppIcon.icns" | grep -q 'Mac OS X icon'
-          test -s "$mounted_app/Contents/Resources/LICENSE.txt"
-          grep -Fq 'Copyright (c) 2026 liuzhao1225' "$mounted_app/Contents/Resources/LICENSE.txt"
-          test -s "$mount_point/LICENSE.txt"
-          grep -Fq 'Copyright (c) 2026 liuzhao1225' "$mount_point/LICENSE.txt"
-          codesign --verify --deep --strict --verbose=4 "$mounted_app"
-          xcrun stapler validate -v "$mounted_app"
-          spctl --assess --type execute --verbose=4 "$mounted_app"
+          cmp LICENSE "$mounted_app/Contents/Resources/LICENSE.txt"
+          cmp LICENSE "$mount_point/LICENSE.txt"
+          codesign --verify --deep --strict --verbose=2 "$mounted_app"
           hdiutil detach "$mount_point"
           mount_attached=false
 
-          (
-            cd "$(dirname "$artifact")"
-            shasum -a 256 "$(basename "$artifact")" > "$(basename "$artifact").sha256"
-          )
-          cat "$artifact.sha256"
+          cd dist
+          shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
 
-      - name: Sign the Sparkle update feed
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$SPARKLE_PRIVATE_KEY"
-          key_file="$RUNNER_TEMP/sparkle-private-key"
-          trap 'rm -f "$key_file"' EXIT
-          umask 077
-          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
-          .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
-            --ed-key-file "$key_file" \
-            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/" \
-            --full-release-notes-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}" \
-            --maximum-deltas 0 \
-            -o .build/artifacts/appcast.xml \
-            .build/artifacts
-          test -s .build/artifacts/appcast.xml
-
-      - name: Upload verified macOS artifacts
+      - name: Upload the verified macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Codex-Account-Switcher-macos-arm64
           path: |
-            .build/artifacts/Codex-Account-Switcher-macos-arm64.dmg
-            .build/artifacts/Codex-Account-Switcher-macos-arm64.dmg.sha256
-            .build/artifacts/appcast.xml
+            dist/${{ env.DMG_NAME }}
+            dist/${{ env.DMG_NAME }}.sha256
           if-no-files-found: error
+          overwrite: true
 
   publish:
-    needs: [validate, macos, windows]
+    needs: [macos, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/download-artifact@v4
         with:
           pattern: Codex-Account-Switcher-*
-          path: dist
           merge-multiple: true
-      - name: Sign the Windows update feed
-        env:
-          WINDOWS_UPDATE_PRIVATE_KEY: ${{ secrets.WINDOWS_UPDATE_PRIVATE_KEY }}
-        run: node scripts/sign-windows-update.mjs dist "$GITHUB_REF_NAME"
-      - name: Verify both platform packages and publish together
+          path: dist
+
+      - name: Publish to GitHub Releases
+        working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          node scripts/verify-release-artifacts.mjs dist "$GITHUB_REF_NAME"
-          gh release create "$GITHUB_REF_NAME" \
-            dist/Codex-Account-Switcher-macos-arm64.dmg \
-            dist/Codex-Account-Switcher-macos-arm64.dmg.sha256 \
-            dist/Codex-Account-Switcher-windows-x64.exe \
-            dist/Codex-Account-Switcher-windows-x64.exe.sha256 \
-            dist/appcast.xml \
-            dist/windows-update.json \
-            --title "$GITHUB_REF_NAME" --notes-file .github/release-notes.md \
-            --draft --verify-tag
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          shasum -a 256 --check "$DMG_NAME.sha256" "$EXE_NAME.sha256"
+          gh release create "$GITHUB_REF_NAME" "$DMG_NAME" "$DMG_NAME.sha256" "$EXE_NAME" "$EXE_NAME.sha256" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes \
+            --notes "包含 Apple 芯片 Mac 的 DMG 和 Windows x64 的 EXE。macOS 安装包使用 ad hoc 签名，首次打开可能需要在「隐私与安全性」中确认。"

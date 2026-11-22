@@ -24,14 +24,16 @@ test('one tag must match all three build version sources', () => {
   } finally { fs.rmSync(root, { recursive: true }); }
 });
 
-test('publication waits for both builds and only the unified workflow publishes', () => {
+test('the fork release publishes verified macOS and Windows artifacts from one tag', () => {
   const release = fs.readFileSync('.github/workflows/release.yml', 'utf8');
   const windows = fs.readFileSync('.github/workflows/windows.yml', 'utf8');
   assert.match(release, /tags:\s*\n\s*- "v\*"/);
-  assert.match(release, /needs: \[validate, macos, windows\]/);
-  assert.match(release, /verify-release-artifacts\.mjs/);
-  assert.match(release, /--draft --verify-tag/);
-  assert.match(release, /--draft=false --latest/);
+  assert.match(release, /needs: \[macos, windows\]/);
+  assert.match(release, /uses: \.\/\.github\/workflows\/windows\.yml/);
+  assert.match(release, /CODESIGN_IDENTITY: "-"/);
+  assert.match(release, /shasum -a 256 --check "\$DMG_NAME\.sha256" "\$EXE_NAME\.sha256"/);
+  assert.match(release, /gh release create [\s\S]*--verify-tag/);
+  assert.doesNotMatch(release, /secrets\.|notarytool/);
   assert.match(windows, /workflow_call:/);
   assert.doesNotMatch(windows, /gh release create|tags:/);
 });

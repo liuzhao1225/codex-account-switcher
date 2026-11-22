@@ -2,7 +2,7 @@
 
 ## Unified Version Sources
 
-macOS and Windows publish together from a single `v<major>.<minor>.<patch>` tag on `main`. Before building, `scripts/validate-release-tag.mjs` checks that all three build version definitions match the tag:
+Push a `v<major>.<minor>.<patch>` tag pointing to a commit on the fork's `main` to publish macOS and Windows together. Before building, `scripts/validate-release-tag.mjs` checks that all three build version definitions match the tag:
 
 1. `Sources/SwitcherCore/Models.swift` (`SwitcherVersion.current`)
 2. `scripts/package-local-app.sh` (`APP_VERSION=${RELEASE_VERSION:-...}`)
@@ -10,7 +10,9 @@ macOS and Windows publish together from a single `v<major>.<minor>.<patch>` tag 
 
 ## Release Pipeline (`.github/workflows/release.yml`)
 
-1. **`validate`** — Verifies tag format, commit ancestry on `main`, absence of an existing release for that tag, and script tests.
-2. **`macos`** — Runs `./scripts/run-tests.sh`, packages `Codex Account Switcher.app`, signs with Developer ID, notarizes and staples both the app and `Codex-Account-Switcher-macos-arm64.dmg`, generates `.sha256`, and signs `appcast.xml` for Sparkle.
-3. **`windows`** — Runs Windows process-tree checks, shared-core Swift tests, host integration checks, WPF UI checks, builds self-contained `Codex-Account-Switcher-windows-x64.exe` with embedded `SwiftRuntime.zip`, and verifies `--self-test`.
-4. **`publish`** — Verifies all artifacts and checksums via `scripts/verify-release-artifacts.mjs` and publishes one GitHub Release, triggering `.github/workflows/pages.yml` to update the hosted Sparkle `appcast.xml`.
+1. **`validate`** checks the tag format, version definitions, and commit ancestry on `main`, then runs the release script tests.
+2. **`macos`** runs the Swift tests and packages the app and Apple Silicon DMG with ad hoc signatures. It mounts the image, verifies the app inside, and writes a SHA-256 checksum.
+3. **`windows`** calls the Windows workflow to test and package the self-contained x64 EXE and its SHA-256 checksum.
+4. **`publish`** verifies both checksums and attaches both packages and their checksums to a single GitHub Release in this fork.
+
+The fork's macOS build uses ad hoc signing without Apple notarization. macOS may ask users to confirm the first launch in Privacy & Security. The apps still check the upstream update feeds.
