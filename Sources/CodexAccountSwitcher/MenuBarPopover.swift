@@ -6,8 +6,7 @@ struct MenuBarPopover: View {
     @Environment(\.openSettings) private var openSettings
     @ObservedObject var model: AppModel
     @ObservedObject var updater: AppUpdater
-    @ObservedObject var tiboForecast: TiboForecastModel
-    @State private var page: PopoverPage = .accounts
+    @ViewState private var page: PopoverPage = .accounts
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,7 +48,6 @@ struct MenuBarPopover: View {
         .frame(width: 400)
         .onAppear {
             page = model.isAddingAccount ? .manageAccounts : .accounts
-            Task { await tiboForecast.refreshIfDue() }
         }
         .task {
             await model.start()
@@ -70,11 +68,11 @@ struct MenuBarPopover: View {
                     .fixedSize()
                     .disabled(model.isMutating || updater.isInstalling)
                 }
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(.orange.opacity(0.08))
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(.orange.opacity(0.08))
             }
 
             if model.accounts.isEmpty {
@@ -83,24 +81,22 @@ struct MenuBarPopover: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 28)
             } else {
-                Group {
-                    if model.accounts.count <= 3 {
-                        accountList(model.accounts)
-                    } else {
-                        // The first three rows determine the viewport's intrinsic height.
-                        accountList(Array(model.accounts.prefix(3)))
-                            .hidden()
-                            .overlay {
-                                ScrollView { accountList(model.accounts) }
-                            }
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    Group {
+                        if model.accounts.count <= 3 {
+                            accountList(model.accounts, now: context.date)
+                        } else {
+                            // Intrinsic height matches the first three stateless rows under zero-height probes.
+                            accountList(Array(model.accounts.prefix(3)), now: context.date)
+                                .hidden()
+                                .overlay {
+                                    ScrollView { accountList(model.accounts, now: context.date) }
+                                }
+                        }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                // Ignore the initial zero-height probe and the previous page's height.
-                .fixedSize(horizontal: false, vertical: true)
             }
-
-            Divider()
-            TiboForecastEntry(model: model, forecastModel: tiboForecast)
 
             if let version = updater.availableVersion {
                 Divider()
@@ -151,7 +147,7 @@ struct MenuBarPopover: View {
         }
     }
 
-    private func accountList(_ accounts: [AccountProfile]) -> some View {
+    private func accountList(_ accounts: [AccountProfile], now: Date) -> some View {
         VStack(spacing: 8) {
             ForEach(accounts) { account in
                 Button {
@@ -168,7 +164,8 @@ struct MenuBarPopover: View {
                         subscriptionState: model.subscriptionStates[account.id] ?? .idle,
                         isActive: account.id == model.activeAccountID,
                         language: model.settings.language,
-                        showsFiveHourUsage: model.settings.showsFiveHourUsage
+                        showsFiveHourUsage: model.settings.showsFiveHourUsage,
+                        now: now
                     )
                 }
                 .buttonStyle(.plain)
@@ -267,7 +264,7 @@ private struct FooterAction: View {
     var shortcut: KeyboardShortcut?
     let action: () -> Void
 
-    @State private var isHovering = false
+    @ViewState private var isHovering = false
 
     init(
         title: String,

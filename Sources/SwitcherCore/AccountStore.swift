@@ -66,26 +66,39 @@ public actor AccountStore: AccountStoring {
     private var subscriptionCacheURL: URL { baseURL.appending(path: "subscription-cache.json") }
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
-    public nonisolated var resetExpiryLogURL: URL { baseURL.appending(path: "reset-expiry-experiment.jsonl") }
+    private var legacyResetLogURL: URL { baseURL.appending(path: "reset-expiry-experiment.jsonl") }
+    public nonisolated var resetExpiryLogURL: URL { baseURL.appending(path: "auto-reset.jsonl") }
 
     func loadResetExpiryLog() throws -> [ResetExpiryEvent] {
         try prepareDirectories()
         guard fileManager.fileExists(atPath: resetExpiryLogURL.path) else { return [] }
-        return try readChecked(resetExpiryLogURL).split(separator: 0x0A).map {
-            try Self.decoder.decode(ResetExpiryEvent.self, from: Data($0))
+        // Skip partial or damaged trailing lines rather than permanently bricking automation.
+        return try readChecked(resetExpiryLogURL).split(separator: 0x0A).compactMap { line in
+            try? Self.decoder.decode(ResetExpiryEvent.self, from: Data(line))
         }
     }
 
     func appendResetExpiryLog(_ events: [ResetExpiryEvent]) throws {
+        guard !events.isEmpty else { return }
         try prepareDirectories()
         try checkPath(resetExpiryLogURL)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+
+        if fileManager.fileExists(atPath: resetExpiryLogURL.path),
+           let size = (try? fileManager.attributesOfItem(atPath: resetExpiryLogURL.path)[.size] as? NSNumber)?.intValue,
+           size > 262_144 {
+            let existing = (try? loadResetExpiryLog()) ?? []
+            let compacted = AutoReset.compactedHistory(existing + events)
+            try writeResetLog(compacted, using: encoder)
+            return
+        }
+
         if !fileManager.fileExists(atPath: resetExpiryLogURL.path) {
             try secureAtomicWrite(Data(), to: resetExpiryLogURL)
         }
         try restrictPermissions(resetExpiryLogURL, directory: false)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.sortedKeys]
         var bytes = Data()
         for event in events {
             bytes.append(try encoder.encode(event))
@@ -101,6 +114,15 @@ public actor AccountStore: AccountStoring {
             throw error
         }
         try handle.close()
+    }
+
+    private func writeResetLog(_ events: [ResetExpiryEvent], using encoder: JSONEncoder) throws {
+        var bytes = Data()
+        for event in events {
+            bytes.append(try encoder.encode(event))
+            bytes.append(0x0A)
+        }
+        try secureAtomicWrite(bytes, to: resetExpiryLogURL)
     }
 
     public func loadRegistry() throws -> AccountRegistry {
@@ -371,6 +393,30 @@ public actor AccountStore: AccountStoring {
         return try loadRegistry()
     }
 
+    /// Stop the matching resident reader before replacing its credential. Recheck
+    /// the live login after suspension so a newer Desktop login is never lost.
+    public func syncActiveCredential(beforeUpdatingProfile: @Sendable (URL) async throws -> Void) async throws -> AccountRegistry {
+        while true {
+            let current = try loadRegistry()
+            guard activeCredentialExists() else { return try syncActiveCredential() }
+            let source = activeHomeURL.appending(path: "auth.json")
+            let bytes = try readChecked(source)
+            guard let identity = try CredentialIdentity.decode(bytes) else { throw CodexClientError.identityUnavailable }
+            if let profile = current.accounts.first(where: { identity.matches($0) }) {
+                let home = profileHome(id: profile.id)
+                if try readChecked(home.appending(path: "auth.json")) != bytes {
+                    try await beforeUpdatingProfile(home)
+                    try Task.checkCancellation()
+                    guard activeCredentialExists(), try readChecked(source) == bytes else { continue }
+                    let latest = try loadRegistry()
+                    guard latest.accounts.first(where: { identity.matches($0) })?.id == profile.id else { continue }
+                }
+            }
+            try registerActiveIdentity(identity, credential: bytes)
+            return try loadRegistry()
+        }
+    }
+
     public func removeAccount(id: UUID) throws {
         var current = try loadRegistry()
         guard current.activeAccountID != id else {
@@ -494,6 +540,11 @@ public actor AccountStore: AccountStoring {
         try restrictPermissions(baseURL, directory: true)
         try fileManager.createDirectory(at: profilesURL, withIntermediateDirectories: true)
         try restrictPermissions(profilesURL, directory: true)
+        if !fileManager.fileExists(atPath: resetExpiryLogURL.path),
+           fileManager.fileExists(atPath: legacyResetLogURL.path) {
+            try checkPath(legacyResetLogURL)
+            try? fileManager.moveItem(at: legacyResetLogURL, to: resetExpiryLogURL)
+        }
     }
 
     private func copyCredential(from source: URL, to destination: URL) throws {

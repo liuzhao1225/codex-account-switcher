@@ -20,19 +20,16 @@ permissions:
   contents: read
 
 jobs:
-  site:
+  scripts:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Check SEO and GEO consistency
-        run: node scripts/check-site-geo.mjs
-      - name: Check platform release routing
+      - name: Run release and site script tests
         run: node --test scripts/tests/*.test.mjs
 
   test:
     runs-on: macos-26
-
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -54,8 +51,5 @@ jobs:
       - name: Install fish for login-shell regression tests
         run: brew install fish
 
-      - name: Run Swift tests
-        run: swift test
-
-      - name: Run core checks
-        run: ./scripts/run-core-checks.sh
+      - name: Run unified Swift tests
+        run: ./scripts/run-tests.sh

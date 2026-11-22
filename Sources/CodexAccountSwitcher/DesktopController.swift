@@ -3,15 +3,12 @@ import AppKit
 import Foundation
 
 enum DesktopControllerError: LocalizedError, Sendable {
-    case applicationNotFound
     case quitRequestFailed
     case didNotExit
     case reopenFailed
 
     var errorDescription: String? {
         switch self {
-        case .applicationNotFound:
-            "The Codex Desktop application could not be found."
         case .quitRequestFailed:
             "Codex Desktop rejected the quit request."
         case .didNotExit:
@@ -22,8 +19,6 @@ enum DesktopControllerError: LocalizedError, Sendable {
     }
 }
 
-// A quit request may be waiting for Desktop's active-task dialog or durable history writes.
-// Expiry must stop the switch before credentials change; it must never escalate to SIGKILL.
 struct DesktopQuitWaiter: Sendable {
     var timeout: Duration = .seconds(30)
     var pollInterval: Duration = .milliseconds(100)
@@ -60,9 +55,8 @@ struct DesktopController: DesktopControlling {
     }
 
     func reopenDesktop() async throws {
-        guard let url = applicationURL() else {
-            throw DesktopControllerError.applicationNotFound
-        }
+        // Pure CLI users without Codex Desktop installed do not need a desktop launch.
+        guard let url = applicationURL() else { return }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         do {
@@ -80,7 +74,11 @@ struct DesktopController: DesktopControlling {
         }
         return applicationPaths
             .map(URL.init(fileURLWithPath:))
-            .first(where: { FileManager.default.fileExists(atPath: $0.path) })
+            .first(where: { url in
+                guard FileManager.default.fileExists(atPath: url.path),
+                      let bundleID = Bundle(url: url)?.bundleIdentifier else { return false }
+                return bundleIdentifiers.contains(bundleID)
+            })
     }
 
     private var isDesktopRunning: Bool {

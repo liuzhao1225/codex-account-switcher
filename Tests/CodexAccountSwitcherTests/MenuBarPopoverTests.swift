@@ -14,20 +14,21 @@ struct MenuBarPopoverTests {
             .appending(path: "popover-layout-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         var heights: [Int: CGFloat] = [:]
-        for count in [0, 1, 2, 3, 4, 20] {
+        var manageHeights: [Int: CGFloat] = [:]
+        for count in [0, 1, 2, 3, 4, 6, 20] {
             let model = try await makeModel(root: root.appending(path: "\(count)"), accountCount: count)
             await model.setShowsFiveHourUsage(expandedUsage)
             let updater = AppUpdater()
             let host = NSHostingController(rootView: MenuBarPopover(
-                model: model, updater: updater, tiboForecast: TiboForecastModel()
+                model: model, updater: updater
             ))
             let maximumSize = NSSize(width: 400, height: CGFloat.greatestFiniteMagnitude)
-            let manageSize = NSHostingController(rootView: ManageAccountsView(model: model, onBack: {}))
-                .sizeThatFits(in: maximumSize)
+            let manageHost = NSHostingController(rootView: ManageAccountsView(model: model, onBack: {}).frame(width: 400))
+            let manageSize = manageHost.sizeThatFits(in: maximumSize)
+            manageHeights[count] = manageSize.height
             let settingsSize = NSHostingController(rootView: SettingsView(model: model, updater: updater, onBack: {}))
                 .sizeThatFits(in: maximumSize)
 
-            // Exercise the first minimum-size probe, then heights left by both subpages.
             let firstSize = host.sizeThatFits(in: NSSize(width: 400, height: 0))
             heights[count] = firstSize.height
             for proposal in [manageSize, settingsSize, maximumSize] {
@@ -45,6 +46,8 @@ struct MenuBarPopoverTests {
         #expect(three > two)
         #expect(heights[4] == three)
         #expect(heights[20] == three)
+        // ManageAccountsView also caps its list height at 6 rows instead of overflowing off-screen.
+        #expect(manageHeights[20] == manageHeights[6])
     }
 
     private func makeModel(root: URL, accountCount: Int) async throws -> AppModel {

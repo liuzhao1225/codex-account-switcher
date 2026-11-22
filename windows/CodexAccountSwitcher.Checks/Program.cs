@@ -58,6 +58,10 @@ if (args.FirstOrDefault() == "runtime-cache") {
     finally { SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), runtimeRoot); }
 }
 
+if (args.FirstOrDefault() == "windows-update") {
+    return await UpdateChecks.RunAsync();
+}
+
 var host = args.FirstOrDefault() ?? Environment.GetEnvironmentVariable("CODEX_SWITCHER_HOST_PATH");
 if (string.IsNullOrEmpty(host) || !File.Exists(host)) {
     Console.Error.WriteLine("Pass the built SwitcherHost.exe path to run native/shared-core integration checks.");
@@ -70,7 +74,7 @@ Directory.CreateDirectory(active);
 try {
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
         await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
-        await UntilAsync(() => client.State.Strings.ContainsKey("manage"));
+        await UntilAsync(() => client.State.Strings?.ContainsKey("manage") == true);
         Require(client.State.Accounts.Length == 0, "Isolated startup should have no accounts.");
         Require(client.State.Settings.StatusBarUsageWindow == "fiveHour", "Five-hour usage should be the default tray window.");
         await client.CommandAsync("language", language: "simplifiedChinese");

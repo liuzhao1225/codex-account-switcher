@@ -33,6 +33,7 @@ public partial class App : Application
     private System.Drawing.Size trayIconSize;
     private int? trayIconPercent;
     private CoreClient? client;
+    private NativeSettings? native;
     private MainWindow? window;
     private DispatcherTimer? updates;
     private bool exiting;
@@ -42,17 +43,36 @@ public partial class App : Application
         base.OnStartup(e);
         if (!startRuntime) return;
         if (e.Args.Contains("--self-test")) { await SelfTestAsync(); return; }
+        if (e.Args.Contains("--apply-update")) { await ApplyUpdateModeAsync(e.Args); return; }
         try {
             var dataPath = Environment.GetEnvironmentVariable("CODEX_SWITCHER_DATA_HOME")
                 ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
+            var updatesRoot = Path.Combine(dataPath, "updates");
+            var cleanupStagingDir = ArgValue(e.Args, "--cleanup-update");
+            var cleanupWaitPid = int.TryParse(ArgValue(e.Args, "--wait-pid"), out var parsedWaitPid) ? parsedWaitPid : (int?)null;
+
             var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(dataPath).ToUpperInvariant())));
             instance = new Mutex(true, @"Local\CodexAccountSwitcher-" + key, out ownsMutex);
+            if (!ownsMutex && cleanupStagingDir != null) {
+                for (var attempt = 0; attempt < 20 && !ownsMutex; attempt++) {
+                    await Task.Delay(200);
+                    try { ownsMutex = instance.WaitOne(0); }
+                    catch (AbandonedMutexException) { ownsMutex = true; }
+                }
+            }
             activateWindow = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\CodexAccountSwitcher-Activate-" + key);
             if (!ownsMutex) { activateWindow.Set(); Shutdown(); return; }
+
+            var currentProcessPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(currentProcessPath)) {
+                _ = Task.Run(() => WindowsUpdater.CleanupAfterUpdate(currentProcessPath, updatesRoot, cleanupStagingDir, cleanupWaitPid));
+            }
+
             ApplyTheme();
             client = new CoreClient(HostRuntime.Resolve(Assembly.GetExecutingAssembly()), dataPath);
-            var native = new NativeSettings();
-            window = new MainWindow(client, native); MainWindow = window;
+            native = new NativeSettings();
+            var launchedInBackground = e.Args.Contains("--background");
+            window = new MainWindow(client, native, PrepareForUpdateRestartAsync, updatesRoot, launchedInBackground); MainWindow = window;
             activationListener = ThreadPool.RegisterWaitForSingleObject(activateWindow, (_, _) =>
                 Dispatcher.BeginInvoke(new Action(() => { if (!exiting) { ApplyTheme(); window.OpenWindow(); } })),
                 null, Timeout.Infinite, false);
@@ -66,14 +86,14 @@ public partial class App : Application
             var quitItem = new Forms.ToolStripMenuItem();
             quitItem.Click += (_, _) => _ = QuitAsync();
             trayMenu.Items.Add(openItem); trayMenu.Items.Add(new Forms.ToolStripSeparator()); trayMenu.Items.Add(quitItem);
-            trayMenu.Opening += (_, _) => { quitItem.Text = client.State.Text("quit"); quitItem.Enabled = !window.IsBusy; };
+            trayMenu.Opening += (_, _) => { quitItem.Text = client.State.Text("quit"); quitItem.Enabled = !window.IsBusy && !(native?.IsInstalling ?? false); };
             tray.ContextMenuStrip = trayMenu;
             tray.MouseClick += (_, args) => {
                 if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window.OpenWindow(); }
             };
             client.Changed += RefreshTray;
             await client.InitializeAsync();
-            if (!e.Args.Contains("--background")) window.OpenWindow();
+            if (!launchedInBackground) window.OpenWindow();
             updates = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
             updates.Tick += async (_, _) => { if (native.AutomaticallyCheckUpdates) await native.CheckUpdatesAsync(); };
             updates.Start();
@@ -82,6 +102,57 @@ public partial class App : Application
             MessageBox.Show(ex.Message, "Codex Account Switcher", MessageBoxButton.OK, MessageBoxImage.Error);
             await QuitAsync();
         }
+    }
+
+    private async Task ApplyUpdateModeAsync(string[] args)
+    {
+        try {
+            var stagedExePath = Environment.ProcessPath;
+            var target = ArgValue(args, "--target");
+            var staging = ArgValue(args, "--staging");
+            var pidText = ArgValue(args, "--parent-pid");
+            var relaunchInBackground = args.Contains("--background");
+            if (string.IsNullOrWhiteSpace(stagedExePath) || string.IsNullOrWhiteSpace(target)
+                || string.IsNullOrWhiteSpace(staging) || !int.TryParse(pidText, out var parentPid)) {
+                Shutdown(1);
+                return;
+            }
+            await WindowsUpdater.ApplyUpdateAsync(stagedExePath, target, parentPid, staging, relaunchInBackground);
+            Shutdown(0);
+        } catch (Exception ex) {
+            MessageBox.Show(ex.Message, "Codex Account Switcher", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    private static string? ArgValue(string[] args, string flag)
+    {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == flag) return args[i + 1];
+        }
+        return null;
+    }
+
+    private async Task<bool> PrepareForUpdateRestartAsync()
+    {
+        if (exiting || window?.IsBusy == true) return false;
+        exiting = true;
+        updates?.Stop();
+        activationListener?.Unregister(null);
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); client = null; }
+        if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
+        trayMenu?.Dispose(); trayMenu = null;
+        icon?.Dispose(); icon = null;
+        window?.CloseForExit();
+        activateWindow?.Dispose(); activateWindow = null;
+        if (ownsMutex) {
+            ownsMutex = false;
+            instance?.ReleaseMutex();
+        }
+        instance?.Dispose();
+        instance = null;
+        return true;
     }
 
     private void RefreshTray()
@@ -147,7 +218,7 @@ public partial class App : Application
         }
     }
     private async Task QuitAsync() {
-        if (exiting || window?.IsBusy == true) return;
+        if (exiting || window?.IsBusy == true || native?.IsInstalling == true) return;
         exiting = true; updates?.Stop();
         activationListener?.Unregister(null);
         if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); }

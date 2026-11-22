@@ -2,6 +2,14 @@ import SwitcherCore
 import SwiftUI
 
 struct AccountRow: View {
+    private static let isoDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     let account: AccountProfile
     let usageState: UsageViewState
     let subscription: SubscriptionSnapshot?
@@ -9,7 +17,8 @@ struct AccountRow: View {
     let isActive: Bool
     let language: AppLanguage
     let showsFiveHourUsage: Bool
-    @State private var isHovering = false
+    var now: Date = Date()
+    @ViewState private var isHovering = false
 
     private var accountTitle: String {
         account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
@@ -47,23 +56,20 @@ struct AccountRow: View {
 
                 usageContent
                 HStack(spacing: 8) {
-                    TimelineView(.periodic(from: .now, by: 30)) { context in
-                        Text(subscriptionText(at: context.date))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.9)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(subscriptionNeedsUpdate(at: context.date) ? Color.orange : Color.secondary)
-                            .help(subscriptionDetail(at: context.date))
-                            .accessibilityHint(subscriptionDetail(at: context.date))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(subscriptionText(at: now))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(subscriptionNeedsUpdate(at: now) ? Color.orange : Color.secondary)
+                        .help(subscriptionDetail(at: now))
+                        .accessibilityHint(subscriptionDetail(at: now))
                     if let usage = usageState.displayedUsage {
                         Text(resetCreditsText(for: usage))
                             .fixedSize(horizontal: true, vertical: false)
                     }
                 }
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                .font(.system(size: 10.5).monospacedDigit())
+                .foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
             if isActive {
@@ -252,11 +258,7 @@ struct AccountRow: View {
     }
 
     private func subscriptionDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        Self.isoDayFormatter.string(from: date)
     }
 
     private func subscriptionTime(_ date: Date) -> String {

@@ -34,16 +34,23 @@ public enum LiveSubscriptionError: Error, Equatable, Sendable, LocalizedError {
 public struct LiveSubscriptionClient: SubscriptionClient {
     /// Injection keeps checks offline. Production uses a bounded, redirect-blocking session.
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
+    public let clientVersion: String
     private let transport: Transport
     private let now: @Sendable () -> Date
     private static let maximumResponseBytes = 1_048_576
 
-    public init() {
+    public init(clientVersion: String = SwitcherVersion.current) {
+        self.clientVersion = clientVersion
         self.transport = { request in try await BoundedSubscriptionRequest.perform(request) }
         self.now = { Date() }
     }
 
-    public init(transport: @escaping Transport, now: @escaping @Sendable () -> Date = { Date() }) {
+    public init(
+        clientVersion: String = SwitcherVersion.current,
+        transport: @escaping Transport,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.clientVersion = clientVersion
         self.transport = transport
         self.now = now
     }
@@ -62,7 +69,7 @@ public struct LiveSubscriptionClient: SubscriptionClient {
         request.setValue(login.accountID, forHTTPHeaderField: "ChatGPT-Account-ID")
         request.setValue("codex-1", forHTTPHeaderField: "OpenAI-Beta")
         request.setValue("codex-account-switcher", forHTTPHeaderField: "Originator")
-        request.setValue("codex-account-switcher/0.1.21", forHTTPHeaderField: "User-Agent")
+        request.setValue("codex-account-switcher/\(clientVersion)", forHTTPHeaderField: "User-Agent")
         let data: Data
         let response: HTTPURLResponse
         do {

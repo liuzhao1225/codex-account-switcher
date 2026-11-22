@@ -22,7 +22,9 @@ public static class HostRuntime
     {
         var digest = Convert.ToHexString(SHA256.HashData(payload)); payload.Position = 0;
         SecureFiles.CreatePrivateDirectory(root);
-        var destination = Path.Combine(root, digest); SecureFiles.CreatePrivateDirectory(destination);
+        var destination = Path.Combine(root, digest);
+        var host = Path.Combine(destination, "SwitcherHost.exe");
+        SecureFiles.CreatePrivateDirectory(destination);
         using var archive = new ZipArchive(payload, ZipArchiveMode.Read);
         foreach (var entry in archive.Entries) {
             if (entry.FullName != entry.Name || entry.Name is "." or ".." || string.IsNullOrEmpty(entry.Name))
@@ -37,8 +39,18 @@ public static class HostRuntime
             using (var input = entry.Open()) input.CopyTo(bytes);
             SecureFiles.AtomicWrite(file, bytes.ToArray());
         }
-        var host = Path.Combine(destination, "SwitcherHost.exe");
         if (!File.Exists(host)) throw new IOException("The runtime archive has no Swift host.");
+        CleanupStaleRuntimes(root, digest);
         return host;
+    }
+
+    private static void CleanupStaleRuntimes(string root, string activeDigest)
+    {
+        try {
+            foreach (var directory in Directory.EnumerateDirectories(root)) {
+                if (string.Equals(Path.GetFileName(directory), activeDigest, StringComparison.OrdinalIgnoreCase)) continue;
+                try { SecureFiles.DeleteOwnedDirectory(root, directory); } catch { /* May be in use by an exiting instance. */ }
+            }
+        } catch { }
     }
 }

@@ -5,10 +5,10 @@ struct ManageAccountsView: View {
     @ObservedObject var model: AppModel
     let onBack: () -> Void
 
-    @State private var page: ManageAccountsPage = .accounts
-    @State private var apiKeyName = ""
-    @State private var apiKeySecret = ""
-    @State private var apiKeyError = false
+    @ViewState private var page: ManageAccountsPage = .accounts
+    @ViewState private var apiKeyName = ""
+    @ViewState private var apiKeySecret = ""
+    @ViewState private var apiKeyError = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,19 +64,15 @@ struct ManageAccountsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
+            } else if model.accounts.count <= 6 {
+                managedRows(model.accounts)
             } else {
-                Text(model.text("reorder_accounts"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.top, 10)
-                VStack(spacing: 2) {
-                    ForEach(model.accounts) { account in
-                        managedAccountRow(account)
+                managedRows(Array(model.accounts.prefix(6)))
+                    .hidden()
+                    .overlay {
+                        ScrollView { managedRows(model.accounts) }
                     }
-                }
-                .padding(5)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()
@@ -119,6 +115,15 @@ struct ManageAccountsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
         }
+    }
+
+    private func managedRows(_ accounts: [AccountProfile]) -> some View {
+        VStack(spacing: 2) {
+            ForEach(accounts) { account in
+                managedAccountRow(account)
+            }
+        }
+        .padding(5)
     }
 
     private var signInHint: some View {

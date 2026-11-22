@@ -29,28 +29,45 @@ static wchar_t *wide_path(const char *path) {
     return result;
 }
 
+// Reject reparse points on the target path and its local storage components (up to 4 trailing
+// levels), without breaking machines whose user profile or AppData root lives on a junction/Dev Drive.
 static DWORD check_path(const wchar_t *path) {
     DWORD size = GetFullPathNameW(path, 0, NULL, NULL);
     if (!size) return GetLastError();
     wchar_t *full = calloc((size_t)size + 1, sizeof(wchar_t));
     if (!full) return ERROR_OUTOFMEMORY;
     if (!GetFullPathNameW(path, size, full, NULL)) { DWORD error = GetLastError(); free(full); return error; }
-    DWORD error = ERROR_SUCCESS;
+
     size_t length = wcslen(full);
+    size_t separators[8];
+    size_t sep_count = 0;
     for (size_t i = 3; i <= length; i++) {
-        if (full[i] != L'\\' && full[i] != L'/' && full[i] != L'\0') continue;
-        wchar_t delimiter = full[i]; full[i] = L'\0';
+        if (full[i] == L'\\' || full[i] == L'/' || full[i] == L'\0') {
+            if (sep_count < 8) {
+                separators[sep_count++] = i;
+            } else {
+                memmove(separators, separators + 1, 7 * sizeof(size_t));
+                separators[7] = i;
+            }
+        }
+    }
+    size_t start_idx = sep_count > 4 ? sep_count - 4 : 0;
+    DWORD error = ERROR_SUCCESS;
+    for (size_t k = start_idx; k < sep_count; k++) {
+        size_t pos = separators[k];
+        wchar_t delimiter = full[pos];
+        full[pos] = L'\0';
         DWORD attributes = GetFileAttributesW(full);
-        if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) error = ERROR_REPARSE_TAG_INVALID;
-        full[i] = delimiter;
+        if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+            error = ERROR_REPARSE_TAG_INVALID;
+        }
+        full[pos] = delimiter;
         if (error) break;
     }
-    free(full); return error;
+    free(full);
+    return error;
 }
 
-// Foundation's recursive enumeration can report a missing file for existing cache
-// entries beyond MAX_PATH. Use absolute extended-length paths for the entire walk,
-// independently of the process manifest and the machine's long-path setting.
 static wchar_t *extended_path(const wchar_t *path) {
     DWORD size = GetFullPathNameW(path, 0, NULL, NULL);
     if (!size) return NULL;
@@ -81,12 +98,8 @@ static wchar_t *child_path(const wchar_t *directory, const wchar_t *name) {
     return child;
 }
 
-// Preflight the whole tree before changing anything, preserving the existing
-// reject-links policy. Check again during removal rather than trusting preflight
-// attributes after the directory has been enumerated a second time.
+// Preflight and remove using direct entry attributes without O(depth) GetFullPathNameW per file.
 static DWORD walk_directory(const wchar_t *path, int remove) {
-    DWORD error = check_path(path);
-    if (error) return error;
     DWORD attributes = GetFileAttributesW(path);
     if (attributes == INVALID_FILE_ATTRIBUTES) return GetLastError();
     if (attributes & FILE_ATTRIBUTE_REPARSE_POINT) return ERROR_REPARSE_TAG_INVALID;
@@ -96,23 +109,25 @@ static DWORD walk_directory(const wchar_t *path, int remove) {
     if (!pattern) return ERROR_OUTOFMEMORY;
     WIN32_FIND_DATAW entry;
     HANDLE search = FindFirstFileW(pattern, &entry);
-    error = search == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
+    DWORD error = search == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
     free(pattern);
     if (search == INVALID_HANDLE_VALUE) {
         if (error != ERROR_FILE_NOT_FOUND) return error;
     } else {
         do {
             if (wcscmp(entry.cFileName, L".") == 0 || wcscmp(entry.cFileName, L"..") == 0) continue;
+            if (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+                error = ERROR_REPARSE_TAG_INVALID;
+                break;
+            }
             wchar_t *child = child_path(path, entry.cFileName);
             if (!child) { error = ERROR_OUTOFMEMORY; break; }
-            error = check_path(child);
-            DWORD current = error ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(child);
-            if (!error && current == INVALID_FILE_ATTRIBUTES) error = GetLastError();
-            if (!error && (current & FILE_ATTRIBUTE_REPARSE_POINT)) error = ERROR_REPARSE_TAG_INVALID;
-            if (!error && (current & FILE_ATTRIBUTE_DIRECTORY)) {
+            DWORD current = GetFileAttributesW(child);
+            if (current == INVALID_FILE_ATTRIBUTES) error = GetLastError();
+            else if (current & FILE_ATTRIBUTE_REPARSE_POINT) error = ERROR_REPARSE_TAG_INVALID;
+            else if (current & FILE_ATTRIBUTE_DIRECTORY) {
                 error = walk_directory(child, remove);
-            } else if (!error && remove) {
-                // Git pack files in downloaded plugin caches can be read-only.
+            } else if (remove) {
                 if ((current & FILE_ATTRIBUTE_READONLY) &&
                     !SetFileAttributesW(child, current & ~FILE_ATTRIBUTE_READONLY)) error = GetLastError();
                 if (!error && !DeleteFileW(child)) error = GetLastError();
@@ -134,8 +149,9 @@ static DWORD walk_directory(const wchar_t *path, int remove) {
 uint32_t switcher_remove_directory(const char *utf8_path) {
     wchar_t *path = wide_path(utf8_path);
     if (!path) return GetLastError();
-    wchar_t *extended = extended_path(path);
-    DWORD error = extended ? ERROR_SUCCESS : GetLastError();
+    DWORD error = check_path(path);
+    wchar_t *extended = error ? NULL : extended_path(path);
+    if (!error && !extended) error = GetLastError();
     free(path);
     if (!error) error = walk_directory(extended, 0);
     if (!error) error = walk_directory(extended, 1);

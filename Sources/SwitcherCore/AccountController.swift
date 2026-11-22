@@ -7,17 +7,53 @@ private enum UsageRefreshResult: Sendable {
 
 @MainActor
 open class AccountController {
+    public var onWillChange: (@MainActor () -> Void)?
     public var onChange: (@MainActor () -> Void)?
-    public private(set) var accounts: [AccountProfile] = [] { didSet { onChange?() } }
-    public private(set) var activeAccountID: UUID? { didSet { onChange?() } }
-    public private(set) var usageStates: [UUID: UsageViewState] = [:] { didSet { onChange?() } }
-    public private(set) var subscriptionStates: [UUID: LiveSubscriptionState] = [:] { didSet { onChange?() } }
-    public private(set) var subscriptionSnapshots: [UUID: SubscriptionSnapshot] = [:] { didSet { onChange?() } }
-    public private(set) var settings: AppSettings = .default { didSet { onChange?() } }
-    public private(set) var isMutating = false { didSet { onChange?() } }
-    public private(set) var isAddingAccount = false { didSet { onChange?() } }
-    public var visibleError: OperationError? { didSet { onChange?() } }
-    public private(set) var activeIdentityConfirmed = true { didSet { onChange?() } }
+
+    private var batchDepth = 0
+    private var didSendWillChangeInBatch = false
+    private var hasChangedInBatch = false
+
+    public private(set) var accounts: [AccountProfile] = [] {
+        willSet { if newValue != accounts { prepareForMutation() } }
+        didSet { if accounts != oldValue { finishMutation() } }
+    }
+    public private(set) var activeAccountID: UUID? {
+        willSet { if newValue != activeAccountID { prepareForMutation() } }
+        didSet { if activeAccountID != oldValue { finishMutation() } }
+    }
+    public private(set) var usageStates: [UUID: UsageViewState] = [:] {
+        willSet { if newValue != usageStates { prepareForMutation() } }
+        didSet { if usageStates != oldValue { finishMutation() } }
+    }
+    public private(set) var subscriptionStates: [UUID: LiveSubscriptionState] = [:] {
+        willSet { if newValue != subscriptionStates { prepareForMutation() } }
+        didSet { if subscriptionStates != oldValue { finishMutation() } }
+    }
+    public private(set) var subscriptionSnapshots: [UUID: SubscriptionSnapshot] = [:] {
+        willSet { if newValue != subscriptionSnapshots { prepareForMutation() } }
+        didSet { if subscriptionSnapshots != oldValue { finishMutation() } }
+    }
+    public private(set) var settings: AppSettings = .default {
+        willSet { if newValue != settings { prepareForMutation() } }
+        didSet { if settings != oldValue { finishMutation() } }
+    }
+    public private(set) var isMutating = false {
+        willSet { if newValue != isMutating { prepareForMutation() } }
+        didSet { if isMutating != oldValue { finishMutation() } }
+    }
+    public private(set) var isAddingAccount = false {
+        willSet { if newValue != isAddingAccount { prepareForMutation() } }
+        didSet { if isAddingAccount != oldValue { finishMutation() } }
+    }
+    public var visibleError: OperationError? {
+        willSet { if newValue != visibleError { prepareForMutation() } }
+        didSet { if visibleError != oldValue { finishMutation() } }
+    }
+    public private(set) var activeIdentityConfirmed = true {
+        willSet { if newValue != activeIdentityConfirmed { prepareForMutation() } }
+        didSet { if activeIdentityConfirmed != oldValue { finishMutation() } }
+    }
 
     private let store: AccountStore
     private let codex: any AccountClient
@@ -27,6 +63,7 @@ open class AccountController {
     private var hasStarted = false
     private var usageRefreshTask: Task<Void, Never>?
     private var subscriptionRefreshTask: Task<Void, Never>?
+    private var usageTeardownTask: Task<Void, Never>?
     private var nextUsageRefreshTask: Task<Void, Never>?
     private var addAccountTask: Task<Void, Never>?
     private var backgroundUsageRefreshInterval: Duration = .seconds(300)
@@ -46,6 +83,37 @@ open class AccountController {
         self.codex = codex
         self.switchService = switchService
         self.subscriptionClient = subscriptionClient
+    }
+
+    public func prepareForMutation() {
+        if batchDepth == 0 {
+            onWillChange?()
+        } else if !didSendWillChangeInBatch {
+            didSendWillChangeInBatch = true
+            onWillChange?()
+        }
+    }
+
+    public func finishMutation() {
+        if batchDepth == 0 {
+            onChange?()
+        } else {
+            hasChangedInBatch = true
+        }
+    }
+
+    private func withBatchedUpdates<T>(_ body: () throws -> T) rethrows -> T {
+        batchDepth += 1
+        defer {
+            batchDepth -= 1
+            if batchDepth == 0 {
+                let changed = hasChangedInBatch
+                didSendWillChangeInBatch = false
+                hasChangedInBatch = false
+                if changed { onChange?() }
+            }
+        }
+        return try body()
     }
 
     public func text(_ key: String) -> String {
@@ -70,15 +138,23 @@ open class AccountController {
         isMutating = true
         defer { isMutating = false }
         do {
-            settings = try await store.loadSettings()
-            apply(try await store.loadRegistry())
+            let loadedSettings = try await store.loadSettings()
+            let loadedRegistry = try await store.loadRegistry()
+            withBatchedUpdates {
+                settings = loadedSettings
+                apply(loadedRegistry)
+            }
             try await syncActiveIdentity()
             await refreshSubscriptionSnapshots()
             do {
-                apply(try await store.loadUsageCache())
-                if subscriptionClient != nil {
-                    for (id, value) in try await store.loadLiveSubscriptions() {
-                        subscriptionStates[id] = .stale(value, text("subscription_refresh_pending"))
+                let cache = try await store.loadUsageCache()
+                let cachedSubs = subscriptionClient != nil ? try await store.loadLiveSubscriptions() : [:]
+                withBatchedUpdates {
+                    apply(cache)
+                    if subscriptionClient != nil {
+                        for (id, value) in cachedSubs {
+                            subscriptionStates[id] = .stale(value, text("subscription_refresh_pending"))
+                        }
                     }
                 }
             } catch {
@@ -93,13 +169,15 @@ open class AccountController {
     }
 
     public func refreshWeeklyUsage() {
+        guard !isMutating, usageRefreshTask == nil else { return }
         if isBackgroundUsageRefreshEnabled {
             scheduleNextWeeklyUsageRefresh()
         }
-        guard !isMutating, usageRefreshTask == nil else { return }
+        let teardown = usageTeardownTask
         usageRefreshTask = Task { [weak self] in
             guard let self else { return }
-            // A renewal can write the same credentials that the usage client reads.
+            await teardown?.value
+            guard !Task.isCancelled else { self.usageRefreshTask = nil; return }
             await self.cancelLiveSubscriptionRefresh()
             await self.performWeeklyUsageRefresh()
             self.usageRefreshTask = nil
@@ -110,6 +188,7 @@ open class AccountController {
     public func waitForWeeklyUsageRefresh() async {
         await usageRefreshTask?.value
         await subscriptionRefreshTask?.value
+        await usageTeardownTask?.value
     }
 
     private func refreshSubscriptionSnapshots() async {
@@ -138,6 +217,17 @@ open class AccountController {
         nextUsageRefreshTask = nil
         resetExpiryTask?.cancel()
         resetExpiryTask = nil
+        let usage = usageRefreshTask
+        let subscription = subscriptionRefreshTask
+        let previous = usageTeardownTask
+        usage?.cancel()
+        usageTeardownTask = Task { [weak self, codex] in
+            await previous?.value
+            await subscription?.value
+            await usage?.value
+            do { try await codex.stopUsageSessions() }
+            catch { self?.showError(error) }
+        }
     }
 
     private func scheduleNextWeeklyUsageRefresh() {
@@ -219,9 +309,6 @@ open class AccountController {
     }
 
     private func refreshLiveSubscriptions(using client: any SubscriptionClient) async {
-        // Each service response is account-bound. Authentication recovery runs
-        // only after all quota requests have finished, avoiding concurrent writers.
-        // Subscription results are cached outside auth.json.
         for account in accounts {
             guard !Task.isCancelled else { return }
             do {
@@ -234,8 +321,6 @@ open class AccountController {
                 return
             } catch {
                 guard !Task.isCancelled else { return }
-                // Errors are owned by this reader and contain no response body,
-                // request URL or credentials. File errors use a generic message.
                 let message = error is LiveSubscriptionError
                     ? error.localizedDescription : text("subscription_refresh_failed")
                 if let value = subscriptionStates[account.id]?.displayedSubscription {
@@ -259,14 +344,11 @@ open class AccountController {
         }
         do { return try await read() }
         catch LiveSubscriptionError.unauthenticated {
-            // Only an actual authentication rejection justifies token renewal.
-            // Desktop owns the active login; never rotate its saved copy here.
             guard account.id != activeAccountID,
                   subscriptionAuthAttempts[account.id].map({ Date().timeIntervalSince($0) >= 6 * 3_600 }) ?? true else {
                 throw LiveSubscriptionError.unauthenticated
             }
             try Task.checkCancellation()
-            // Revalidate immediately before allowing Codex to write this profile.
             guard try await store.permitsSubscriptionCredentialRenewal(profile: account) else {
                 throw LiveSubscriptionError.unauthenticated
             }
@@ -282,7 +364,6 @@ open class AccountController {
             } catch is CancellationError { throw CancellationError() }
             catch {
                 if Task.isCancelled { throw CancellationError() }
-                // Never expose app-server diagnostics, which can contain credentials.
                 throw LiveSubscriptionError.unauthenticated
             }
         }
@@ -291,20 +372,26 @@ open class AccountController {
     public func switchAccount(to id: UUID) async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
             guard id != activeAccountID else { return }
             try await switchService.switchAccount(to: id)
-            apply(try await store.loadRegistry())
+            let registry = try await store.loadRegistry()
+            withBatchedUpdates {
+                apply(registry)
+                activeIdentityConfirmed = true
+            }
             await refreshSubscriptionSnapshots()
-            activeIdentityConfirmed = true
         } catch let error as OperationError {
             if error.stage == .reopenDesktop {
                 do {
-                    apply(try await store.loadRegistry())
-                    activeIdentityConfirmed = true
+                    let registry = try await store.loadRegistry()
+                    withBatchedUpdates {
+                        apply(registry)
+                        activeIdentityConfirmed = true
+                    }
                 } catch {
                     showError(error)
                     return
@@ -317,8 +404,10 @@ open class AccountController {
                     underlyingDescription: error.underlyingDescription
                 )
             } else {
-                if error.stage == .saveCurrentCredential { activeIdentityConfirmed = false }
-                visibleError = error
+                withBatchedUpdates {
+                    if error.stage == .saveCurrentCredential { activeIdentityConfirmed = false }
+                    visibleError = error
+                }
             }
         } catch {
             showError(error)
@@ -327,8 +416,10 @@ open class AccountController {
 
     public func addAccount() {
         guard !isMutating, !isAddingAccount else { return }
-        visibleError = nil
-        isAddingAccount = true
+        withBatchedUpdates {
+            visibleError = nil
+            isAddingAccount = true
+        }
         addAccountTask = Task { [weak self] in
             guard let self else { return }
             await self.performAddAccount()
@@ -357,7 +448,8 @@ open class AccountController {
                 lastUsedAt: nil
             )
             try await store.addProfile(profile)
-            apply(try await store.loadRegistry())
+            let registry = try await store.loadRegistry()
+            withBatchedUpdates { apply(registry) }
             await refreshSubscriptionSnapshots()
         } catch {
             let loginError = error
@@ -376,9 +468,9 @@ open class AccountController {
     public func registerCurrentAccount() async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             guard await store.activeCredentialExists() else { throw AccountStoreError.activeCredentialMissing }
             try await syncActiveIdentity()
             await refreshSubscriptionSnapshots()
@@ -400,13 +492,18 @@ open class AccountController {
     public func removeAccount(id: UUID) async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
-        await cancelUsageRefresh()
         defer { isMutating = false; refreshWeeklyUsage() }
         do {
+            try await cancelUsageRefresh()
             try await syncActiveIdentity()
+            let home = await store.profileHome(id: id)
             try await store.removeAccount(id: id)
-            apply(try await store.loadRegistry())
-            usageStates[id] = nil
+            try await codex.forgetUsageSession(profileHome: home)
+            let registry = try await store.loadRegistry()
+            withBatchedUpdates {
+                apply(registry)
+                usageStates[id] = nil
+            }
         } catch {
             showError(error)
         }
@@ -417,8 +514,11 @@ open class AccountController {
         isMutating = true
         defer { isMutating = false }
         do {
-            apply(try await store.moveAccount(id: id, to: targetID))
-            visibleError = nil
+            let registry = try await store.moveAccount(id: id, to: targetID)
+            withBatchedUpdates {
+                apply(registry)
+                visibleError = nil
+            }
         } catch {
             showError(error)
         }
@@ -476,7 +576,7 @@ open class AccountController {
                 try await store.appendResetExpiryLog([ResetExpiryEvent(timestamp: Date(), event: "disabled")])
             }
         } catch {
-            stopAutoReset(error)
+            showError(error)
         }
     }
 
@@ -489,14 +589,18 @@ open class AccountController {
     }
 
     private func observeResetExpiry(profile: AccountProfile, usage: WeeklyUsage?, error: String? = nil) async {
-        guard settings.autoResetEnabled, var experiment = autoReset else { return }
-        let events = experiment.observe(profile: profile, usage: usage, error: error, at: Date())
-        autoReset = experiment
+        guard settings.autoResetEnabled else { return }
+        if autoReset == nil {
+            autoReset = AutoReset(history: (try? await store.loadResetExpiryLog()) ?? [])
+        }
+        guard var tracker = autoReset else { return }
+        let events = tracker.observe(profile: profile, usage: usage, error: error, at: Date())
+        autoReset = tracker
         do {
             try await store.appendResetExpiryLog(events)
             var latestUsage = usage
             for checkpoint in events where checkpoint.decision == "attempt" {
-                guard settings.autoResetEnabled, autoReset?.generation == experiment.generation,
+                guard settings.autoResetEnabled, autoReset?.generation == tracker.generation,
                       !Task.isCancelled else { return }
                 guard let creditID = checkpoint.creditID, let expiry = checkpoint.expiresAt,
                       expiry > Date(),
@@ -507,7 +611,7 @@ open class AccountController {
                     profileID: profile.id, account: profile.displayName, usage: latestUsage,
                     creditID: creditID, expiresAt: expiry, checkpointMinutes: checkpoint.checkpointMinutes,
                     scheduledAt: checkpoint.scheduledAt, idempotencyKey: key)
-                // Persist the attempt before the network mutation. An interrupted attempt is never replayed.
+                // Persist intent before network mutation so interrupted attempts are never replayed.
                 try await store.appendResetExpiryLog([attempt])
                 autoReset?.recordAttempt(attempt)
                 var result = ResetExpiryEvent(resetAttempted: true, timestamp: Date(), event: "reset_result",
@@ -516,15 +620,14 @@ open class AccountController {
                 let home = await store.profileHome(id: profile.id)
                 do {
                     try Task.checkCancellation()
-                    guard settings.autoResetEnabled, autoReset?.generation == experiment.generation else { return }
+                    guard settings.autoResetEnabled, autoReset?.generation == tracker.generation else { return }
                     result.outcome = try await codex.consumeResetCredit(profileHome: home, creditID: creditID, idempotencyKey: key)
                 } catch {
                     result.timestamp = Date()
                     result.error = error.localizedDescription
-                    do { try await store.appendResetExpiryLog([result]) }
-                    catch { throw AutoResetError(message: "\(result.error!) Log write failed: \(error.localizedDescription)") }
+                    try? await store.appendResetExpiryLog([result])
                     showError(AutoResetError(message: "\(profile.displayName) · \(creditID): \(error.localizedDescription)"))
-                    return
+                    continue
                 }
                 result.timestamp = Date()
                 try await store.appendResetExpiryLog([result])
@@ -540,26 +643,23 @@ open class AccountController {
                             throw AutoResetError(message: "\(profile.displayName) · \(creditID): reset returned success, but the usage read did not confirm credit consumption.")
                         }
                     }
+                    latestUsage = refreshed
+                    autoReset?.updateUsage(refreshed, profileID: profile.id)
+                    try await store.appendResetExpiryLog([ResetExpiryEvent(timestamp: Date(), event: "reset_verified",
+                        profileID: profile.id, account: profile.displayName, usage: refreshed,
+                        creditID: creditID, expiresAt: expiry, idempotencyKey: key, outcome: result.outcome)])
+                    usageStates[profile.id] = .loaded(refreshed)
+                    try await store.cacheWeeklyUsage(refreshed, profileID: profile.id)
                 } catch {
                     let message = error.localizedDescription
-                    do {
-                        try await store.appendResetExpiryLog([ResetExpiryEvent(timestamp: Date(), event: "reset_verification_failed",
-                            profileID: profile.id, account: profile.displayName, usage: readback, error: message,
-                            creditID: creditID, expiresAt: expiry, idempotencyKey: key, outcome: result.outcome)])
-                    } catch { throw AutoResetError(message: "\(message) Log write failed: \(error.localizedDescription)") }
-                    throw error
+                    try? await store.appendResetExpiryLog([ResetExpiryEvent(timestamp: Date(), event: "reset_verification_failed",
+                        profileID: profile.id, account: profile.displayName, usage: readback, error: message,
+                        creditID: creditID, expiresAt: expiry, idempotencyKey: key, outcome: result.outcome)])
+                    showError(error)
                 }
-                guard let refreshed = readback else { throw CodexClientError.malformedResponse }
-                latestUsage = refreshed
-                autoReset?.updateUsage(refreshed, profileID: profile.id)
-                try await store.appendResetExpiryLog([ResetExpiryEvent(timestamp: Date(), event: "reset_verified",
-                    profileID: profile.id, account: profile.displayName, usage: refreshed,
-                    creditID: creditID, expiresAt: expiry, idempotencyKey: key, outcome: result.outcome)])
-                usageStates[profile.id] = .loaded(refreshed)
-                try await store.cacheWeeklyUsage(refreshed, profileID: profile.id)
             }
         } catch {
-            stopAutoReset(error)
+            showError(error)
         }
     }
 
@@ -578,21 +678,15 @@ open class AccountController {
         }
     }
 
-    private func stopAutoReset(_ error: any Error) {
-        resetExpiryTask?.cancel()
-        resetExpiryTask = nil
-        autoReset = nil
-        showError(error)
-    }
-
     public func dismissError() {
         visibleError = nil
     }
 
-    private func cancelUsageRefresh() async {
+    private func cancelUsageRefresh() async throws {
         usageRefreshTask?.cancel()
         await cancelLiveSubscriptionRefresh()
         await usageRefreshTask?.value
+        try await codex.stopUsageSessions()
     }
 
     private func cancelLiveSubscriptionRefresh() async {
@@ -601,27 +695,37 @@ open class AccountController {
     }
 
     private func apply(_ registry: AccountRegistry) {
+        let validIDs = Set(registry.accounts.map(\.id))
         accounts = registry.accounts
         activeAccountID = registry.activeAccountID
-        usageStates = usageStates.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
-        subscriptionStates = subscriptionStates.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
-        subscriptionSnapshots = subscriptionSnapshots.filter { id, _ in registry.accounts.contains(where: { $0.id == id }) }
+        usageStates = usageStates.filter { validIDs.contains($0.key) }
+        subscriptionStates = subscriptionStates.filter { validIDs.contains($0.key) }
+        subscriptionSnapshots = subscriptionSnapshots.filter { validIDs.contains($0.key) }
     }
 
     private func apply(_ cache: UsageCache) {
         let validAccountIDs = Set(accounts.map(\.id))
+        var updated = usageStates
         for entry in cache.entries where validAccountIDs.contains(entry.profileID) {
-            usageStates[entry.profileID] = .loaded(entry.usage)
+            updated[entry.profileID] = .loaded(entry.usage)
         }
+        usageStates = updated
     }
 
     private func syncActiveIdentity() async throws {
         do {
-            apply(try await store.syncActiveCredential())
-            activeIdentityConfirmed = activeAccountID != nil || accounts.isEmpty
+            let registry = try await store.syncActiveCredential(beforeUpdatingProfile: { [codex] home in
+                try await codex.stopUsageSession(profileHome: home)
+            })
+            withBatchedUpdates {
+                apply(registry)
+                activeIdentityConfirmed = activeAccountID != nil || accounts.isEmpty
+            }
         } catch {
-            activeAccountID = nil
-            activeIdentityConfirmed = false
+            withBatchedUpdates {
+                activeAccountID = nil
+                activeIdentityConfirmed = false
+            }
             throw error
         }
     }

@@ -13,20 +13,39 @@ private struct Request: Decodable, Sendable {
     var error: String?
 }
 
+private struct SnapshotEnvelope: Encodable {
+    let kind = "snapshot"
+    let state: AccountSnapshot
+}
+
+private struct CompletedEnvelope: Encodable {
+    let kind = "completed"
+    let id: Int
+    let error: String?
+}
+
+private struct PlatformEnvelope: Encodable {
+    let kind = "platform"
+    let id: Int
+    let method: String
+    let url: String?
+}
+
+private struct ProtocolErrorEnvelope: Encodable {
+    let kind = "protocolError"
+    let error: String
+}
+
 private struct DesktopAdapter: DesktopControlling {
     let host: Host
     func closeDesktop() async throws { try await host.platform("closeDesktop") }
     func reopenDesktop() async throws { try await host.platform("reopenDesktop") }
 }
 
-private struct SnapshotMessage: Encodable {
-    let kind = "snapshot"
-    let state: AccountSnapshot
-}
-
 @MainActor
 private final class Host {
     private var controller: AccountController?
+    private var lastSentLanguage: AppLanguage?
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var commands: [Int: Task<Void, Never>] = [:]
@@ -42,9 +61,7 @@ private final class Host {
         let id = nextID
         try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
-            var message: [String: Any] = ["kind": "platform", "id": id, "method": method]
-            if let url { message["url"] = url.absoluteString }
-            send(message)
+            send(PlatformEnvelope(id: id, method: method, url: url?.absoluteString))
         }
     }
 
@@ -61,14 +78,14 @@ private final class Host {
             commands[request.id] = Task {
                 do {
                     try await execute(request)
-                    send(["kind": "completed", "id": request.id])
+                    send(CompletedEnvelope(id: request.id, error: nil))
                 } catch {
-                    send(["kind": "completed", "id": request.id, "error": error.localizedDescription])
+                    send(CompletedEnvelope(id: request.id, error: error.localizedDescription))
                 }
                 commands[request.id] = nil
             }
         } catch {
-            send(["kind": "protocolError", "error": "Invalid host command."])
+            send(ProtocolErrorEnvelope(error: "Invalid host command."))
         }
     }
 
@@ -86,12 +103,16 @@ private final class Host {
                 }
                 try await platform("openBrowser", url: url)
             })
-            let model = AccountController(store: store, codex: codex,
-                switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()))
+            let model = AccountController(
+                store: store,
+                codex: codex,
+                switchService: SwitchService(desktop: DesktopAdapter(host: self), store: store, codex: CredentialIdentity()),
+                subscriptionClient: LiveSubscriptionClient()
+            )
             controller = model
             model.onChange = { [weak self] in self?.scheduleSnapshot() }
             await model.startBackgroundUsageRefresh()
-            scheduleSnapshot()
+            sendSnapshot(forceStrings: true)
             return
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
@@ -150,19 +171,24 @@ private final class Host {
         }
     }
 
-    private func sendSnapshot() {
+    private func sendSnapshot(forceStrings: Bool = false) {
         guard let model = controller else { return }
-        do {
-            var bytes = try encoder.encode(SnapshotMessage(state: model.snapshot))
-            bytes.append(0x0A)
-            try FileHandle.standardOutput.write(contentsOf: bytes)
-        } catch { send(["kind": "protocolError", "error": "Could not encode account state."]) }
+        let includeStrings = forceStrings || lastSentLanguage != model.settings.language
+        let state = model.snapshot(includeStrings: includeStrings)
+        lastSentLanguage = model.settings.language
+        send(SnapshotEnvelope(state: state))
     }
 
-    private func send(_ message: [String: Any]) {
-        guard var bytes = try? JSONSerialization.data(withJSONObject: message) else { return }
-        bytes.append(0x0A)
-        try? FileHandle.standardOutput.write(contentsOf: bytes)
+    private func send<T: Encodable>(_ message: T) {
+        do {
+            var bytes = try encoder.encode(message)
+            bytes.append(0x0A)
+            try FileHandle.standardOutput.write(contentsOf: bytes)
+        } catch {
+            if !(message is ProtocolErrorEnvelope) {
+                send(ProtocolErrorEnvelope(error: "Could not encode host message."))
+            }
+        }
     }
 
     func shutdown() {

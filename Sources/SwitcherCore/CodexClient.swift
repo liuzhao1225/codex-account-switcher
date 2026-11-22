@@ -77,12 +77,17 @@ private final class LinePump: @unchecked Sendable {
     private var lines: [Data] = []
     private var waiters: [CheckedContinuation<Data?, Never>] = []
     private var isFinished = false
+    private let maximumQueuedLines = 256
 
     public init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
-            guard let self else { return }
+            guard let self else {
+                readable.readabilityHandler = nil
+                return
+            }
             let data = readable.availableData
             guard !data.isEmpty else {
+                // Must clear readabilityHandler on EOF to avoid Darwin EV_EOF spin loops.
                 readable.readabilityHandler = nil
                 self.finish()
                 return
@@ -130,6 +135,9 @@ private final class LinePump: @unchecked Sendable {
             lock.unlock()
             waiter.resume(returning: line)
         } else {
+            if lines.count >= maximumQueuedLines {
+                lines.removeFirst(lines.count - maximumQueuedLines + 1)
+            }
             lines.append(line)
             lock.unlock()
         }
@@ -186,7 +194,10 @@ private final class StderrDrain: @unchecked Sendable {
 
     public init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
-            guard let self else { return }
+            guard let self else {
+                readable.readabilityHandler = nil
+                return
+            }
             let data = readable.availableData
             guard !data.isEmpty else {
                 readable.readabilityHandler = nil
@@ -204,6 +215,15 @@ private final class StderrDrain: @unchecked Sendable {
 }
 
 private actor JSONRPCSession {
+    private static let isolatedArguments = [
+        "app-server",
+        "-c", "cli_auth_credentials_store=\"file\"",
+        "-c", "features.plugins=false",
+        "-c", "features.remote_plugin=false",
+        "-c", "features.apps=false",
+        "-c", "features.shell_snapshot=false",
+    ]
+
     private let process: Process
     private let input: FileHandle
     private let output: FileHandle
@@ -213,19 +233,16 @@ private actor JSONRPCSession {
     private let decoder = JSONDecoder()
     private var didTimeout = false
     private var pendingNotifications: [RPCEnvelope] = []
-    private var stopTask: Task<Bool, Never>?
+    private let stopState = SessionStopState()
+    private var didStop = false
 
-    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String],
-                fileCredentials: Bool = false) throws {
+    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = executableURL
-        process.arguments = ["app-server"]
-        if fileCredentials {
-            process.arguments?.append(contentsOf: ["-c", "cli_auth_credentials_store=\"file\""])
-        }
+        process.arguments = Self.isolatedArguments
         var environment = inheritedEnvironment
         environment["CODEX_HOME"] = profileHome.path
         process.environment = environment
@@ -245,9 +262,22 @@ private actor JSONRPCSession {
         do {
             try process.run()
         } catch {
+            output.readabilityHandler = nil
+            errorOutput.readabilityHandler = nil
             throw CodexClientError.processLaunchFailed(error.localizedDescription)
         }
     }
+
+    deinit {
+        output.readabilityHandler = nil
+        errorOutput.readabilityHandler = nil
+        try? input.close()
+        if process.isRunning { process.terminate() }
+        pump.finish()
+        stderrDrain.finish()
+    }
+
+    public var isRunning: Bool { process.isRunning && !didStop }
 
     public func initialize(timeout: Duration, clientVersion: String) async throws {
         try send([
@@ -287,15 +317,14 @@ private actor JSONRPCSession {
 
     @discardableResult
     public func stop() async -> Bool {
-        if let stopTask { return await stopTask.value }
+        didStop = true
         output.readabilityHandler = nil
         errorOutput.readabilityHandler = nil
         try? input.close()
         pump.finish()
         stderrDrain.finish()
         let process = process
-        // Cleanup must survive cancellation of the request that owns this session.
-        let task = Task.detached {
+        return await stopState.stop(isRunning: { process.isRunning }) {
             if process.isRunning { process.terminate() }
             for _ in 0..<100 {
                 if !process.isRunning { return true }
@@ -304,16 +333,12 @@ private actor JSONRPCSession {
             #if canImport(Darwin) || canImport(Glibc)
             if process.isRunning { _ = kill(process.processIdentifier, SIGKILL) }
             #endif
-            // Poll Foundation's exit state instead of blocking an executor with
-            // waitUntilExit. Never report a successful refresh with a live writer.
             for _ in 0..<50 {
                 if !process.isRunning { return true }
                 try? await Task.sleep(for: .milliseconds(20))
             }
             return !process.isRunning
         }
-        stopTask = task
-        return await task.value
     }
 
     private func response(id: Int, timeout: Duration) async throws -> RPCEnvelope {
@@ -332,9 +357,7 @@ private actor JSONRPCSession {
             do {
                 try await Task.sleep(for: timeout)
                 await self?.triggerTimeout()
-            } catch {
-                // Cancellation means a response arrived before the deadline.
-            }
+            } catch {}
         }
         defer { timeoutTask.cancel() }
 
@@ -351,7 +374,6 @@ private actor JSONRPCSession {
                 }
                 return message
             }
-            // Login completion can arrive before the login/start response.
             if message.method == "account/login/completed", message.id == nil {
                 pendingNotifications.append(message)
                 if pendingNotifications.count > 16 { pendingNotifications.removeFirst() }
@@ -384,8 +406,8 @@ public struct CodexExecutableLocator: Sendable {
     private let desktopApplicationURLs: [URL]
 
     public init(explicitURL: URL? = nil, desktopApplicationURLs: [URL] = [
-        URL(fileURLWithPath: "/Applications/ChatGPT.app"),
         URL(fileURLWithPath: "/Applications/Codex.app"),
+        URL(fileURLWithPath: "/Applications/ChatGPT.app"),
     ]) {
         self.explicitURL = explicitURL
         self.desktopApplicationURLs = desktopApplicationURLs
@@ -407,9 +429,18 @@ public struct CodexExecutableLocator: Sendable {
             return URL(fileURLWithPath: executable)
         }
         for directory in (environment["Path"] ?? environment["PATH"] ?? "").split(separator: ";") {
-            let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent(
+            let dirURL = URL(fileURLWithPath: String(directory))
+            let candidate = dirURL.appendingPathComponent(
                 executable.lowercased().hasSuffix(".exe") ? executable : executable + ".exe")
             if isExecutable(candidate.path) { return candidate }
+            // Support standard Windows global npm installations (`codex.cmd` -> `@openai/codex` native binary).
+            if command == nil || command == "" || executable.caseInsensitiveCompare("codex") == .orderedSame {
+                let npmScript = dirURL.appendingPathComponent("node_modules/@openai/codex/bin/codex.js")
+                if FileManager.default.fileExists(atPath: dirURL.appendingPathComponent("codex.cmd").path),
+                   let native = try? unwrapOfficialNPMLauncher(npmScript) {
+                    return native
+                }
+            }
         }
         if let local = environment["LOCALAPPDATA"] {
             let bin = URL(fileURLWithPath: local).appendingPathComponent("OpenAI/Codex/bin")
@@ -463,76 +494,172 @@ public struct CodexExecutableLocator: Sendable {
         var environment = environment
         #if !os(Windows)
         if explicitURL == nil {
-            // GUI apps do not inherit the terminal's login PATH. Read the same shell settings
-            // Desktop uses, and pass that PATH to npm's `#!/usr/bin/env node` launcher as well.
-            let shell = Process()
-            let output = Pipe()
-            shell.executableURL = URL(fileURLWithPath: environment["SHELL"] ?? "/bin/zsh")
-            // Quoted PATH is colon-separated in fish too. Keep defaulting in locate()
-            // because fish does not support POSIX ${VAR:-default} expansion.
-            shell.arguments = ["-l", "-c", "printf '\\0%s\\0%s\\0' \"$PATH\" \"$CODEX_CLI_PATH\""]
-            shell.environment = environment
-            shell.standardOutput = output
-            shell.standardError = FileHandle.nullDevice
-            try shell.run()
-            let bytes = output.fileHandleForReading.readDataToEndOfFile()
-            shell.waitUntilExit()
-            let fields = String(decoding: bytes, as: UTF8.self).split(separator: "\0", omittingEmptySubsequences: false)
-            guard shell.terminationStatus == 0, fields.count >= 4 else {
-                throw CodexClientError.processLaunchFailed("Could not read the login shell's Codex path.")
-            }
-            environment["PATH"] = String(fields[fields.count - 3])
-            environment["CODEX_CLI_PATH"] = String(fields[fields.count - 2])
+            let resolved = try Self.readLoginShellEnvironmentSync(environment: environment)
+            environment["PATH"] = resolved.path
+            environment["CODEX_CLI_PATH"] = resolved.codexCLIPath
         }
         #endif
-        let executable = try locate(environment: environment)
-        return (requireDirectExecutable ? try credentialRefreshExecutable(executable) : executable, environment)
+        return try finalizeLaunchConfiguration(environment: environment, requireDirectExecutable: requireDirectExecutable)
     }
 
-    private func credentialRefreshExecutable(_ executable: URL) throws -> URL {
-        let resolved = executable.resolvingSymlinksInPath().standardizedFileURL
-        // The official npm entry spawns a native child. Launch that child directly
-        // so the session's exit wait covers the process that can write auth.json.
-        if resolved.lastPathComponent == "codex.js", resolved.deletingLastPathComponent().lastPathComponent == "bin" {
-            let root = resolved.deletingLastPathComponent().deletingLastPathComponent()
-            if let data = try? Data(contentsOf: root.appendingPathComponent("package.json")),
-               let manifest = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-               manifest["name"] as? String == "@openai/codex",
-               let bin = manifest["bin"] as? [String: Any],
-               let entry = bin["codex"] as? String,
-               root.appendingPathComponent(entry).resolvingSymlinksInPath().standardizedFileURL == resolved {
-                let (package, triple, name) = try npmPlatform()
-                var vendor = root.appendingPathComponent("vendor")
-                // Match Node's ancestor node_modules lookup, including hoisted
-                // dependencies and symlinked pnpm package directories.
-                var directory = root.standardizedFileURL
-                for _ in 0..<256 {
-                    if directory.lastPathComponent != "node_modules" {
-                        let dependency = directory.appendingPathComponent("node_modules/\(package)")
-                        if FileManager.default.fileExists(atPath: dependency.appendingPathComponent("package.json").path) {
-                            vendor = dependency.appendingPathComponent("vendor")
-                            break
-                        }
-                    }
-                    if directory.path == "/" { break }
-                    let parent = directory.deletingLastPathComponent().standardizedFileURL
-                    if parent.path == directory.path { break }
-                    directory = parent
-                }
-                for folder in ["bin", "codex"] {
-                    let native = vendor.appendingPathComponent("\(triple)/\(folder)/\(name)")
-                    if isExecutable(native.path) {
-                        return try checkedNativeExecutable(native.resolvingSymlinksInPath())
-                    }
-                }
-                throw CodexClientError.processLaunchFailed("The official Codex npm package is missing its native executable.")
+    func launchConfigurationAsync(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        requireDirectExecutable: Bool = false,
+        shellTimeout: Duration = .seconds(5)
+    ) async throws -> (executable: URL, environment: [String: String]) {
+        var environment = environment
+        #if !os(Windows)
+        if explicitURL == nil {
+            let resolved = try await Self.readLoginShellEnvironmentAsync(environment: environment, timeout: shellTimeout)
+            environment["PATH"] = resolved.path
+            environment["CODEX_CLI_PATH"] = resolved.codexCLIPath
+        }
+        #endif
+        return try finalizeLaunchConfiguration(environment: environment, requireDirectExecutable: requireDirectExecutable)
+    }
+
+    private func finalizeLaunchConfiguration(
+        environment: [String: String],
+        requireDirectExecutable: Bool
+    ) throws -> (executable: URL, environment: [String: String]) {
+        let located = try locate(environment: environment)
+        if let native = try unwrapOfficialLauncher(located) {
+            return (native, environment)
+        }
+        return (requireDirectExecutable ? try checkedNativeExecutable(located) : located, environment)
+    }
+
+    #if !os(Windows)
+    private static func parseShellFields(_ bytes: Data, status: Int32) throws -> (path: String, codexCLIPath: String) {
+        let fields = String(decoding: bytes, as: UTF8.self).split(separator: "\0", omittingEmptySubsequences: false)
+        guard status == 0, fields.count >= 4 else {
+            throw CodexClientError.processLaunchFailed("Could not read the login shell's Codex path.")
+        }
+        return (String(fields[fields.count - 3]), String(fields[fields.count - 2]))
+    }
+
+    private static func readLoginShellEnvironmentSync(environment: [String: String]) throws -> (path: String, codexCLIPath: String) {
+        let shell = Process()
+        let output = Pipe()
+        shell.executableURL = URL(fileURLWithPath: environment["SHELL"] ?? "/bin/zsh")
+        shell.arguments = ["-l", "-c", "printf '\\0%s\\0%s\\0' \"$PATH\" \"$CODEX_CLI_PATH\""]
+        shell.environment = environment
+        shell.standardOutput = output
+        shell.standardError = FileHandle.nullDevice
+        try shell.run()
+        let bytes = output.fileHandleForReading.readDataToEndOfFile()
+        shell.waitUntilExit()
+        return try parseShellFields(bytes, status: shell.terminationStatus)
+    }
+
+    private static func readLoginShellEnvironmentAsync(
+        environment: [String: String],
+        timeout: Duration
+    ) async throws -> (path: String, codexCLIPath: String) {
+        let shell = Process()
+        let output = Pipe()
+        let handle = output.fileHandleForReading
+        shell.executableURL = URL(fileURLWithPath: environment["SHELL"] ?? "/bin/zsh")
+        shell.arguments = ["-l", "-c", "printf '\\0%s\\0%s\\0' \"$PATH\" \"$CODEX_CLI_PATH\""]
+        shell.environment = environment
+        shell.standardOutput = output
+        shell.standardError = FileHandle.nullDevice
+
+        let collector = ShellOutputCollector(handle: handle)
+        let timeoutTask = Task {
+            try? await Task.sleep(for: timeout)
+            if shell.isRunning {
+                shell.terminate()
+                try? await Task.sleep(for: .milliseconds(100))
+                if shell.isRunning { _ = kill(shell.processIdentifier, SIGKILL) }
             }
         }
-        return try checkedNativeExecutable(executable)
+        defer { timeoutTask.cancel() }
+
+        return try await withTaskCancellationHandler {
+            let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+                shell.terminationHandler = { finished in
+                    continuation.resume(returning: finished.terminationStatus)
+                }
+                do {
+                    try shell.run()
+                } catch {
+                    shell.terminationHandler = nil
+                    handle.readabilityHandler = nil
+                    collector.finish()
+                    continuation.resume(throwing: CodexClientError.processLaunchFailed(error.localizedDescription))
+                }
+            }
+            let bytes = await collector.bytes()
+            return try parseShellFields(bytes, status: status)
+        } onCancel: {
+            if shell.isRunning { shell.terminate() }
+        }
+    }
+    #endif
+
+    /// Unwraps official Codex wrapper scripts (`@openai/codex` `bin/codex.js` or Desktop's
+    /// `Contents/Resources/codex-cli/bin/codex`) to their underlying native binary so process
+    /// lifecycle management tracks the actual `codex` process directly.
+    private func unwrapOfficialLauncher(_ executable: URL) throws -> URL? {
+        let resolved = executable.resolvingSymlinksInPath().standardizedFileURL
+        if resolved.lastPathComponent == "codex",
+           resolved.deletingLastPathComponent().lastPathComponent == "bin",
+           resolved.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "codex-cli" {
+            let bundled = resolved
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("CodexCLI.app/Contents/MacOS/codex")
+            if isExecutable(bundled.path) {
+                return try checkedNativeExecutable(bundled)
+            }
+        }
+        return try unwrapOfficialNPMLauncher(executable)
+    }
+
+    private func unwrapOfficialNPMLauncher(_ executable: URL) throws -> URL? {
+        let resolved = executable.resolvingSymlinksInPath().standardizedFileURL
+        guard resolved.lastPathComponent == "codex.js",
+              resolved.deletingLastPathComponent().lastPathComponent == "bin" else {
+            return nil
+        }
+        let root = resolved.deletingLastPathComponent().deletingLastPathComponent()
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("package.json")),
+              let manifest = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              manifest["name"] as? String == "@openai/codex",
+              let bin = manifest["bin"] as? [String: Any],
+              let entry = bin["codex"] as? String,
+              root.appendingPathComponent(entry).resolvingSymlinksInPath().standardizedFileURL == resolved else {
+            return nil
+        }
+        let (package, triple, name) = try npmPlatform()
+        var vendor = root.appendingPathComponent("vendor")
+        var directory = root.standardizedFileURL
+        for _ in 0..<256 {
+            if directory.lastPathComponent != "node_modules" {
+                let dependency = directory.appendingPathComponent("node_modules/\(package)")
+                if FileManager.default.fileExists(atPath: dependency.appendingPathComponent("package.json").path) {
+                    vendor = dependency.appendingPathComponent("vendor")
+                    break
+                }
+            }
+            if directory.path == "/" { break }
+            let parent = directory.deletingLastPathComponent().standardizedFileURL
+            if parent.path == directory.path { break }
+            directory = parent
+        }
+        for folder in ["bin", "codex"] {
+            let native = vendor.appendingPathComponent("\(triple)/\(folder)/\(name)")
+            if isExecutable(native.path) {
+                return try checkedNativeExecutable(native.resolvingSymlinksInPath())
+            }
+        }
+        throw CodexClientError.processLaunchFailed("The official Codex npm package is missing its native executable.")
     }
 
     private func checkedNativeExecutable(_ executable: URL) throws -> URL {
-        let handle = try FileHandle(forReadingFrom: executable)
+        let resolved = executable.resolvingSymlinksInPath()
+        let handle = try FileHandle(forReadingFrom: resolved)
         defer { try? handle.close() }
         let prefix = Array(try handle.read(upToCount: 4) ?? Data())
         let machHeaders: [[UInt8]] = [
@@ -546,7 +673,7 @@ public struct CodexExecutableLocator: Sendable {
         guard isNative else {
             throw CodexClientError.processLaunchFailed("Credential renewal requires a native Codex executable or its official npm launcher.")
         }
-        return executable
+        return resolved
     }
 
     private func npmPlatform() throws -> (package: String, triple: String, name: String) {
@@ -570,7 +697,7 @@ public struct CodexExecutableLocator: Sendable {
         #endif
     }
 
-    private func isExecutable(_ path: String) -> Bool {
+    func isExecutable(_ path: String) -> Bool {
         #if os(Windows)
         var isDirectory: ObjCBool = false
         return path.lowercased().hasSuffix(".exe")
@@ -581,18 +708,108 @@ public struct CodexExecutableLocator: Sendable {
     }
 }
 
+#if !os(Windows)
+private final class ShellOutputCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+    private var finished = false
+    private var waiters: [CheckedContinuation<Data, Never>] = []
+
+    init(handle: FileHandle) {
+        handle.readabilityHandler = { [weak self] readable in
+            guard let self else {
+                readable.readabilityHandler = nil
+                return
+            }
+            let chunk = readable.availableData
+            guard !chunk.isEmpty else {
+                readable.readabilityHandler = nil
+                self.finish()
+                return
+            }
+            self.lock.lock()
+            self.data.append(chunk)
+            self.lock.unlock()
+        }
+    }
+
+    func finish() {
+        lock.lock()
+        guard !finished else { lock.unlock(); return }
+        finished = true
+        let snapshot = data
+        let pending = waiters
+        waiters.removeAll()
+        lock.unlock()
+        pending.forEach { $0.resume(returning: snapshot) }
+    }
+
+    func bytes() async -> Data {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if finished {
+                let snapshot = data
+                lock.unlock()
+                continuation.resume(returning: snapshot)
+            } else {
+                waiters.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+}
+#endif
+
+private actor LaunchConfigurationCache {
+    private struct Entry {
+        let executable: URL
+        let environment: [String: String]
+        let resolvedAt: ContinuousClock.Instant
+    }
+
+    private var cached: Entry?
+    private let ttl: Duration = .seconds(300)
+
+    func resolve(
+        using locator: CodexExecutableLocator,
+        requireDirectExecutable: Bool
+    ) async throws -> (executable: URL, environment: [String: String]) {
+        if locator.explicitURL != nil {
+            return try await locator.launchConfigurationAsync(requireDirectExecutable: requireDirectExecutable)
+        }
+        if !requireDirectExecutable,
+           let cached,
+           ContinuousClock.now - cached.resolvedAt < ttl,
+           locator.isExecutable(cached.executable.path) {
+            return (cached.executable, cached.environment)
+        }
+        let fresh = try await locator.launchConfigurationAsync(requireDirectExecutable: requireDirectExecutable)
+        if !requireDirectExecutable {
+            cached = Entry(executable: fresh.executable, environment: fresh.environment, resolvedAt: .now)
+        }
+        return fresh
+    }
+}
+
 public enum ResetCreditOutcome: String, Codable, Sendable {
     case reset, nothingToReset, noCredit, alreadyRedeemed
 }
 
 public protocol AccountClient: CodexIdentityReading {
     func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage
+    func stopUsageSessions() async throws
+    func stopUsageSession(profileHome: URL) async throws
+    func forgetUsageSession(profileHome: URL) async throws
     func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome
     func refreshIdentity(profileHome: URL) async throws -> AccountIdentity
     func login(profileHome: URL) async throws -> AccountIdentity
 }
 
 extension AccountClient {
+    public func stopUsageSessions() async throws {}
+    public func stopUsageSession(profileHome: URL) async throws { try await stopUsageSessions() }
+    public func forgetUsageSession(profileHome: URL) async throws { try await stopUsageSession(profileHome: profileHome) }
+
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
         throw CodexClientError.identityUnavailable
     }
@@ -602,17 +819,25 @@ public struct CodexClient: AccountClient {
     public let locator: CodexExecutableLocator
     public let requestTimeout: Duration
     public let clientVersion: String
+    private let usageSessions: UsageSessions
+    private let launchCache = LaunchConfigurationCache()
     private let openBrowser: @Sendable (URL) async throws -> Void
 
-    public init(locator: CodexExecutableLocator = .init(), requestTimeout: Duration = .seconds(20),
-                clientVersion: String = "0.1.27",
-                openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser) {
+    public init(
+        locator: CodexExecutableLocator = .init(),
+        requestTimeout: Duration = .seconds(20),
+        clientVersion: String = SwitcherVersion.current,
+        usageSessionIdleTimeout: Duration = .seconds(90),
+        openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser
+    ) {
+        self.usageSessions = UsageSessions(idleTimeout: usageSessionIdleTimeout)
         self.locator = locator
         self.requestTimeout = requestTimeout
         self.clientVersion = clientVersion
         self.openBrowser = openBrowser
     }
 
+    @Sendable
     public static func defaultOpenBrowser(_ url: URL) async throws {
         #if canImport(AppKit)
         guard await MainActor.run(body: { NSWorkspace.shared.open(url) }) else {
@@ -636,13 +861,14 @@ public struct CodexClient: AccountClient {
     }
 
     public func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
-        let result = try await withSession(profileHome: profileHome) { session in
-            try await session.request(
-                method: "account/rateLimits/read",
-                id: 1,
-                timeout: requestTimeout
-            )
-        }
+        let worker = await usageSessions.worker(for: profileHome)
+        let locator = locator
+        let launchCache = launchCache
+        let result = try await worker.read(
+            resolveLaunch: { try await launchCache.resolve(using: locator, requireDirectExecutable: false) },
+            timeout: requestTimeout,
+            clientVersion: clientVersion
+        )
         let availableCount = result["rateLimitResetCredits"]?["availableCount"]?.intValue
         let credits: [BankedResetCredit]?
         switch result["rateLimitResetCredits"]?["credits"] {
@@ -673,20 +899,26 @@ public struct CodexClient: AccountClient {
     }
 
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
-        let result = try await withSession(profileHome: profileHome, fileCredentials: true) { session in
-            try await session.request(method: "account/read", id: 1,
-                                      params: ["refreshToken": true], timeout: requestTimeout)
+        let worker = await usageSessions.worker(for: profileHome)
+        let result = try await worker.withStoppedSession {
+            try await withSession(profileHome: profileHome, requireDirectExecutable: true) { session in
+                try await session.request(method: "account/read", id: 1,
+                                          params: ["refreshToken": true], timeout: requestTimeout)
+            }
         }
         return try parseIdentity(result, profileHome: profileHome)
     }
 
     public func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
-        let result = try await withSession(profileHome: profileHome) { session in
-            try await session.request(
-                method: "account/rateLimitResetCredit/consume", id: 1,
-                params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
-                timeout: requestTimeout
-            )
+        let worker = await usageSessions.worker(for: profileHome)
+        let result = try await worker.withStoppedSession {
+            try await withSession(profileHome: profileHome) { session in
+                try await session.request(
+                    method: "account/rateLimitResetCredit/consume", id: 1,
+                    params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
+                    timeout: requestTimeout
+                )
+            }
         }
         guard let value = result["outcome"]?.stringValue,
               let outcome = ResetCreditOutcome(rawValue: value) else {
@@ -733,14 +965,28 @@ public struct CodexClient: AccountClient {
         }
     }
 
+    public func stopUsageSessions() async throws {
+        try await usageSessions.stop()
+    }
+
+    public func stopUsageSession(profileHome: URL) async throws {
+        try await usageSessions.stop(for: profileHome)
+    }
+
+    public func forgetUsageSession(profileHome: URL) async throws {
+        try await usageSessions.forget(for: profileHome)
+    }
+
+    var usageSessionCount: Int { get async { await usageSessions.count } }
+
     private func withSession<T: Sendable>(
         profileHome: URL,
-        fileCredentials: Bool = false,
+        requireDirectExecutable: Bool = false,
         operation: (JSONRPCSession) async throws -> T
     ) async throws -> T {
-        let launch = try locator.launchConfiguration(requireDirectExecutable: fileCredentials)
+        let launch = try await launchCache.resolve(using: locator, requireDirectExecutable: requireDirectExecutable)
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome,
-                                         environment: launch.environment, fileCredentials: fileCredentials)
+                                         environment: launch.environment)
         return try await withTaskCancellationHandler {
             do {
                 try Task.checkCancellation()
@@ -802,5 +1048,246 @@ public struct CodexClient: AccountClient {
             windowDurationMins: duration,
             resetsAt: reset
         )
+    }
+}
+
+// One serialized quota channel per profile with genuine idle expiration between 5-minute polls.
+private actor UsageSessions {
+    private var workers: [URL: UsageSession] = [:]
+    private let idleTimeout: Duration
+
+    init(idleTimeout: Duration) { self.idleTimeout = idleTimeout }
+
+    func worker(for home: URL) -> UsageSession {
+        let key = home.standardizedFileURL
+        if let worker = workers[key] { return worker }
+        let worker = UsageSession(home: key, idleTimeout: idleTimeout)
+        workers[key] = worker
+        return worker
+    }
+
+    var count: Int { workers.count }
+
+    func stop(for home: URL) async throws {
+        try await workers[home.standardizedFileURL]?.stop()
+    }
+
+    func forget(for home: URL) async throws {
+        let key = home.standardizedFileURL
+        guard let worker = workers[key] else { return }
+        try await worker.retire()
+        if workers[key] === worker { workers.removeValue(forKey: key) }
+    }
+
+    func stop() async throws {
+        let snapshot = Array(workers.values)
+        var firstError: (any Error)?
+        await withTaskGroup(of: (any Error)?.self) { group in
+            for worker in snapshot {
+                group.addTask {
+                    do { try await worker.stop(); return nil }
+                    catch { return error }
+                }
+            }
+            for await error in group { if firstError == nil { firstError = error } }
+        }
+        if let firstError { throw firstError }
+    }
+}
+
+private actor UsageSession {
+    private let home: URL
+    private let idleTimeout: Duration
+    private var session: JSONRPCSession?
+    private var credential: Data?
+    private var executable: URL?
+    private var tail: Task<Void, Never>?
+    private var idleTask: Task<Void, Never>?
+    private var generation = 0
+    private var nextID = 1
+    private var retired = false
+
+    init(home: URL, idleTimeout: Duration) { self.home = home; self.idleTimeout = idleTimeout }
+
+    func read(
+        resolveLaunch: @escaping @Sendable () async throws -> (executable: URL, environment: [String: String]),
+        timeout: Duration,
+        clientVersion: String
+    ) async throws -> JSONValue {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            return try await self.performRead(resolveLaunch: resolveLaunch, timeout: timeout, clientVersion: clientVersion)
+        }
+        tail = Task { _ = await task.result }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: { task.cancel() }
+    }
+
+    func stop() async throws {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try await self.close()
+        }
+        tail = Task { _ = await task.result }
+        try await task.value
+    }
+
+    func withStoppedSession<T: Sendable>(_ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            guard !self.retired else { throw CodexClientError.connectionClosed }
+            try await self.close()
+            return try await operation()
+        }
+        tail = Task { _ = await task.result }
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+
+    func retire() async throws {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            try await self.close()
+            self.retired = true
+        }
+        tail = Task { _ = await task.result }
+        try await task.value
+    }
+
+    private func cleanup(after error: any Error) async throws -> Never {
+        try await SessionFailure.finish(error, cancelled: Task.isCancelled || error is CancellationError) {
+            try await self.close()
+        }
+    }
+
+    private func close() async throws {
+        idleTask?.cancel()
+        idleTask = nil
+        generation += 1
+        if let session {
+            guard await session.stop() else { throw CodexClientError.timeout }
+        }
+        session = nil
+        credential = nil
+        executable = nil
+    }
+
+    private func performRead(
+        resolveLaunch: @Sendable () async throws -> (executable: URL, environment: [String: String]),
+        timeout: Duration,
+        clientVersion: String
+    ) async throws -> JSONValue {
+        guard !retired else { throw CodexClientError.connectionClosed }
+        idleTask?.cancel()
+        let currentCredential: Data?
+        do {
+            currentCredential = try readCredential()
+        } catch {
+            try await close()
+            throw error
+        }
+        // Only tear down or resolve launch configuration when opening/replacing a session.
+        if let existing = session {
+            let running = await existing.isRunning
+            let binaryStillExists = executable.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+            if credential != currentCredential || !running || !binaryStillExists {
+                try await close()
+            }
+        }
+        if session == nil {
+            let launch: (executable: URL, environment: [String: String])
+            do {
+                launch = try await resolveLaunch()
+            } catch {
+                try await close()
+                throw error
+            }
+            let opened = try JSONRPCSession(executableURL: launch.executable, profileHome: home,
+                                            environment: launch.environment)
+            session = opened
+            executable = launch.executable
+            credential = currentCredential
+            do {
+                try await withTaskCancellationHandler {
+                    try await opened.initialize(timeout: timeout, clientVersion: clientVersion)
+                } onCancel: { Task { await opened.stop() } }
+            } catch {
+                try await cleanup(after: error)
+            }
+        }
+        guard let session else { throw CodexClientError.connectionClosed }
+        let id = nextID
+        nextID += 1
+        do {
+            let value = try await withTaskCancellationHandler {
+                try Task.checkCancellation()
+                return try await session.request(method: "account/rateLimits/read", id: id, timeout: timeout)
+            } onCancel: { Task { await session.stop() } }
+            credential = currentCredential
+            generation += 1
+            let token = generation
+            let idleTimeout = idleTimeout
+            idleTask = Task { [weak self] in
+                do { try await Task.sleep(for: idleTimeout) } catch { return }
+                await self?.expire(generation: token)
+            }
+            return value
+        } catch {
+            try await cleanup(after: error)
+        }
+    }
+
+    private func readCredential() throws -> Data? {
+        let url = home.appendingPathComponent("auth.json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try Data(contentsOf: url)
+    }
+
+    private func expire(generation token: Int) async {
+        let previous = tail
+        let task = Task {
+            await previous?.value
+            if self.generation == token { try await self.close() }
+        }
+        tail = Task { _ = await task.result }
+        _ = await task.result
+    }
+}
+
+actor SessionStopState {
+    private var task: Task<Bool, Never>?
+    private var generation = 0
+
+    func stop(isRunning: @escaping @Sendable () -> Bool,
+              terminate: @escaping @Sendable () async -> Bool) async -> Bool {
+        if !isRunning() { return true }
+        let current: Task<Bool, Never>
+        let token: Int
+        if let task { current = task; token = generation }
+        else {
+            generation += 1
+            token = generation
+            current = Task.detached { await terminate() }
+            task = current
+        }
+        let exited = await current.value || !isRunning()
+        if !exited, generation == token { task = nil }
+        return exited
+    }
+}
+
+enum SessionFailure {
+    static func finish(_ failure: any Error, cancelled: Bool,
+                       cleanup: @Sendable () async throws -> Void) async throws -> Never {
+        do { try await cleanup() }
+        catch { if cancelled { throw CancellationError() }; throw error }
+        if cancelled { throw CancellationError() }
+        throw failure
     }
 }

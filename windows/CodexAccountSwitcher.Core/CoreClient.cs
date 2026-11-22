@@ -15,7 +15,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task reader;
     private readonly Task stderr;
-    private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(null, ct));
+    private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(null, ct), allowMissingInstallation: true);
     private int nextID;
     private int disposing;
     public AccountSnapshot State { get; private set; } = AccountSnapshot.Empty;
@@ -81,11 +81,16 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
                     case "snapshot":
                         var state = message.GetProperty("state").Deserialize<AccountSnapshot>(AccountSnapshot.JsonOptions)
                             ?? throw new IOException("Invalid account state.");
-                        context.Post(_ => { State = state; Changed?.Invoke(); }, null);
+                        context.Post(_ => {
+                            if (state.Strings == null || state.Strings.Count == 0)
+                                state = state with { Strings = State.Strings };
+                            State = state;
+                            Changed?.Invoke();
+                        }, null);
                         break;
                     case "completed":
                         if (pending.TryRemove(message.GetProperty("id").GetInt32(), out var completion)) {
-                            if (message.TryGetProperty("error", out var error)) completion.TrySetException(new IOException(error.GetString()));
+                            if (message.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String) completion.TrySetException(new IOException(error.GetString()));
                             else completion.TrySetResult();
                         }
                         break;

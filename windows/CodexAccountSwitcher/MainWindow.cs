@@ -1,11 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using CodexAccountSwitcher.Core;
@@ -17,34 +17,63 @@ public sealed class MainWindow : Window
     private const string AccountDragFormat = "CodexAccountSwitcher.AccountID";
     private readonly IAccountClient client;
     private readonly NativeSettings native;
+    private readonly Func<Task<bool>>? prepareForUpdateRestart;
+    private readonly string updatesRoot;
+    private readonly bool launchedInBackground;
+    private readonly List<ComboBox> activeComboBoxes = [];
+    private ScrollViewer? scrollViewer;
     private string page = "accounts";
     private AccountRow? target;
     private string? localError;
     private bool closingForExit;
+    private bool isDragging;
+    private bool pendingBackgroundRender;
     public bool IsBusy => client.State.IsMutating;
     public string CurrentPage => page;
     private AccountSnapshot State => client.State;
     private string T(string key) => State.Text(key);
     private Brush B(string key) => (Brush)FindResource(key);
 
-    public MainWindow(IAccountClient client, NativeSettings? native = null)
+    public MainWindow(
+        IAccountClient client,
+        NativeSettings? native = null,
+        Func<Task<bool>>? prepareForUpdateRestart = null,
+        string? updatesRoot = null,
+        bool launchedInBackground = false)
     {
-        this.client = client; this.native = native ?? new NativeSettings();
+        this.client = client;
+        this.native = native ?? new NativeSettings();
+        this.prepareForUpdateRestart = prepareForUpdateRestart;
+        this.updatesRoot = updatesRoot ?? System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Codex Account Switcher",
+            "updates");
+        this.launchedInBackground = launchedInBackground;
         Icon = System.Windows.Media.Imaging.BitmapFrame.Create(App.IconUri);
         Title = "Codex Account Switcher"; Width = 440; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanMinimize;
         Background = B("Surface"); ShowInTaskbar = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         MaxHeight = SystemParameters.WorkArea.Height - 24;
-        client.Changed += Render; this.native.Changed += Render;
+        client.Changed += OnExternalChanged; this.native.Changed += OnExternalChanged;
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate(page == "apiKey" ? "manage" : "accounts"); e.Handled = true; } };
         Closing += (_, e) => {
             if (closingForExit) return;
             e.Cancel = true;
             Hide();
         };
-        Closed += (_, _) => { client.Changed -= Render; this.native.Changed -= Render; };
+        Closed += (_, _) => { client.Changed -= OnExternalChanged; this.native.Changed -= OnExternalChanged; };
         Render();
+    }
+
+    private void OnExternalChanged()
+    {
+        if (isDragging || activeComboBoxes.Any(box => box.IsDropDownOpen)) {
+            pendingBackgroundRender = true;
+            return;
+        }
+        pendingBackgroundRender = false;
+        Render(preserveScroll: true);
     }
 
     public void CloseForExit() { closingForExit = true; Close(); }
@@ -57,12 +86,12 @@ public sealed class MainWindow : Window
         Activate();
         _ = Run("refresh");
     }
-    public void Navigate(string destination) { page = destination; target = null; localError = null; Render(); }
+    public void Navigate(string destination) { page = destination; target = null; localError = null; Render(preserveScroll: false); }
     private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null,
         string? displayName = null, string? apiKey = null, Guid? targetAccountID = null)
     {
         try { await client.CommandAsync(command, id, value, language, displayName, apiKey, targetAccountID); }
-        catch (Exception ex) { localError = ex.Message; Render(); }
+        catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
     }
     private TextBlock Text(string text, double size = 13, bool muted = false, bool bold = false) => new() {
         Text = text, FontSize = size, Foreground = B(muted ? "Muted" : "Ink"),
@@ -84,12 +113,14 @@ public sealed class MainWindow : Window
         Grid.SetColumn(right, 1); grid.Children.Add(left); grid.Children.Add(right); return grid;
     }
 
-    private void Render()
+    private void Render(bool preserveScroll = false)
     {
+        var previousOffset = preserveScroll ? scrollViewer?.VerticalOffset ?? 0 : 0;
+        activeComboBoxes.Clear();
         var body = new StackPanel();
         if (State.Error != null || localError != null) {
             var message = Text(localError ?? State.Error!, 11, muted: true); message.TextWrapping = TextWrapping.Wrap;
-            var box = Pair(message, Button("×", () => { localError = null; _ = Run("dismissError"); Render(); }));
+            var box = Pair(message, Button("×", () => { localError = null; _ = Run("dismissError"); Render(preserveScroll: true); }));
             box.Margin = new Thickness(12, 8, 12, 10); body.Children.Add(box); body.Children.Add(Rule());
         }
         if (page == "accounts") {
@@ -122,8 +153,16 @@ public sealed class MainWindow : Window
         else if (page == "apiKey") APIKeyForm(body);
         else if (page == "settings") Settings(body);
         else Accounts(body, page == "manage");
-        Content = new Border { Background = B("Surface"),
-            Child = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled } };
+        var viewer = new ScrollViewer {
+            Content = body,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
+        if (preserveScroll && previousOffset > 0) {
+            viewer.Loaded += (_, _) => viewer.ScrollToVerticalOffset(previousOffset);
+        }
+        scrollViewer = viewer;
+        Content = new Border { Background = B("Surface"), Child = viewer };
     }
 
     private Guid? DraggedAccount(IDataObject data, Guid targetID)
@@ -133,6 +172,43 @@ public sealed class MainWindow : Window
             return null;
         return sourceID != targetID && State.Accounts.Any(account => account.Profile.Id == sourceID)
             ? sourceID : null;
+    }
+
+    private TextBlock BuildSubscriptionLine(AccountRow row)
+    {
+        if (row.LiveSubscription is { } live) {
+            string label;
+            if (string.Equals(live.PlanType, "free", StringComparison.OrdinalIgnoreCase))
+                label = T("subscription_live_free");
+            else if (!live.IsActive)
+                label = T("subscription_live_inactive");
+            else if (live.ActiveUntil is { } until)
+                label = T("subscription_live_until").Replace("%@", until.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            else
+                label = T("subscription_live_active");
+
+            var stale = row.SubscriptionStatus is "stale" or "unavailable"
+                || (DateTimeOffset.UtcNow - live.FetchedAt).TotalSeconds >= 600;
+            if (stale) label += " · " + T("subscription_live_needs_update");
+            var block = Text(label, 10.5, muted: true);
+            var lines = new List<string> {
+                T("subscription_live_source"),
+                T("subscription_live_updated").Replace("%@", live.FetchedAt.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture)),
+                T("subscription_live_plan").Replace("%@", live.PlanType),
+                T(live.IsActive ? "subscription_live_status_active" : "subscription_live_status_inactive")
+            };
+            if (!string.IsNullOrEmpty(row.SubscriptionError))
+                lines.Add(T("subscription_live_refresh_failed").Replace("%@", row.SubscriptionError));
+            block.ToolTip = string.Join("\n", lines);
+            return block;
+        }
+        if (row.Subscription is { } subscription) {
+            var date = subscription.ActiveUntil.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var block = Text(T("subscription_until").Replace("%@", date), 10.5, muted: true);
+            block.ToolTip = block.Text + "\n" + T("subscription_detail").Replace("%@", subscription.LastChecked.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture));
+            return block;
+        }
+        return Text(T("subscription_unknown"), 10.5, muted: true);
     }
 
     private void Accounts(StackPanel body, bool manage)
@@ -169,6 +245,16 @@ public sealed class MainWindow : Window
                         null));
                     details.ToolTip = Reset(usage.ResetsAt) + (row.UsageError is null ? "" : "\n" + row.UsageError);
                 } else { var missing = Text(row.UsageStatus == "idle" ? T("usage") + " —" : T("usage_unavailable"), 10.5, muted: true); missing.ToolTip = row.UsageError; details.Children.Add(missing); }
+                var accountInfo = new Grid();
+                accountInfo.ColumnDefinitions.Add(new ColumnDefinition());
+                accountInfo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                if (row.Usage is { } infoUsage) {
+                    var resetCredits = Text(T("reset_credits") + ": " + (infoUsage.ResetCreditsRemaining?.ToString(CultureInfo.CurrentCulture) ?? T("unknown")), 10.5, muted: true);
+                    resetCredits.Margin = new Thickness(8, 0, 0, 0);
+                    Grid.SetColumn(resetCredits, 1); accountInfo.Children.Add(resetCredits);
+                }
+                accountInfo.Children.Add(BuildSubscriptionLine(row));
+                details.Children.Add(accountInfo);
             }
             var grid = new Grid { MinHeight = manage ? 40 : 54 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -184,8 +270,15 @@ public sealed class MainWindow : Window
                     handle.ToolTip = T("drag_to_reorder");
                     AutomationProperties.SetName(handle, T("drag_to_reorder"));
                     handle.MouseMove += (_, e) => {
-                        if (!IsBusy && !State.IsAddingAccount && e.LeftButton == MouseButtonState.Pressed)
-                            DragDrop.DoDragDrop(handle, new DataObject(AccountDragFormat, row.Profile.Id.ToString()), DragDropEffects.Move);
+                        if (!IsBusy && !State.IsAddingAccount && e.LeftButton == MouseButtonState.Pressed) {
+                            isDragging = true;
+                            try {
+                                DragDrop.DoDragDrop(handle, new DataObject(AccountDragFormat, row.Profile.Id.ToString()), DragDropEffects.Move);
+                            } finally {
+                                isDragging = false;
+                                if (pendingBackgroundRender) { pendingBackgroundRender = false; Render(preserveScroll: true); }
+                            }
+                        }
                     };
                     grid.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(26) });
                     Grid.SetColumn(avatar, 1);
@@ -296,7 +389,7 @@ public sealed class MainWindow : Window
     {
         if (target == null) return;
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-        var copy = T(page == "switch" ? "switch_body_windows" : "remove_body").Replace("这台 Mac", "这台电脑").Replace("this Mac", "this PC");
+        var copy = T(page == "switch" ? "switch_body_windows" : "remove_body_windows");
         var text = Text(copy, 13, muted: true); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 0, 14); content.Children.Add(text);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Button(T("cancel"), () => Navigate(page == "remove" ? "manage" : "accounts")));
@@ -304,27 +397,34 @@ public sealed class MainWindow : Window
         var confirm = Button(T(command), () => { Navigate(command == "remove" ? "manage" : "accounts"); _ = Run(command, id); });
         confirm.Margin = new Thickness(8, 0, 0, 0); confirm.BorderBrush = B("Accent"); confirm.IsDefault = true; buttons.Children.Add(confirm); content.Children.Add(buttons); body.Children.Add(content);
     }
+    private ComboBox TrackedComboBox(string[] items, int selectedIndex)
+    {
+        var box = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = items, SelectedIndex = selectedIndex };
+        box.DropDownClosed += (_, _) => {
+            if (pendingBackgroundRender) { pendingBackgroundRender = false; Render(preserveScroll: true); }
+        };
+        activeComboBoxes.Add(box);
+        return box;
+    }
     private void Settings(StackPanel body)
     {
         var settings = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
         settings.Children.Add(Text(T("settings_general"), 14, bold: true));
         void Toggle(string title, bool current, Action<bool> action) {
             var toggle = new CheckBox { IsChecked = current, Content = title, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 9, 0, 9) };
-            AutomationProperties.SetName(toggle, title); toggle.Click += (_, _) => { try { action(toggle.IsChecked == true); } catch (Exception ex) { localError = ex.Message; Render(); } };
+            AutomationProperties.SetName(toggle, title); toggle.Click += (_, _) => { try { action(toggle.IsChecked == true); } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); } };
             settings.Children.Add(toggle);
         }
         Toggle(T("launch_at_login"), native.LaunchAtLogin, value => native.LaunchAtLogin = value);
-        Toggle(T("show_menu_bar_percentage").Replace("菜单栏", "托盘").Replace("Menu Bar", "System Tray"), State.Settings.ShowsMenuBarPercentage, value => _ = Run("percentage", value: value));
+        Toggle(T("show_tray_percentage"), State.Settings.ShowsMenuBarPercentage, value => _ = Run("percentage", value: value));
         var usageWindows = new[] { "fiveHour", "weekly" };
-        var usageWindow = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center,
-            ItemsSource = new[] { T("five_hour"), T("weekly") },
-            SelectedIndex = State.Settings.StatusBarUsageWindow == "fiveHour" ? 0 : 1 };
+        var usageWindow = TrackedComboBox(new[] { T("five_hour"), T("weekly") }, State.Settings.StatusBarUsageWindow == "fiveHour" ? 0 : 1);
         usageWindow.SelectionChanged += (_, _) => { if (usageWindow.SelectedIndex >= 0) _ = Run("statusBarUsageWindow", language: usageWindows[usageWindow.SelectedIndex]); };
         var usageWindowRow = Pair(Text(T("status_bar_usage_window")), usageWindow);
         usageWindowRow.Height = 48; settings.Children.Add(usageWindowRow);
         Toggle(T("show_five_hour_usage"), State.Settings.ShowsFiveHourUsage, value => _ = Run("fiveHour", value: value));
         var languages = new[] { "system", "english", "simplifiedChinese", "italian" };
-        var language = new ComboBox { Width = 160, VerticalAlignment = VerticalAlignment.Center, ItemsSource = new[] { T("system_default"), T("english"), T("simplified_chinese"), T("italian") }, SelectedIndex = Array.IndexOf(languages, State.Settings.Language) };
+        var language = TrackedComboBox(new[] { T("system_default"), T("english"), T("simplified_chinese"), T("italian") }, Array.IndexOf(languages, State.Settings.Language));
         language.SelectionChanged += (_, _) => { if (language.SelectedIndex >= 0) _ = Run("language", language: languages[language.SelectedIndex]); };
         var languageRow = Pair(Text(T("language")), language); languageRow.Height = 48; settings.Children.Add(languageRow);
         var experimentHeading = Text(T("settings_automation"), 14, bold: true); experimentHeading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(experimentHeading);
@@ -334,12 +434,33 @@ public sealed class MainWindow : Window
             try {
                 var directory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
-            } catch (Exception ex) { localError = ex.Message; Render(); }
+            } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
         }));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
-        var hint = Text(T(native.UpdateError ?? "update_check_hint"), 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());
-        var check = Button(T(native.UpdatePage == null ? "check_for_updates" : "update_action"), async () => { if (native.UpdatePage != null) native.OpenUpdate(); else await native.CheckUpdatesAsync(); }); check.IsEnabled = !native.IsChecking;
+        string hintText;
+        Button check;
+        if (native.IsInstalling) {
+            hintText = native.DownloadPercent is { } pct
+                ? T("update_downloading").Replace("%@", pct.ToString(CultureInfo.InvariantCulture))
+                : T("update_installing");
+            check = Button(T("cancel"), () => native.CancelUpdate());
+            check.IsEnabled = native.CanCancelInstall;
+        } else if (native.AvailableUpdate is { } available) {
+            hintText = native.UpdateError != null
+                ? T(native.UpdateError)
+                : T("update_available").Replace("%@", available.Version.ToString(3));
+            check = Button(T("update_action"), async () => await native.InstallUpdateAsync(
+                prepareForUpdateRestart ?? (() => Task.FromResult(false)),
+                launchedInBackground,
+                updatesRoot));
+            check.IsEnabled = !IsBusy && !State.IsAddingAccount;
+        } else {
+            hintText = T(native.UpdateError ?? "update_check_hint");
+            check = Button(T("check_for_updates"), async () => await native.CheckUpdatesAsync());
+            check.IsEnabled = !native.IsChecking && !IsBusy;
+        }
+        var hint = Text(hintText, 10.5, muted: true); hint.Margin = new Thickness(0, 0, 0, 12); hint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(hint); settings.Children.Add(Rule());
         var version = Pair(Text(T("current_version").Replace("%@", native.Version), 12), check); version.Margin = new Thickness(0, 12, 0, 0); settings.Children.Add(version); body.Children.Add(settings);
     }
 }
