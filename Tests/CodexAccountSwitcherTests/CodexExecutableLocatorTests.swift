@@ -34,6 +34,13 @@ struct CodexExecutableLocatorTests {
         try FileManager.default.removeItem(at: pathCommand)
         try FileManager.default.copyItem(at: executable, to: pathCommand)
         #expect(try locator.locate(environment: ["PATH": bin.path]) == pathCommand)
+
+        let appLocator = CodexExecutableLocator(desktopApplicationURLs: [application], prefersBundledDesktop: true)
+        #expect(try appLocator.locate(environment: ["PATH": bin.path]) == executable)
+        #expect(try appLocator.locate(environment: ["PATH": bin.path, "CODEX_CLI_PATH": "codex"]) == pathCommand)
+        #expect(try appLocator.locate(environment: ["PATH": bin.path, "CODEX_CLI_PATH": pathCommand.path]) == pathCommand)
+        try FileManager.default.removeItem(at: executable)
+        #expect(try appLocator.locate(environment: ["PATH": bin.path]) == pathCommand)
     }
 
     @Test func prefersModernBundledLayoutWhenBothExist() throws {

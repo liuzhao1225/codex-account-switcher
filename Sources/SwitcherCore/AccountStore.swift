@@ -189,9 +189,12 @@ public actor AccountStore: AccountStoring {
         return (expiredAt, record.state.nextCheckAt(after: now))
     }
 
-    func recordWeeklyUsageAutoStartAttempt(for profileID: UUID, expiredAt: Date) throws -> Bool {
+    func claimWeeklyUsageAutoStartAttempt(
+        for profileID: UUID, expiredAt: Date, window: RateLimitWindow, observedAt: Date
+    ) throws -> Bool {
         var record = try loadWeeklyUsageAutoStart(for: profileID)
-        guard record.enabled, record.state.markAttempt(for: expiredAt) else { return false }
+        guard record.enabled, record.state.canDispatch(window, after: expiredAt, at: observedAt),
+              record.state.markAttempt(for: expiredAt) else { return false }
         try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
         return true
     }

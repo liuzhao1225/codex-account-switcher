@@ -109,6 +109,7 @@ private let fixtureExecutable: String? = {
 
         char *line = NULL;
         size_t cap = 0;
+        int thread_started = 0;
         while (getline(&line, &cap, stdin) > 0) {
             long req_id = 0;
             if (!parse_id(line, &req_id)) continue;
@@ -146,13 +147,18 @@ private let fixtureExecutable: String? = {
                     ? "{\"account\":{\"type\":\"apiKey\"}}"
                     : "{\"account\":{\"type\":\"chatgpt\",\"accountId\":\"fixture\",\"email\":\"fixture@example.test\"}}";
             } else if (strcmp(method, "account/rateLimits/read") == 0) {
-                result = "{\"rateLimitResetCredits\":{\"availableCount\":2},\"rateLimits\":{\"ordinaryUsageAllowed\":true,\"primary\":{\"usedPercent\":33,\"windowDurationMins\":300,\"resetsAt\":2000000000},\"secondary\":{\"usedPercent\":58,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
+                if (strncmp(scenario, "turn-", 5) == 0 && (strcmp(scenario, "turn-nonfull") != 0 || !thread_started)) {
+                    result = "{\"rateLimits\":{\"ordinaryUsageAllowed\":true,\"primary\":{\"usedPercent\":0,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
+                } else {
+                    result = "{\"rateLimitResetCredits\":{\"availableCount\":2},\"rateLimits\":{\"ordinaryUsageAllowed\":true,\"primary\":{\"usedPercent\":33,\"windowDurationMins\":300,\"resetsAt\":2000000000},\"secondary\":{\"usedPercent\":58,\"windowDurationMins\":10080,\"resetsAt\":2000000000}}}";
+                }
             } else if (strcmp(method, "account/rateLimitResetCredit/consume") == 0) {
                 result = "{\"outcome\":\"reset\"}";
             } else if (strcmp(method, "account/login/start") == 0) {
                 result = "{\"authUrl\":\"https://example.test/sign-in\"}";
             } else if (strcmp(method, "thread/start") == 0) {
                 if (strstr(line, "\"ephemeral\":true") && strstr(line, "\"sandbox\":\"read-only\"")) {
+                    thread_started = 1;
                     result = "{\"thread\":{\"id\":\"quota-thread\"}}";
                 }
             } else if (strcmp(method, "turn/start") == 0) {
@@ -372,16 +378,38 @@ struct CodexClientTransportTests {
         _ = try await client.readWeeklyUsage(profileHome: home)
         _ = try await client.readWeeklyUsage(profileHome: sibling)
 
-        try await client.startWeeklyUsageWindow(profileHome: home)
+        let started = try await client.startWeeklyUsageWindow(profileHome: home) { usage, _ in
+            usage.weeklyWindow?.usedPercent == 0
+        }
+        #expect(started)
 
         let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
             .split(separator: "\n")
-        #expect(methods.suffix(3) == ["account/read", "thread/start", "turn/start"])
+        #expect(methods.suffix(4) == ["account/read", "thread/start", "account/rateLimits/read", "turn/start"])
         #expect(methods.filter { $0 == "turn/start" }.count == 1)
         #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("overlap").path))
         _ = try await client.readWeeklyUsage(profileHome: sibling)
         #expect(try launchCount(sibling) == 1)
         try await client.stopUsageSessions()
+    }
+
+    @Test func usageStartRechecksTheSameSessionBeforeSending() async throws {
+        let home = try fixtureHome("turn-nonfull")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let client = makeClient()
+        let previous = try await client.readWeeklyUsage(profileHome: home)
+        #expect(previous.weeklyWindow?.usedPercent == 0)
+
+        let started = try await client.startWeeklyUsageWindow(profileHome: home) { fresh, _ in
+            #expect(fresh.weeklyWindow?.usedPercent == 58)
+            return fresh.weeklyWindow?.usedPercent == 0
+        }
+        #expect(!started)
+
+        let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
+            .split(separator: "\n")
+        #expect(methods.suffix(3) == ["account/read", "thread/start", "account/rateLimits/read"])
+        #expect(!methods.contains("turn/start"))
     }
 
     @Test(arguments: [
@@ -394,7 +422,9 @@ struct CodexClientTransportTests {
         defer { try? FileManager.default.removeItem(at: home) }
         let client = makeClient(timeout: .seconds(2))
 
-        await #expect(throws: expectedError) { try await client.startWeeklyUsageWindow(profileHome: home) }
+        await #expect(throws: expectedError) {
+            _ = try await client.startWeeklyUsageWindow(profileHome: home) { _, _ in true }
+        }
 
         let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)
             .split(separator: "\n")
@@ -407,7 +437,10 @@ struct CodexClientTransportTests {
         let client = makeClient()
 
         await #expect(throws: CodexClientError.identityUnavailable) {
-            try await client.startWeeklyUsageWindow(profileHome: home)
+            _ = try await client.startWeeklyUsageWindow(profileHome: home) { _, _ in
+                Issue.record("Authorization must not run for a non-ChatGPT account")
+                return false
+            }
         }
 
         let methods = try String(contentsOf: home.appendingPathComponent("requests"), encoding: .utf8)

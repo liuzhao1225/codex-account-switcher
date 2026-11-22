@@ -15,6 +15,13 @@ struct WeeklyUsageAutoStartState: Codable, Equatable, Sendable {
             abs(resetsAt.timeIntervalSince(observedAt) - WeeklyUsageAutoStartState.weeklySeconds)
                 <= WeeklyUsageAutoStartState.estimateTolerance
         }
+
+        func movesWithTime(since previous: ZeroUseReading) -> Bool {
+            let elapsed = observedAt.timeIntervalSince(previous.observedAt)
+            let movedBy = resetsAt.timeIntervalSince(previous.resetsAt)
+            return previous.isEstimate && isEstimate && elapsed >= 0 && movedBy >= 0
+                && abs(movedBy - elapsed) <= WeeklyUsageAutoStartState.estimateTolerance
+        }
     }
 
     private var confirmedExpiry: Date?
@@ -54,18 +61,26 @@ struct WeeklyUsageAutoStartState: Codable, Equatable, Sendable {
         }
         let elapsed = now.timeIntervalSince(previous.observedAt)
         guard elapsed >= Self.confirmationDelay else { return nil }
+        zeroUseReading = current
         if resetsAt == previous.resetsAt {
-            // Small requests can round to zero. A stable reset date still means a window is active.
-            confirmExpiry(resetsAt)
+            // An estimate can briefly be cached. Require two fixed-date reads before discarding the old expiry.
+            // Small requests can round to zero even when a new window is already active.
+            if !previous.isEstimate { confirmExpiry(resetsAt) }
             return nil
         }
 
-        zeroUseReading = current
-        let movedBy = resetsAt.timeIntervalSince(previous.resetsAt)
         guard let confirmedExpiry, attemptedExpiry != confirmedExpiry,
-              previous.observedAt >= confirmedExpiry, previous.isEstimate, current.isEstimate,
-              abs(movedBy - elapsed) <= Self.estimateTolerance else { return nil }
+              previous.observedAt >= confirmedExpiry, current.movesWithTime(since: previous) else { return nil }
         return confirmedExpiry
+    }
+
+    func canDispatch(_ window: RateLimitWindow, after expiredAt: Date, at observedAt: Date) -> Bool {
+        guard window.windowDurationMins == Self.weeklyMinutes, window.usedPercent == 0,
+              window.resetsAt.isFinite, confirmedExpiry == expiredAt, attemptedExpiry != expiredAt,
+              let previous = zeroUseReading, previous.observedAt >= expiredAt else { return false }
+        let resetsAt = Date(timeIntervalSince1970: window.resetsAt)
+        let current = ZeroUseReading(observedAt: observedAt, resetsAt: resetsAt)
+        return current.movesWithTime(since: previous)
     }
 
     @discardableResult
@@ -79,13 +94,18 @@ struct WeeklyUsageAutoStartState: Codable, Equatable, Sendable {
     func nextCheckAt(after now: Date) -> Date? {
         guard let confirmedExpiry else { return nil }
         if now < confirmedExpiry { return confirmedExpiry }
-        guard let zeroUseReading else { return nil }
+        let attempted = attemptedExpiry == confirmedExpiry
         // After an attempt, hurry only to confirm a candidate fixed date for the newly started window.
-        let needsFastConfirmation = attemptedExpiry == confirmedExpiry
-            ? !zeroUseReading.isEstimate : zeroUseReading.isEstimate
-        guard needsFastConfirmation else { return nil }
-        let confirmationAt = zeroUseReading.observedAt.addingTimeInterval(Self.confirmationDelay)
-        return confirmationAt > now ? confirmationAt : nil
+        if let zeroUseReading {
+            let needsConfirmation = attempted ? !zeroUseReading.isEstimate : zeroUseReading.isEstimate
+            let confirmationAt = zeroUseReading.observedAt.addingTimeInterval(Self.confirmationDelay)
+            if needsConfirmation, confirmationAt > now { return confirmationAt }
+        }
+        // The service may still report the expired window when the timer first wakes.
+        if !attempted, now.timeIntervalSince(confirmedExpiry) < 60 {
+            return now.addingTimeInterval(Self.confirmationDelay)
+        }
+        return nil
     }
 
     private mutating func confirmExpiry(_ expiry: Date) {

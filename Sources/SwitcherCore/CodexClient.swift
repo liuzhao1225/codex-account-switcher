@@ -409,13 +409,15 @@ private actor JSONRPCSession {
 public struct CodexExecutableLocator: Sendable {
     public let explicitURL: URL?
     private let desktopApplicationURLs: [URL]
+    private let prefersBundledDesktop: Bool
 
     public init(explicitURL: URL? = nil, desktopApplicationURLs: [URL] = [
         URL(fileURLWithPath: "/Applications/Codex.app"),
         URL(fileURLWithPath: "/Applications/ChatGPT.app"),
-    ]) {
+    ], prefersBundledDesktop: Bool = false) {
         self.explicitURL = explicitURL
         self.desktopApplicationURLs = desktopApplicationURLs
+        self.prefersBundledDesktop = prefersBundledDesktop
     }
 
     public func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
@@ -467,6 +469,11 @@ public struct CodexExecutableLocator: Sendable {
             }
             return URL(fileURLWithPath: executable)
         }
+        #if os(macOS)
+        if prefersBundledDesktop, command == nil || command == "", let bundled = bundledDesktopExecutable() {
+            return bundled
+        }
+        #endif
         if let path = environment["PATH"]?
             .split(separator: ":")
             .filter({ $0.hasPrefix("/") })
@@ -476,21 +483,28 @@ public struct CodexExecutableLocator: Sendable {
             return URL(fileURLWithPath: path)
         }
         #if os(macOS)
-        if command == nil || command == "" {
-            for applicationURL in desktopApplicationURLs {
-                for relativePath in [
-                    "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
-                    "Contents/Resources/codex",
-                ] {
-                    let bundledCLI = applicationURL.appendingPathComponent(relativePath)
-                    if isExecutable(bundledCLI.path) { return bundledCLI }
-                }
-            }
+        if command == nil || command == "", let bundled = bundledDesktopExecutable() {
+            return bundled
         }
         #endif
         #endif
         throw CodexClientError.executableNotFound
     }
+
+    #if os(macOS)
+    private func bundledDesktopExecutable() -> URL? {
+        for applicationURL in desktopApplicationURLs {
+            for relativePath in [
+                "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+                "Contents/Resources/codex",
+            ] {
+                let executable = applicationURL.appendingPathComponent(relativePath)
+                if isExecutable(executable.path) { return executable }
+            }
+        }
+        return nil
+    }
+    #endif
 
     public func launchConfiguration(
         environment: [String: String] = ProcessInfo.processInfo.environment,
@@ -806,7 +820,10 @@ public protocol AccountClient: CodexIdentityReading {
     func stopUsageSession(profileHome: URL) async throws
     func forgetUsageSession(profileHome: URL) async throws
     func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome
-    func startWeeklyUsageWindow(profileHome: URL) async throws
+    func startWeeklyUsageWindow(
+        profileHome: URL,
+        authorize: @escaping @Sendable (WeeklyUsage, Date) async throws -> Bool
+    ) async throws -> Bool
     func refreshIdentity(profileHome: URL) async throws -> AccountIdentity
     func login(profileHome: URL) async throws -> AccountIdentity
 }
@@ -816,7 +833,10 @@ extension AccountClient {
     public func stopUsageSession(profileHome: URL) async throws { try await stopUsageSessions() }
     public func forgetUsageSession(profileHome: URL) async throws { try await stopUsageSession(profileHome: profileHome) }
 
-    public func startWeeklyUsageWindow(profileHome: URL) async throws {
+    public func startWeeklyUsageWindow(
+        profileHome: URL,
+        authorize: @escaping @Sendable (WeeklyUsage, Date) async throws -> Bool
+    ) async throws -> Bool {
         throw CodexClientError.remoteError(code: nil, message: "Starting a weekly usage window is unavailable.")
     }
 
@@ -882,6 +902,10 @@ public struct CodexClient: AccountClient {
             timeout: requestTimeout,
             clientVersion: clientVersion
         )
+        return try parseWeeklyUsage(result)
+    }
+
+    private func parseWeeklyUsage(_ result: JSONValue) throws -> WeeklyUsage {
         let availableCount = result["rateLimitResetCredits"]?["availableCount"]?.intValue
         let credits: [BankedResetCredit]?
         switch result["rateLimitResetCredits"]?["credits"] {
@@ -942,9 +966,12 @@ public struct CodexClient: AccountClient {
         return outcome
     }
 
-    public func startWeeklyUsageWindow(profileHome: URL) async throws {
+    public func startWeeklyUsageWindow(
+        profileHome: URL,
+        authorize: @escaping @Sendable (WeeklyUsage, Date) async throws -> Bool
+    ) async throws -> Bool {
         let worker = await usageSessions.worker(for: profileHome)
-        try await worker.withStoppedSession {
+        return try await worker.withStoppedSession {
             try await withSession(profileHome: profileHome, requireDirectExecutable: true,
                                   useProfileAuthenticationOnly: true) { session in
                 let account = try await session.request(
@@ -970,8 +997,13 @@ public struct CodexClient: AccountClient {
                     throw CodexClientError.malformedResponse
                 }
 
+                let quota = try await session.request(method: "account/rateLimits/read", id: 3, timeout: requestTimeout)
+                let observedAt = Date()
+                guard try await authorize(parseWeeklyUsage(quota), observedAt) else { return false }
+                try Task.checkCancellation()
+
                 let started = try await session.request(
-                    method: "turn/start", id: 3,
+                    method: "turn/start", id: 4,
                     params: [
                         "threadId": threadID,
                         "input": [["type": "text", "text": "只回复 OK"]],
@@ -989,8 +1021,12 @@ public struct CodexClient: AccountClient {
                     throw CodexClientError.malformedResponse
                 }
                 guard status == "completed" else {
-                    throw CodexClientError.remoteError(code: nil, message: "The weekly usage request ended with status \(status).")
+                    let detail = completed["turn"]?["error"]?["message"]?.stringValue
+                    throw CodexClientError.remoteError(
+                        code: nil, message: detail ?? "The weekly usage request ended with status \(status)."
+                    )
                 }
+                return true
             }
         }
     }

@@ -182,6 +182,8 @@ open class AccountController {
 
     public func refreshWeeklyUsage() {
         guard !isMutating, usageRefreshTask == nil else { return }
+        let now = Date()
+        weeklyUsageAutoStartChecks = weeklyUsageAutoStartChecks.filter { $0.value > now }
         if isBackgroundUsageRefreshEnabled {
             scheduleNextWeeklyUsageRefresh()
         }
@@ -248,9 +250,9 @@ open class AccountController {
     private func scheduleNextWeeklyUsageRefresh() {
         nextUsageRefreshTask?.cancel()
         let now = Date()
-        let deadline = weeklyUsageAutoStartChecks.values.filter { $0 > now }.min()
+        let deadline = weeklyUsageAutoStartChecks.values.min()
         let interval = deadline.map {
-            min(backgroundUsageRefreshInterval, .seconds($0.timeIntervalSince(now)))
+            min(backgroundUsageRefreshInterval, .seconds(max(0, $0.timeIntervalSince(now))))
         } ?? backgroundUsageRefreshInterval
         nextUsageRefreshTask = Task { [weak self] in
             do {
@@ -630,19 +632,23 @@ open class AccountController {
             weeklyUsageAutoStartChecks[id] = observation.nextCheckAt
             guard let expiredAt = observation.expiredAt else { return latestUsage }
             guard latestUsage.ordinaryUsageAllowed != false, latestUsage.fiveHourRemainingPercent != 0 else {
-                weeklyUsageAutoStartChecks[id] = latestUsage.fiveHourResetsAt
+                weeklyUsageAutoStartChecks[id] = latestUsage.fiveHourResetsAt.flatMap {
+                    $0 > latestObservation ? $0 : nil
+                }
                 return latestUsage
             }
 
             try Task.checkCancellation()
-            // Persist the attempt before sending so a timeout or restart does not submit it again.
-            guard try await store.recordWeeklyUsageAutoStartAttempt(for: id, expiredAt: expiredAt) else {
-                return latestUsage
+            let sent = try await codex.startWeeklyUsageWindow(profileHome: home) { [store] fresh, observedAt in
+                try Task.checkCancellation()
+                guard let window = fresh.weeklyWindow,
+                      fresh.ordinaryUsageAllowed != false, fresh.fiveHourRemainingPercent != 0 else { return false }
+                // Claim only against the send session's live reading, before a turn can reach the server.
+                return try await store.claimWeeklyUsageAutoStartAttempt(
+                    for: id, expiredAt: expiredAt, window: window, observedAt: observedAt
+                )
             }
-            weeklyUsageAutoStartChecks[id] = nil
-            try Task.checkCancellation()
-            guard isWeeklyUsageAutoStartEnabled(for: id) else { return latestUsage }
-            try await codex.startWeeklyUsageWindow(profileHome: home)
+            if sent { weeklyUsageAutoStartChecks[id] = nil }
             try Task.checkCancellation()
             let refreshed = try await codex.readWeeklyUsage(profileHome: home)
             if let window = refreshed.weeklyWindow {

@@ -164,7 +164,8 @@ struct AccountControllerTests {
     }
 
     #if os(macOS)
-    @Test func weeklyAutoStartIsOptInAndUsesOnlyTheDueAccount() async throws {
+    @Test(arguments: [false, true])
+    func weeklyAutoStartIsOptInAndUsesOnlyTheDueAccount(quotaChangedBeforeDispatch: Bool) async throws {
         let fixture = try ControllerFixture()
         defer { fixture.clean() }
         try fixture.writeActiveCredential()
@@ -200,10 +201,14 @@ struct AccountControllerTests {
         )
         await fixture.client.setWeeklyWindow(window(0, now.addingTimeInterval(week)), for: activeHome)
         await fixture.client.setWeeklyWindow(window(0, now.addingTimeInterval(week)), for: secondHome)
+        if quotaChangedBeforeDispatch {
+            await fixture.client.setDispatchWeeklyWindow(window(2, now.addingTimeInterval(week)), for: secondHome)
+        }
+        let expectedSends = quotaChangedBeforeDispatch ? [] : [secondHome]
 
         fixture.model.refreshWeeklyUsage()
         await fixture.model.waitForWeeklyUsageRefresh()
-        #expect(await fixture.client.weeklyStartHomes == [secondHome])
+        #expect(await fixture.client.weeklyStartHomes == expectedSends)
         #expect(fixture.model.activeAccountID == activeID)
         #expect(fixture.model.usageStates[secondID]?.displayedUsage?.remainingPercent == 98)
 
@@ -215,7 +220,7 @@ struct AccountControllerTests {
         #expect(!reopened.isWeeklyUsageAutoStartEnabled(for: activeID))
         reopened.refreshWeeklyUsage()
         await reopened.waitForWeeklyUsageRefresh()
-        #expect(await fixture.client.weeklyStartHomes == [secondHome])
+        #expect(await fixture.client.weeklyStartHomes == expectedSends)
 
         await reopened.setWeeklyUsageAutoStartEnabled(false, for: secondID)
         #expect(try await reopenedStore.enabledWeeklyUsageAutoStartAccounts().isEmpty)
@@ -426,17 +431,30 @@ private actor FixtureClient: AccountClient {
     private var confirmsConsumption = true
     private(set) var consumeCalls = 0
     private var weeklyWindows: [URL: RateLimitWindow] = [:]
+    private var dispatchWeeklyWindows: [URL: RateLimitWindow] = [:]
     private(set) var weeklyStartHomes: [URL] = []
     func setWeeklyWindow(_ window: RateLimitWindow, for home: URL) {
         weeklyWindows[home] = window
     }
-    func startWeeklyUsageWindow(profileHome: URL) async throws {
+    func setDispatchWeeklyWindow(_ window: RateLimitWindow, for home: URL) {
+        dispatchWeeklyWindows[home] = window
+    }
+    func startWeeklyUsageWindow(
+        profileHome: URL,
+        authorize: @escaping @Sendable (WeeklyUsage, Date) async throws -> Bool
+    ) async throws -> Bool {
+        if let changed = dispatchWeeklyWindows.removeValue(forKey: profileHome) {
+            weeklyWindows[profileHome] = changed
+        }
+        let fresh = try await readWeeklyUsage(profileHome: profileHome)
+        guard try await authorize(fresh, Date()) else { return false }
         weeklyStartHomes.append(profileHome)
         if let window = weeklyWindows[profileHome] {
             weeklyWindows[profileHome] = RateLimitWindow(
                 usedPercent: 2, windowDurationMins: window.windowDurationMins, resetsAt: window.resetsAt
             )
         }
+        return true
     }
     func failReset() { resetFails = true }
     func doNotConfirmConsumption() { confirmsConsumption = false }

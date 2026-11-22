@@ -45,7 +45,7 @@ final class AppModel: AccountController, @MainActor ObservableObject {
 
     static func live() -> AppModel {
         let store = AccountStore()
-        let codex = CodexClient()
+        let codex = CodexClient(locator: .init(prefersBundledDesktop: true))
         return AppModel(
             store: store,
             codex: codex,

@@ -16,7 +16,7 @@ struct WeeklyUsageAutoStartTests {
         #expect(state.observe(estimate(at: expiry), at: expiry) == nil)
         let confirmationAt = expiry.addingTimeInterval(confirmationDelay)
         #expect(state.nextCheckAt(after: expiry) == confirmationAt)
-        #expect(state.nextCheckAt(after: confirmationAt) == nil)
+        #expect(state.nextCheckAt(after: confirmationAt) == confirmationAt.addingTimeInterval(confirmationDelay))
         #expect(state.observe(estimate(at: confirmationAt), at: confirmationAt) == expiry)
         let didAttempt = state.markAttempt(for: expiry)
         #expect(didAttempt)
@@ -63,6 +63,47 @@ struct WeeklyUsageAutoStartTests {
         #expect(state.observe(window(used: 0, resetsAt: fixedReset), at: firstPoll) == nil)
         #expect(state.observe(window(used: 0, resetsAt: fixedReset), at: secondPoll) == nil)
         #expect(state.nextCheckAt(after: secondPoll) == fixedReset)
+    }
+
+    @Test func repeatedEstimateKeepsTheKnownExpiredBoundary() {
+        var state = WeeklyUsageAutoStartState()
+        #expect(state.observe(window(used: 30, resetsAt: expiry), at: expiry.addingTimeInterval(-60)) == nil)
+        #expect(state.observe(estimate(at: expiry), at: expiry) == nil)
+        let repeatedAt = expiry.addingTimeInterval(confirmationDelay)
+        #expect(state.observe(estimate(at: expiry), at: repeatedAt) == nil)
+
+        let freshAt = repeatedAt.addingTimeInterval(confirmationDelay)
+        #expect(state.observe(estimate(at: freshAt), at: freshAt) == nil)
+        let confirmation = freshAt.addingTimeInterval(confirmationDelay)
+        #expect(state.observe(estimate(at: confirmation), at: confirmation) == expiry)
+    }
+
+    @Test func dispatchRequiresTheLiveWeeklyWindowToStillBeFullAndUnstarted() {
+        var state = WeeklyUsageAutoStartState()
+        let beforeExpiry = expiry.addingTimeInterval(-60)
+        #expect(state.observe(window(used: 30, resetsAt: expiry), at: beforeExpiry) == nil)
+        #expect(!state.canDispatch(estimate(at: beforeExpiry), after: expiry, at: beforeExpiry))
+        #expect(state.observe(estimate(at: expiry), at: expiry) == nil)
+        let confirmation = expiry.addingTimeInterval(confirmationDelay)
+        #expect(state.observe(estimate(at: confirmation), at: confirmation) == expiry)
+
+        let quickRead = confirmation.addingTimeInterval(1)
+        let finalRead = confirmation.addingTimeInterval(10)
+        let fixedReset = confirmation.addingTimeInterval(week)
+        #expect(state.canDispatch(estimate(at: confirmation), after: expiry, at: quickRead))
+        #expect(state.canDispatch(estimate(at: finalRead), after: expiry, at: finalRead))
+        #expect(!state.canDispatch(window(used: 0, resetsAt: fixedReset), after: expiry, at: finalRead))
+        #expect(!state.canDispatch(window(used: 0, resetsAt: fixedReset.addingTimeInterval(-1)),
+            after: expiry, at: quickRead))
+        #expect(!state.canDispatch(window(used: 0.01, resetsAt: finalRead.addingTimeInterval(week)),
+            after: expiry, at: finalRead))
+        #expect(!state.canDispatch(window(used: 0, resetsAt: finalRead.addingTimeInterval(week), duration: 300),
+            after: expiry, at: finalRead))
+        #expect(!state.canDispatch(estimate(at: finalRead), after: beforeExpiry, at: finalRead))
+
+        let didAttempt = state.markAttempt(for: expiry)
+        #expect(didAttempt)
+        #expect(!state.canDispatch(estimate(at: finalRead), after: expiry, at: finalRead))
     }
 
     @Test func detectsAnActiveZeroUseWindowFromAStableResetDate() {
@@ -113,7 +154,8 @@ struct WeeklyUsageAutoStartTests {
         #expect(state.nextCheckAt(after: beforeExpiry) == nil)
         #expect(state.observe(window(used: 37, resetsAt: expiry), at: beforeExpiry) == nil)
         #expect(state.observe(window(used: 0, resetsAt: expiry), at: expiry) == nil)
-        #expect(state.nextCheckAt(after: expiry) == nil)
+        #expect(state.nextCheckAt(after: expiry) == expiry.addingTimeInterval(confirmationDelay))
+        #expect(state.nextCheckAt(after: expiry.addingTimeInterval(60)) == nil)
 
         let wake = expiry.addingTimeInterval(3600)
         #expect(state.observe(estimate(at: wake), at: wake) == nil)
