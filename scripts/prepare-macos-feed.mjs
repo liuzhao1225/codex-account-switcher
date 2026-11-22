@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-const repository = 'liuzhao1225/codex-account-switcher';
+const repository = '4379711/codex-account-switcher';
 const dmg = 'Codex-Account-Switcher-macos-arm64.dmg';
 
 export function latestMacRelease(releases) {
@@ -22,11 +22,17 @@ export function latestMacRelease(releases) {
 export function validateMacFeed(xml, tag) {
   const expected = `https://github.com/${repository}/releases/download/${tag}/${dmg}`;
   const enclosures = [...xml.matchAll(/<enclosure\b[^>]*>/g)].map(match => match[0]);
+  const attributes = new Map(
+    [...(enclosures[0] ?? '').matchAll(/\s([\w:]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]),
+  );
+  const signature = attributes.get('sparkle:edSignature') ?? '';
+  const size = Number(attributes.get('length'));
   if (!/^(macos-)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag) || !xml.includes('<rss') || enclosures.length !== 1 ||
-      !enclosures[0].includes(`url="${expected}"`) ||
-      !/sparkle:edSignature="[^"]+"/.test(enclosures[0])) {
+      attributes.get('url') !== expected || !/^[A-Za-z0-9+/]{86}==$/.test(signature) ||
+      !Number.isSafeInteger(size) || size <= 0) {
     throw new Error('The macOS feed must contain exactly its signed macOS DMG.');
   }
+  return { signature, size };
 }
 
 export async function prepareMacFeed(fetcher = fetch, output = 'site/updates/macos/appcast.xml') {
@@ -43,7 +49,7 @@ export async function prepareMacFeed(fetcher = fetch, output = 'site/updates/mac
     if (batch.length < 100) break;
   }
   const release = latestMacRelease(releases);
-  if (!release) throw new Error('No published macOS release with a signed feed was found.');
+  if (!release) return null;
   // Construct a platform-specific asset URL; never follow the repository-wide Latest alias.
   const response = await fetcher(`https://github.com/${repository}/releases/download/${release.tag_name}/appcast.xml`, {
     signal: AbortSignal.timeout(30000),
@@ -57,5 +63,7 @@ export async function prepareMacFeed(fetcher = fetch, output = 'site/updates/mac
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  console.log(`macOS update feed: ${await prepareMacFeed()}`);
+  const tag = await prepareMacFeed();
+  if (tag) console.log(`macOS update feed: ${tag}`);
+  else console.log('macOS update feed: no published release with appcast.xml yet.');
 }

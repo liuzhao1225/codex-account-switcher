@@ -26,10 +26,13 @@ test('signWindowsUpdate creates a verifiable P-256 feed and rejects tampering', 
     const json = await fs.readFile(out, 'utf8');
     const manifest = validateWindowsFeed(json, 'v0.2.1', publicKeySpkiBase64, { size: payload.length, sha256 });
     assert.equal(manifest.version, '0.2.1');
+    assert.equal(manifest.url, `https://github.com/4379711/codex-account-switcher/releases/download/v0.2.1/${windowsAssetName}`);
+    assert.equal(manifest.releaseNotesUrl, 'https://github.com/4379711/codex-account-switcher/releases/tag/v0.2.1');
     assert.equal(manifest.size, payload.length);
     assert.equal(manifest.sha256, sha256);
 
     assert.throws(() => validateWindowsFeed(json.replace('0.2.1', '0.2.2'), 'v0.2.1', publicKeySpkiBase64));
+    assert.throws(() => validateWindowsFeed(json.replaceAll('4379711/', 'liuzhao1225/'), 'v0.2.1', publicKeySpkiBase64), /URLs/);
     const tampered = JSON.parse(json);
     tampered.size += 1;
     assert.throws(() => validateWindowsFeed(JSON.stringify(tampered), 'v0.2.1', publicKeySpkiBase64), /signature is invalid/);
@@ -77,8 +80,10 @@ test('prepareWindowsFeed selects latest stable unified release with signed feed 
 
     const picked = await prepareWindowsFeed(
       async url => {
-        if (url.includes('/releases?')) return { ok: true, json: async () => [rel('v0.2.1')] };
-        assert.ok(url.endsWith('/v0.2.1/windows-update.json'));
+        if (url === 'https://api.github.com/repos/4379711/codex-account-switcher/releases?per_page=100&page=1') {
+          return { ok: true, json: async () => [rel('v0.2.1')] };
+        }
+        assert.equal(url, 'https://github.com/4379711/codex-account-switcher/releases/download/v0.2.1/windows-update.json');
         return { ok: true, text: async () => feedJson };
       },
       output,

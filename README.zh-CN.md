@@ -58,6 +58,8 @@ Codex Account Switcher 是一款免费开源的 macOS 与 Windows 原生多账�
 
 [Apple 官方打开说明](https://support.apple.com/zh-cn/102445)
 
+如果你在任一平台使用 `v0.2.2` 或更早版本，请手动安装一次较新的 fork 版本，应用内更新就会切换到本 fork。
+
 ## 核心功能
 
 | 功能 | 说明 |

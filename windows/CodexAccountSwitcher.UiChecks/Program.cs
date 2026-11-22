@@ -18,16 +18,16 @@ internal static class Program
     {
         var output = Path.GetFullPath(args.FirstOrDefault() ?? Path.Combine("windows", "artifacts", "ui"));
         try {
-            const string testPubKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkeWTKfZIKx3GnWkh5xBlkyWt10Uhd7iJ0vnjlxDR8Ola1nSSc+wDED/iA8UNoy9bDrU7lHQCfN5dZo5MFByp7A==";
+            const string testPubKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo68/mjZ8Qwu1darSKOA/idYSAyrHm2TiXTE8zWGUa6shjD1kKPAx+MeTmUj69dBDfxTAoyCVcsUczLWvfuJdtg==";
             const string signedFeed = """
                 {
                   "version": "0.2.1",
                   "tag": "v0.2.1",
-                  "url": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
+                  "url": "https://github.com/4379711/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
                   "size": 123456,
                   "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "releaseNotesUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.2.1",
-                  "signature": "ejLJeqnLSWnne4afPqt0SqG+CuCuSf+JHyuSA8AmO+WVkOiwAEijmvx4XyjNK3HuOQfBq03c+0iuJwHO2BQr1g=="
+                  "releaseNotesUrl": "https://github.com/4379711/codex-account-switcher/releases/tag/v0.2.1",
+                  "signature": "gk9jo6f140VoyZ9NgUbh2dVOFfxR1lIWELRU9WrBH6c+ER5B44Tq6hyvv+rljjUbdwyT9CV/W0KIPZFYl0xO2w=="
                 }
                 """;
             var parsed = WindowsUpdater.ParseAndVerifyManifest(signedFeed, new Version(0, 2, 0), testPubKey);

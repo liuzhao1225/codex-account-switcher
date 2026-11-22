@@ -31,9 +31,11 @@ test('the fork release publishes verified macOS and Windows artifacts from one t
   assert.match(release, /needs: \[macos, windows\]/);
   assert.match(release, /uses: \.\/\.github\/workflows\/windows\.yml/);
   assert.match(release, /CODESIGN_IDENTITY: "-"/);
-  assert.match(release, /shasum -a 256 --check "\$DMG_NAME\.sha256" "\$EXE_NAME\.sha256"/);
+  assert.match(release, /node scripts\/verify-release-artifacts\.mjs/);
   assert.match(release, /gh release create [\s\S]*--verify-tag/);
-  assert.doesNotMatch(release, /secrets\.|notarytool/);
+  assert.match(release, /secrets\.SPARKLE_PRIVATE_KEY/);
+  assert.match(release, /secrets\.WINDOWS_UPDATE_PRIVATE_KEY/);
+  assert.doesNotMatch(release, /secrets\.(BUILD_CERTIFICATE_BASE64|P12_PASSWORD|APP_STORE_CONNECT_)|notarytool/);
   assert.match(windows, /workflow_call:/);
   assert.doesNotMatch(windows, /gh release create|tags:/);
 });

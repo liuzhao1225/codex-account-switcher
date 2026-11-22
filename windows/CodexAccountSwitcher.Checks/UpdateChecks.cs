@@ -8,16 +8,16 @@ using CodexAccountSwitcher.Core;
 
 internal static class UpdateChecks
 {
-    private const string CrossLangPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkeWTKfZIKx3GnWkh5xBlkyWt10Uhd7iJ0vnjlxDR8Ola1nSSc+wDED/iA8UNoy9bDrU7lHQCfN5dZo5MFByp7A==";
+    private const string CrossLangPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo68/mjZ8Qwu1darSKOA/idYSAyrHm2TiXTE8zWGUa6shjD1kKPAx+MeTmUj69dBDfxTAoyCVcsUczLWvfuJdtg==";
     private const string CrossLangManifestJson = """
         {
           "version": "0.2.1",
           "tag": "v0.2.1",
-          "url": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
+          "url": "https://github.com/4379711/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
           "size": 123456,
           "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "releaseNotesUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.2.1",
-          "signature": "ejLJeqnLSWnne4afPqt0SqG+CuCuSf+JHyuSA8AmO+WVkOiwAEijmvx4XyjNK3HuOQfBq03c+0iuJwHO2BQr1g=="
+          "releaseNotesUrl": "https://github.com/4379711/codex-account-switcher/releases/tag/v0.2.1",
+          "signature": "gk9jo6f140VoyZ9NgUbh2dVOFfxR1lIWELRU9WrBH6c+ER5B44Tq6hyvv+rljjUbdwyT9CV/W0KIPZFYl0xO2w=="
         }
         """;
 
@@ -62,8 +62,11 @@ internal static class UpdateChecks
             WindowsUpdater.ParseAndVerifyManifest(CrossLangManifestJson.Replace("aaaa", "baaa"), new Version(0, 2, 0), CrossLangPublicKey),
             "Tampered SHA-256 must fail signature verification.");
         RequireThrows<InvalidDataException>(() =>
-            WindowsUpdater.ParseAndVerifyManifest(CrossLangManifestJson.Replace("liuzhao1225/codex-account-switcher/releases/download", "evil.example/releases/download"), new Version(0, 2, 0), CrossLangPublicKey),
+            WindowsUpdater.ParseAndVerifyManifest(CrossLangManifestJson.Replace("https://github.com/", "https://evil.example/"), new Version(0, 2, 0), CrossLangPublicKey),
             "Untrusted download host must be rejected.");
+        RequireThrows<InvalidDataException>(() =>
+            WindowsUpdater.ParseAndVerifyManifest(CrossLangManifestJson.Replace("4379711/", "liuzhao1225/"), new Version(0, 2, 0), CrossLangPublicKey),
+            "Upstream release URLs must be rejected.");
     }
 
     private static async Task VerifyDownloadAndTamperRejectionAsync(string root)

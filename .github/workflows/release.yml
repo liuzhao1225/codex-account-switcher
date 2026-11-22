@@ -109,6 +109,19 @@ jobs:
           cd dist
           shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
 
+      - name: Sign and verify the Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SPARKLE_PRIVATE_KEY:?Set the SPARKLE_PRIVATE_KEY repository secret}"
+          sparkle_bin=.build/artifacts/sparkle/Sparkle/bin
+          printf '%s\n' "$SPARKLE_PRIVATE_KEY" | "$sparkle_bin/generate_appcast" --ed-key-file - \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+            --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+            --maximum-deltas 0 -o dist/appcast.xml dist
+          printf '%s\n' "$SPARKLE_PRIVATE_KEY" | "$sparkle_bin/sign_update" --verify --ed-key-file - dist/appcast.xml
+
       - name: Upload the verified macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -116,6 +129,7 @@ jobs:
           path: |
             dist/${{ env.DMG_NAME }}
             dist/${{ env.DMG_NAME }}.sha256
+            dist/appcast.xml
           if-no-files-found: error
           overwrite: true
 
@@ -125,19 +139,28 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           pattern: Codex-Account-Switcher-*
           merge-multiple: true
           path: dist
 
+      - name: Sign the Windows update manifest
+        env:
+          WINDOWS_UPDATE_PRIVATE_KEY: ${{ secrets.WINDOWS_UPDATE_PRIVATE_KEY }}
+        run: node scripts/sign-windows-update.mjs dist "$GITHUB_REF_NAME"
+
       - name: Publish to GitHub Releases
-        working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          shasum -a 256 --check "$DMG_NAME.sha256" "$EXE_NAME.sha256"
-          gh release create "$GITHUB_REF_NAME" "$DMG_NAME" "$DMG_NAME.sha256" "$EXE_NAME" "$EXE_NAME.sha256" \
+          node scripts/verify-release-artifacts.mjs dist "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/$DMG_NAME" "dist/$DMG_NAME.sha256" "dist/$EXE_NAME" "dist/$EXE_NAME.sha256" \
+            dist/appcast.xml dist/windows-update.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes \
             --notes "包含 Apple 芯片 Mac 的 DMG 和 Windows x64 的 EXE。macOS 安装包使用 ad hoc 签名，首次打开可能需要在「隐私与安全性」中确认。"

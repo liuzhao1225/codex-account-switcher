@@ -7,7 +7,8 @@ import { latestMacRelease, validateMacFeed, prepareMacFeed } from '../prepare-ma
 
 const mac = (tag, extra = {}) => ({ tag_name: tag, draft: false, prerelease: false,
   assets: [{ name: 'appcast.xml' }, { name: 'Codex-Account-Switcher-macos-arm64.dmg' }], ...extra });
-const feed = tag => `<rss><channel><item><enclosure url="https://github.com/liuzhao1225/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" sparkle:edSignature="fixture" /></item></channel></rss>`;
+const signature = Buffer.alloc(64).toString('base64');
+const feed = tag => `<rss><channel><item><enclosure url="https://github.com/4379711/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" length="123" sparkle:edSignature="${signature}" /></item></channel></rss>`;
 
 test('macOS ignores newer Windows releases, drafts, previews and incomplete releases', () => {
   const releases = [mac('windows-v99.0.0'), mac('macos-v3.0.0', { draft: true }),
@@ -21,6 +22,8 @@ test('feed validation rejects another platform, unsigned assets and mixed enclos
   validateMacFeed(feed('macos-v1.0.0'), 'macos-v1.0.0');
   assert.throws(() => validateMacFeed(feed('windows-v9.0.0'), 'macos-v1.0.0'));
   assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('sparkle:edSignature', 'signature'), 'macos-v1.0.0'));
+  assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('4379711/', 'liuzhao1225/'), 'macos-v1.0.0'));
+  assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('length="123"', 'length="0"'), 'macos-v1.0.0'));
   assert.throws(() => validateMacFeed(feed('macos-v1.0.0') + '<enclosure url="other.exe"/>', 'macos-v1.0.0'));
 });
 
@@ -29,11 +32,17 @@ test('site deployment searches beyond 100 Windows releases and copies the Mac fe
   const output = path.join(directory, 'updates', 'appcast.xml');
   const requests = [];
   try {
+    const incomplete = mac('v0.2.2', { assets: [{ name: 'Codex-Account-Switcher-macos-arm64.dmg' }] });
+    const none = await prepareMacFeed(async () => ({ ok: true, json: async () => [incomplete] }), output);
+    assert.equal(none, null);
+    await assert.rejects(fs.stat(output), { code: 'ENOENT' });
+
     const tag = await prepareMacFeed(async url => {
       requests.push(url);
-      if (url.endsWith('&page=1')) return { ok: true, json: async () => Array.from({ length: 100 }, () => mac('windows-v99.0.0')) };
-      if (url.endsWith('&page=2')) return { ok: true, json: async () => [mac('macos-v1.0.0')] };
-      assert.ok(url.endsWith('/macos-v1.0.0/appcast.xml'));
+      const listings = 'https://api.github.com/repos/4379711/codex-account-switcher/releases?per_page=100';
+      if (url === listings + '&page=1') return { ok: true, json: async () => Array.from({ length: 100 }, () => mac('windows-v99.0.0')) };
+      if (url === listings + '&page=2') return { ok: true, json: async () => [mac('macos-v1.0.0')] };
+      assert.equal(url, 'https://github.com/4379711/codex-account-switcher/releases/download/macos-v1.0.0/appcast.xml');
       return { ok: true, text: async () => feed('macos-v1.0.0') };
     }, output);
     assert.equal(tag, 'macos-v1.0.0');

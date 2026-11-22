@@ -29,9 +29,9 @@ public sealed record StagedWindowsUpdate(string StagingDirectory, string Executa
 
 public static class WindowsUpdater
 {
-    public const string FeedUrl = "https://liuzhao1225.github.io/codex-account-switcher/updates/windows/latest.json";
-    public const string PublicKeySpkiBase64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+9/dptkfIXM8UbAAkCpAAaATdoDzaz71x3FZtX0dBPLzEKja+Ff+A10Z6Nnmx7J8GYU/Y8WzpPUnbm2iV9jNag==";
-    public const string Repository = "liuzhao1225/codex-account-switcher";
+    public const string Repository = "4379711/codex-account-switcher";
+    public const string FeedUrl = "https://github.com/" + Repository + "/releases/latest/download/windows-update.json";
+    public const string PublicKeySpkiBase64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPbfE2Zf8MOm1C8b6d7txF5M6CVzKFlzcG5ZhSLnFvuY+BhIaxpVzBcrQYWtKzpMDKfZJ85y3bJsitmVu6GpKzA==";
     public const string AssetName = "Codex-Account-Switcher-windows-x64.exe";
     public const long MaxDownloadBytes = 256L * 1024 * 1024;
 

@@ -58,6 +58,8 @@ This fork's macOS DMG uses ad hoc signing. If macOS blocks the first launch, ver
 
 [Apple's guide to opening apps on Mac](https://support.apple.com/en-us/102445)
 
+If you use `v0.2.2` or earlier on either platform, install a newer fork release manually once to switch the in-app updater to this fork.
+
 ## Features
 
 | Feature | Details |

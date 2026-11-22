@@ -11,8 +11,14 @@ Push a `v<major>.<minor>.<patch>` tag pointing to a commit on the fork's `main` 
 ## Release Pipeline (`.github/workflows/release.yml`)
 
 1. **`validate`** checks the tag format, version definitions, and commit ancestry on `main`, then runs the release script tests.
-2. **`macos`** runs the Swift tests and packages the app and Apple Silicon DMG with ad hoc signatures. It mounts the image, verifies the app inside, and writes a SHA-256 checksum.
+2. **`macos`** runs the Swift tests and packages the app and Apple Silicon DMG with ad hoc signatures. It verifies the app inside, writes the checksum, and signs both the DMG for Sparkle and its `appcast.xml`.
 3. **`windows`** calls the Windows workflow to test and package the self-contained x64 EXE and its SHA-256 checksum.
-4. **`publish`** verifies both checksums and attaches both packages and their checksums to a single GitHub Release in this fork.
+4. **`publish`** signs `windows-update.json`, verifies both installers and update signatures, then publishes both packages, checksums, and signed update files in a single fork release.
 
-The fork's macOS build uses ad hoc signing without Apple notarization. macOS may ask users to confirm the first launch in Privacy & Security. The apps still check the upstream update feeds.
+## In-app updates
+
+The apps read `appcast.xml` and `windows-update.json` from this fork's `releases/latest/download` URLs. Each update file points to the installer for its specific version. The macOS DMG continues to use ad hoc signing. macOS may ask users to confirm the first launch in Privacy & Security.
+
+The workflow uses the `SPARKLE_PRIVATE_KEY` and `WINDOWS_UPDATE_PRIVATE_KEY` repository secrets. Keep secure backups of both keys. The public keys are built into the apps, so keep the same key pairs for future releases.
+
+Install a fork release newer than `v0.2.2` manually once to switch the update source. After that, use the in-app update check.

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const repository = 'liuzhao1225/codex-account-switcher';
+export const repository = '4379711/codex-account-switcher';
 export const windowsAssetName = 'Codex-Account-Switcher-windows-x64.exe';
 export const defaultPublicKeyPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

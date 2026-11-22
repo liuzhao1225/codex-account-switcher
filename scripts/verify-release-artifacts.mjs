@@ -1,15 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey, verify } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { validateMacFeed } from './prepare-macos-feed.mjs';
-import { readDefaultPublicKey, validateWindowsFeed } from './sign-windows-update.mjs';
+import { readDefaultPublicKey, validateWindowsFeed, windowsAssetName } from './sign-windows-update.mjs';
 
-export async function verifyReleaseArtifacts(directory, tag, windowsPublicKeySpkiBase64 = null) {
+const macAssetName = 'Codex-Account-Switcher-macos-arm64.dmg';
+const macPublicKeyPath = new URL('./sparkle-public-key.txt', import.meta.url);
+
+export async function verifyReleaseArtifacts(directory, tag, windowsPublicKeySpkiBase64 = null, macPublicKeyBase64 = null) {
   if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) throw new Error('Expected a unified release tag.');
   const hashes = {};
   const sizes = {};
-  for (const name of ['Codex-Account-Switcher-macos-arm64.dmg', 'Codex-Account-Switcher-windows-x64.exe']) {
+  for (const name of [macAssetName, windowsAssetName]) {
     const data = await fs.readFile(path.join(directory, name));
     if (!data.length) throw new Error(`Empty package: ${name}`);
     const checksum = (await fs.readFile(path.join(directory, `${name}.sha256`), 'utf8')).trim();
@@ -22,15 +25,29 @@ export async function verifyReleaseArtifacts(directory, tag, windowsPublicKeySpk
     sizes[name] = data.length;
   }
   const xml = await fs.readFile(path.join(directory, 'appcast.xml'), 'utf8');
-  validateMacFeed(xml, tag);
-  if (!xml.includes(`<sparkle:shortVersionString>${tag.slice(1)}</sparkle:shortVersionString>`)) {
+  const macUpdate = validateMacFeed(xml, tag);
+  const version = tag.slice(1);
+  if (!xml.includes(`<sparkle:version>${version}</sparkle:version>`) ||
+      !xml.includes(`<sparkle:shortVersionString>${version}</sparkle:shortVersionString>`)) {
     throw new Error('The update feed version differs from the release tag.');
+  }
+  if (macUpdate.size !== sizes[macAssetName]) {
+    throw new Error('The macOS update feed size does not match the DMG.');
+  }
+  const macPublicKey = Buffer.from(macPublicKeyBase64 ?? await fs.readFile(macPublicKeyPath, 'utf8'), 'base64');
+  const publicKey = createPublicKey({
+    key: { kty: 'OKP', crv: 'Ed25519', x: macPublicKey.toString('base64url') },
+    format: 'jwk',
+  });
+  const dmg = await fs.readFile(path.join(directory, macAssetName));
+  if (!verify(null, dmg, publicKey, Buffer.from(macUpdate.signature, 'base64'))) {
+    throw new Error('The macOS update feed signature is invalid for the DMG.');
   }
   const winJson = await fs.readFile(path.join(directory, 'windows-update.json'), 'utf8');
   const pubKey = windowsPublicKeySpkiBase64 ?? (await readDefaultPublicKey());
   validateWindowsFeed(winJson, tag, pubKey, {
-    size: sizes['Codex-Account-Switcher-windows-x64.exe'],
-    sha256: hashes['Codex-Account-Switcher-windows-x64.exe'],
+    size: sizes[windowsAssetName],
+    sha256: hashes[windowsAssetName],
   });
 }
 
