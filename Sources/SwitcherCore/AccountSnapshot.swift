@@ -12,7 +12,6 @@ public struct AccountSnapshot: Encodable, Sendable {
         public let subscriptionStatus: String
         public let liveSubscription: LiveSubscription?
         public let subscriptionError: String?
-        public let weeklyUsageAutoStartEnabled: Bool
     }
     public let accounts: [Row]
     public let activeAccountID: UUID?
@@ -20,6 +19,7 @@ public struct AccountSnapshot: Encodable, Sendable {
     public let isMutating: Bool
     public let isAddingAccount: Bool
     public let activeIdentityConfirmed: Bool
+    public let weeklyUsageAutoStartEnabled: Bool
     public let error: String?
     public let strings: [String: String]?
 }
@@ -42,8 +42,7 @@ extension AccountController {
                     subscription: subscriptionSnapshots[account.id],
                     subscriptionStatus: subState.presentationStatus,
                     liveSubscription: subState.displayedSubscription,
-                    subscriptionError: subState.refreshError,
-                    weeklyUsageAutoStartEnabled: isWeeklyUsageAutoStartEnabled(for: account.id)
+                    subscriptionError: subState.refreshError
                 )
             },
             activeAccountID: activeAccountID,
@@ -51,6 +50,7 @@ extension AccountController {
             isMutating: isMutating,
             isAddingAccount: isAddingAccount,
             activeIdentityConfirmed: activeIdentityConfirmed,
+            weeklyUsageAutoStartEnabled: weeklyUsageAutoStartEnabled,
             error: visibleError.map { $0.messageKey.map(text) ?? $0.message },
             strings: includeStrings ? L10n.allStrings(language: settings.language) : nil
         )

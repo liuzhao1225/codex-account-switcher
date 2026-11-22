@@ -68,28 +68,22 @@ try {
     var cliFixture = Path.Combine(AppContext.BaseDirectory, "CodexAccountSwitcher.Checks.exe");
     Require(File.Exists(cliFixture), "The isolated CLI fixture is missing.");
     Environment.SetEnvironmentVariable("CODEX_CLI_PATH", cliFixture);
-    var firstID = profiles[0].id;
-    var secondID = profiles[1].id;
-
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
         await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
         await UntilAsync(() => client.State.Settings.Language == "simplifiedChinese" && client.State.Accounts.Length == 2);
         Require(client.State.Settings.ShowsFiveHourUsage, "Settings must survive a host restart.");
         Require(client.State.Settings.StatusBarUsageWindow == "weekly", "Tray usage selection must survive a host restart.");
-        Require(client.State.Accounts.All(row => !row.WeeklyUsageAutoStartEnabled),
-            "Existing saved accounts should default to weekly auto-start off.");
-        await client.CommandAsync("weeklyUsageAutoStart", accountID: firstID, value: true);
-        await UntilAsync(() => WeeklyAutoStartEnabled(client, firstID));
-        Require(!WeeklyAutoStartEnabled(client, secondID), "Weekly auto-start must apply only to the selected account.");
+        Require(!client.State.WeeklyUsageAutoStartEnabled, "Weekly auto-start should default to off.");
+        await client.CommandAsync("weeklyUsageAutoStart", value: true);
+        await UntilAsync(() => client.State.WeeklyUsageAutoStartEnabled);
     }
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
         await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
-        await UntilAsync(() => client.State.Accounts.Length == 2 && WeeklyAutoStartEnabled(client, firstID));
-        Require(!WeeklyAutoStartEnabled(client, secondID), "Only the selected account's setting should survive restart.");
-        await client.CommandAsync("weeklyUsageAutoStart", accountID: firstID, value: false);
-        await UntilAsync(() => !WeeklyAutoStartEnabled(client, firstID));
+        await UntilAsync(() => client.State.Accounts.Length == 2 && client.State.WeeklyUsageAutoStartEnabled);
+        await client.CommandAsync("weeklyUsageAutoStart", value: false);
+        await UntilAsync(() => !client.State.WeeklyUsageAutoStartEnabled);
     }
-    Console.WriteLine("PASS: native transport, shared snapshots/localization, per-account weekly auto-start, private ACL and restart persistence.");
+    Console.WriteLine("PASS: native transport, shared snapshots/localization, global weekly auto-start, private ACL and restart persistence.");
     return 0;
 } catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
 finally {
@@ -97,8 +91,6 @@ finally {
     SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), root);
 }
 
-static bool WeeklyAutoStartEnabled(CoreClient client, Guid accountID) =>
-    client.State.Accounts.Any(row => row.Profile.Id == accountID && row.WeeklyUsageAutoStartEnabled);
 static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 static async Task UntilAsync(Func<bool> condition) {
     for (var i = 0; i < 100; i++) { if (condition()) return; await Task.Delay(50); }

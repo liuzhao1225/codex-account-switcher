@@ -11,12 +11,12 @@ public sealed record LiveSubscription(DateTimeOffset? ActiveUntil, string PlanTy
     bool? WillRenew, bool? IsDelinquent, DateTimeOffset FetchedAt);
 public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError,
     string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null,
-    string SubscriptionStatus = "idle", LiveSubscription? LiveSubscription = null, string? SubscriptionError = null,
-    bool WeeklyUsageAutoStartEnabled = false);
+    string SubscriptionStatus = "idle", LiveSubscription? LiveSubscription = null, string? SubscriptionError = null);
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
     string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false);
 public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountID, Preferences Settings,
-    bool IsMutating, bool IsAddingAccount, bool ActiveIdentityConfirmed, string? Error, Dictionary<string, string>? Strings)
+    bool IsMutating, bool IsAddingAccount, bool ActiveIdentityConfirmed, string? Error, Dictionary<string, string>? Strings,
+    bool WeeklyUsageAutoStartEnabled = false)
 {
     public static AccountSnapshot Empty { get; } = new([], null, new(), false, false, true, null, []);
     public string Text(string key) => Strings != null && Strings.TryGetValue(key, out var value) ? value : key;

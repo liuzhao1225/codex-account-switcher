@@ -379,6 +379,68 @@ struct AccountStoreTests {
         #expect(try permissions(settingsURL) == 0o600)
     }
 
+    @Test(arguments: [false, true])
+    func migratesWeeklyAutoStartOnlyWhenAllSavedAccountsWereEnabled(allEnabled: Bool) async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let profiles = try await prepareSwitchProfiles(fixture)
+        for (profile, enabled) in [(profiles.original, true), (profiles.target, allEnabled)] {
+            let home = await fixture.store.profileHome(id: profile.id)
+            try Data("{\"enabled\":\(enabled),\"state\":{}}".utf8)
+                .write(to: home.appending(path: "weekly-usage-auto-start.json"))
+        }
+
+        #expect(try await fixture.store.loadWeeklyUsageAutoStartEnabled() == allEnabled)
+        #expect(try permissions(fixture.support.appending(path: "weekly-usage-auto-start.json")) == 0o600)
+        try await fixture.store.setWeeklyUsageAutoStartEnabled(false)
+        let reloaded = AccountStore(baseURL: fixture.support, activeHomeURL: fixture.activeHome)
+        #expect(try await !reloaded.loadWeeklyUsageAutoStartEnabled())
+    }
+
+    @Test func globalWeeklyAutoStartCoversNewAccountsAndKeepsAttemptsWhenToggled() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        #expect(try await !fixture.store.loadWeeklyUsageAutoStartEnabled())
+        try await fixture.store.setWeeklyUsageAutoStartEnabled(true)
+        let profiles = try await prepareSwitchProfiles(fixture)
+
+        let expiry = Date(timeIntervalSince1970: 2_000_000_000)
+        let confirmation = expiry.addingTimeInterval(WeeklyUsageAutoStartState.confirmationDelay)
+        func window(used: Double, resetsAt: Date) -> RateLimitWindow {
+            RateLimitWindow(usedPercent: used, windowDurationMins: WeeklyUsageAutoStartState.weeklyMinutes,
+                            resetsAt: resetsAt.timeIntervalSince1970)
+        }
+        func estimate(at date: Date) -> RateLimitWindow {
+            window(used: 0, resetsAt: date.addingTimeInterval(7 * 24 * 60 * 60))
+        }
+        func observeRollover(for id: UUID) async throws -> Date? {
+            _ = try await fixture.store.observeWeeklyUsageAutoStart(
+                window(used: 30, resetsAt: expiry), for: id, at: expiry.addingTimeInterval(-60)
+            )
+            _ = try await fixture.store.observeWeeklyUsageAutoStart(estimate(at: expiry), for: id, at: expiry)
+            return try await fixture.store.observeWeeklyUsageAutoStart(
+                estimate(at: confirmation), for: id, at: confirmation
+            ).expiredAt
+        }
+
+        #expect(try await observeRollover(for: profiles.original.id) == expiry)
+        #expect(try await observeRollover(for: profiles.target.id) == expiry)
+        #expect(try await fixture.store.claimWeeklyUsageAutoStartAttempt(
+            for: profiles.original.id, expiredAt: expiry, window: estimate(at: confirmation), observedAt: confirmation
+        ))
+
+        try await fixture.store.setWeeklyUsageAutoStartEnabled(false)
+        #expect(try await !fixture.store.claimWeeklyUsageAutoStartAttempt(
+            for: profiles.target.id, expiredAt: expiry, window: estimate(at: confirmation), observedAt: confirmation
+        ))
+        try await fixture.store.setWeeklyUsageAutoStartEnabled(true)
+        #expect(try await !fixture.store.claimWeeklyUsageAutoStartAttempt(
+            for: profiles.target.id, expiredAt: expiry, window: estimate(at: confirmation), observedAt: confirmation
+        ))
+        #expect(try await observeRollover(for: profiles.original.id) == nil)
+        #expect(try await observeRollover(for: profiles.target.id) == expiry)
+    }
+
     @Test func decodesLegacyWeeklyOnlyUsageCache() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

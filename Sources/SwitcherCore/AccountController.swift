@@ -70,9 +70,9 @@ open class AccountController {
     private var isBackgroundUsageRefreshEnabled = false
     private var autoReset: AutoReset?
     private var resetExpiryTask: Task<Void, Never>?
-    private var weeklyUsageAutoStartAccounts: Set<UUID> = [] {
-        willSet { if newValue != weeklyUsageAutoStartAccounts { prepareForMutation() } }
-        didSet { if weeklyUsageAutoStartAccounts != oldValue { finishMutation() } }
+    public private(set) var weeklyUsageAutoStartEnabled = false {
+        willSet { if newValue != weeklyUsageAutoStartEnabled { prepareForMutation() } }
+        didSet { if weeklyUsageAutoStartEnabled != oldValue { finishMutation() } }
     }
     private var weeklyUsageAutoStartChecks: [UUID: Date] = [:]
 
@@ -151,7 +151,7 @@ open class AccountController {
             }
             try await syncActiveIdentity()
             do {
-                weeklyUsageAutoStartAccounts = try await store.enabledWeeklyUsageAutoStartAccounts()
+                weeklyUsageAutoStartEnabled = try await store.loadWeeklyUsageAutoStartEnabled()
             } catch {
                 showError(error)
             }
@@ -194,7 +194,7 @@ open class AccountController {
             await self.performWeeklyUsageRefresh()
             self.usageRefreshTask = nil
             self.scheduleResetExpiryCheck()
-            if self.isBackgroundUsageRefreshEnabled, !self.weeklyUsageAutoStartAccounts.isEmpty, !Task.isCancelled {
+            if self.isBackgroundUsageRefreshEnabled, self.weeklyUsageAutoStartEnabled, !Task.isCancelled {
                 self.scheduleNextWeeklyUsageRefresh()
             }
         }
@@ -585,20 +585,16 @@ open class AccountController {
         }
     }
 
-    public func isWeeklyUsageAutoStartEnabled(for profileID: UUID) -> Bool {
-        weeklyUsageAutoStartAccounts.contains(profileID)
-    }
-
-    public func setWeeklyUsageAutoStartEnabled(_ enabled: Bool, for profileID: UUID) async {
-        guard isWeeklyUsageAutoStartEnabled(for: profileID) != enabled else { return }
+    public func setWeeklyUsageAutoStartEnabled(_ enabled: Bool) async {
+        guard weeklyUsageAutoStartEnabled != enabled else { return }
         do {
-            try await store.setWeeklyUsageAutoStartEnabled(enabled, for: profileID)
+            try await store.setWeeklyUsageAutoStartEnabled(enabled)
+            weeklyUsageAutoStartEnabled = enabled
             if enabled {
-                weeklyUsageAutoStartAccounts.insert(profileID)
                 refreshWeeklyUsage()
             } else {
-                weeklyUsageAutoStartAccounts.remove(profileID)
-                weeklyUsageAutoStartChecks[profileID] = nil
+                weeklyUsageAutoStartChecks.removeAll()
+                if isBackgroundUsageRefreshEnabled { scheduleNextWeeklyUsageRefresh() }
             }
         } catch {
             showError(error)
@@ -609,7 +605,7 @@ open class AccountController {
         profile: AccountProfile, usage: WeeklyUsage, observedAt: Date
     ) async -> WeeklyUsage {
         let id = profile.id
-        guard isWeeklyUsageAutoStartEnabled(for: id) else { return usage }
+        guard weeklyUsageAutoStartEnabled else { return usage }
         var latestUsage = usage
         var latestObservation = observedAt
         do {
@@ -785,7 +781,6 @@ open class AccountController {
         usageStates = usageStates.filter { validIDs.contains($0.key) }
         subscriptionStates = subscriptionStates.filter { validIDs.contains($0.key) }
         subscriptionSnapshots = subscriptionSnapshots.filter { validIDs.contains($0.key) }
-        weeklyUsageAutoStartAccounts.formIntersection(validIDs)
         weeklyUsageAutoStartChecks = weeklyUsageAutoStartChecks.filter { validIDs.contains($0.key) }
     }
 

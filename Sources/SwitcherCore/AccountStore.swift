@@ -63,6 +63,7 @@ public actor AccountStore: AccountStoring {
 
     private var accountsURL: URL { baseURL.appending(path: "accounts.json") }
     private var settingsURL: URL { baseURL.appending(path: "settings.json") }
+    private var weeklyUsageAutoStartSettingsURL: URL { baseURL.appending(path: "weekly-usage-auto-start.json") }
     private var subscriptionCacheURL: URL { baseURL.appending(path: "subscription-cache.json") }
     private var usageCacheURL: URL { baseURL.appending(path: "usage-cache.json") }
     private var profilesURL: URL { baseURL.appending(path: "accounts", directoryHint: .isDirectory) }
@@ -161,29 +162,29 @@ public actor AccountStore: AccountStoring {
         try writeJSON(settings, to: settingsURL)
     }
 
-    func enabledWeeklyUsageAutoStartAccounts() throws -> Set<UUID> {
-        Set(try loadRegistry().accounts.compactMap { profile in
-            (try? loadWeeklyUsageAutoStart(for: profile.id).enabled) == true ? profile.id : nil
-        })
+    func loadWeeklyUsageAutoStartEnabled() throws -> Bool {
+        try loadWeeklyUsageAutoStartSettings().enabled
     }
 
-    func setWeeklyUsageAutoStartEnabled(_ enabled: Bool, for profileID: UUID) throws {
-        _ = try profile(id: profileID)
-        var record = try loadWeeklyUsageAutoStart(for: profileID)
-        guard record.enabled != enabled else { return }
-        record.enabled = enabled
-        record.state.resetObservations()
-        try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
+    func setWeeklyUsageAutoStartEnabled(_ enabled: Bool) throws {
+        guard try loadWeeklyUsageAutoStartSettings().enabled != enabled else { return }
+        let settings = WeeklyUsageAutoStartSettings(enabled: enabled, generation: UUID())
+        try writeJSON(settings, to: weeklyUsageAutoStartSettingsURL)
     }
 
     func observeWeeklyUsageAutoStart(
         _ window: RateLimitWindow, for profileID: UUID, at now: Date
     ) throws -> (expiredAt: Date?, nextCheckAt: Date?) {
+        let settings = try loadWeeklyUsageAutoStartSettings()
+        guard settings.enabled else { return (nil, nil) }
         var record = try loadWeeklyUsageAutoStart(for: profileID)
-        guard record.enabled else { return (nil, nil) }
-        let previous = record.state
+        let previous = record
+        if record.generation != settings.generation {
+            record.state.resetObservations()
+            record.generation = settings.generation
+        }
         let expiredAt = record.state.observe(window, at: now)
-        if record.state != previous {
+        if record != previous {
             try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
         }
         return (expiredAt, record.state.nextCheckAt(after: now))
@@ -192,16 +193,40 @@ public actor AccountStore: AccountStoring {
     func claimWeeklyUsageAutoStartAttempt(
         for profileID: UUID, expiredAt: Date, window: RateLimitWindow, observedAt: Date
     ) throws -> Bool {
+        let settings = try loadWeeklyUsageAutoStartSettings()
+        guard settings.enabled else { return false }
         var record = try loadWeeklyUsageAutoStart(for: profileID)
-        guard record.enabled, record.state.canDispatch(window, after: expiredAt, at: observedAt),
+        guard record.generation == settings.generation,
+              record.state.canDispatch(window, after: expiredAt, at: observedAt),
               record.state.markAttempt(for: expiredAt) else { return false }
         try writeJSON(record, to: weeklyUsageAutoStartURL(for: profileID))
         return true
     }
 
-    private struct WeeklyUsageAutoStartRecord: Codable {
-        var enabled = false
+    private struct WeeklyUsageAutoStartSettings: Codable {
+        let enabled: Bool
+        let generation: UUID?
+    }
+
+    private struct WeeklyUsageAutoStartRecord: Codable, Equatable {
+        var enabled = false // Legacy opt-in, used only when migrating.
+        var generation: UUID?
         var state = WeeklyUsageAutoStartState()
+    }
+
+    private func loadWeeklyUsageAutoStartSettings() throws -> WeeklyUsageAutoStartSettings {
+        let url = weeklyUsageAutoStartSettingsURL
+        if fileManager.fileExists(atPath: url.path) {
+            return try Self.decoder.decode(WeeklyUsageAutoStartSettings.self, from: readChecked(url))
+        }
+        // Carry over opt-in only when it already covered every saved account.
+        let accounts = try loadRegistry().accounts
+        let enabled = !accounts.isEmpty && accounts.allSatisfy {
+            (try? loadWeeklyUsageAutoStart(for: $0.id).enabled) == true
+        }
+        let settings = WeeklyUsageAutoStartSettings(enabled: enabled, generation: nil)
+        try writeJSON(settings, to: url)
+        return settings
     }
 
     private func weeklyUsageAutoStartURL(for profileID: UUID) -> URL {

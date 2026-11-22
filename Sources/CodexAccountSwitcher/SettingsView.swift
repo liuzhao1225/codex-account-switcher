@@ -1,3 +1,4 @@
+import AppKit
 import SwitcherCore
 import SwiftUI
 
@@ -14,7 +15,14 @@ struct SettingsView: View {
                 onBack: onBack
             )
             Divider()
+            SettingsScrollView(content: settingsContent)
+                .frame(height: 400)
+        }
+        .onAppear { model.refreshLaunchAtLoginStatus() }
+    }
 
+    private var settingsContent: some View {
+        VStack(spacing: 0) {
             sectionLabel("settings_general")
             settingRow("launch_at_login") {
                 settingSwitch("launch_at_login", isOn: Binding(
@@ -84,13 +92,25 @@ struct SettingsView: View {
                     set: { enabled in Task { await model.setAutoResetEnabled(enabled) } }
                 ))
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(model.text("auto_reset_hint"))
-                    .foregroundStyle(.secondary)
-                Button(model.text("open_reset_log")) { model.revealResetExpiryLog() }
-                    .buttonStyle(.link)
+            Text(model.text("auto_reset_hint"))
+                .foregroundStyle(.secondary)
+                .modifier(SettingsDetail())
+
+            settingRow("weekly_auto_start") {
+                settingSwitch("weekly_auto_start", isOn: Binding(
+                    get: { model.weeklyUsageAutoStartEnabled },
+                    set: { enabled in Task { await model.setWeeklyUsageAutoStartEnabled(enabled) } }
+                ))
+                .disabled(model.isMutating || model.isAddingAccount)
             }
-            .modifier(SettingsDetail())
+            Text(model.text("weekly_auto_start_hint"))
+                .foregroundStyle(.secondary)
+                .modifier(SettingsDetail())
+            rowDivider
+            Button(model.text("open_reset_log")) { model.revealResetExpiryLog() }
+                .buttonStyle(.link)
+                .padding(.top, 8)
+                .modifier(SettingsDetail())
 
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {
@@ -123,7 +143,6 @@ struct SettingsView: View {
         .padding(.bottom, 6)
         .font(.system(size: 13))
         .controlSize(.small)
-        .onAppear { model.refreshLaunchAtLoginStatus() }
     }
 
     private var rowDivider: some View {
@@ -157,6 +176,51 @@ struct SettingsView: View {
             .labelsHidden()
             .toggleStyle(.switch)
             .fixedSize()
+    }
+}
+
+private struct SettingsScrollView<Content: View>: NSViewRepresentable {
+    let content: Content
+
+    func makeNSView(context: Context) -> NativeSettingsScrollView<Content> {
+        NativeSettingsScrollView(content: content)
+    }
+
+    func updateNSView(_ scrollView: NativeSettingsScrollView<Content>, context: Context) {
+        scrollView.updateContent(content)
+    }
+}
+
+private final class NativeSettingsScrollView<Content: View>: NSScrollView {
+    private let host: NSHostingController<Content>
+
+    init(content: Content) {
+        host = NSHostingController(rootView: content)
+        super.init(frame: .zero)
+        drawsBackground = false
+        hasVerticalScroller = true
+        scrollerStyle = .overlay
+        verticalScroller?.controlSize = .small
+        host.sizingOptions = []
+        documentView = host.view
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    func updateContent(_ content: Content) {
+        host.rootView = content
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let width = contentView.bounds.width
+        guard width > 0 else { return }
+        let size = host.sizeThatFits(in: NSSize(width: width, height: .greatestFiniteMagnitude))
+        let documentSize = NSSize(width: width, height: ceil(size.height))
+        if host.view.frame.size != documentSize {
+            host.view.setFrameSize(documentSize)
+        }
     }
 }
 

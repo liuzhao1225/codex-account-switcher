@@ -149,9 +149,8 @@ private final class Host {
             guard let value = request.value else { throw HostError.message("Missing setting.") }
             await model.setAutoResetEnabled(value)
         case "weeklyUsageAutoStart":
-            guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             guard let value = request.value else { throw HostError.message("Missing setting.") }
-            await model.setWeeklyUsageAutoStartEnabled(value, for: id)
+            await model.setWeeklyUsageAutoStartEnabled(value)
         case "statusBarUsageWindow":
             guard let raw = request.language, let window = StatusBarUsageWindow(rawValue: raw) else {
                 throw HostError.message("Invalid status bar usage window.")

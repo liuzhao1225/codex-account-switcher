@@ -233,16 +233,6 @@ public sealed class MainWindow : Window
             name.ToolTip = title;
             if (manage) {
                 details.Children.Add(name);
-                var label = Text(T("weekly_auto_start"), 11);
-                label.TextWrapping = TextWrapping.Wrap;
-                var autoStart = new CheckBox {
-                    Content = label, IsChecked = row.WeeklyUsageAutoStartEnabled,
-                    IsEnabled = !IsBusy && !State.IsAddingAccount, Margin = new Thickness(0, 4, 0, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left, VerticalContentAlignment = VerticalAlignment.Center
-                };
-                AutomationProperties.SetName(autoStart, T("weekly_auto_start_for_account").Replace("%@", title));
-                autoStart.Click += (_, _) => _ = Run("weeklyUsageAutoStart", row.Profile.Id, value: autoStart.IsChecked == true);
-                details.Children.Add(autoStart);
             } else {
                 var reset = Text(row.Usage != null && !State.Settings.ShowsFiveHourUsage ? Reset(row.Usage.ResetsAt) : "", 10.5, muted: true);
                 reset.Margin = new Thickness(7, 0, 0, 0); details.Children.Add(Pair(name, reset));
@@ -321,12 +311,6 @@ public sealed class MainWindow : Window
             Background = B("ListSurface"), CornerRadius = new CornerRadius(4), Child = list });
         if (manage) {
             var actions = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
-            if (State.Accounts.Length > 0) {
-                var autoStartHint = Text(T("weekly_auto_start_hint"), 10.5, muted: true);
-                autoStartHint.TextWrapping = TextWrapping.Wrap;
-                autoStartHint.Margin = new Thickness(0, 0, 0, 12);
-                actions.Children.Add(autoStartHint);
-            }
             var add = Button(T(State.IsAddingAccount ? "cancel_add_account" : "add_account"), () => _ = Run(State.IsAddingAccount ? "cancelAdd" : "add"), State.IsAddingAccount ? "\uE711" : "\uE710");
             var hint = Text(T(State.IsAddingAccount ? "sign_in_pending_hint" : "sign_in_hint"), 12, muted: true);
             hint.ToolTip = hint.Text;
@@ -381,8 +365,8 @@ public sealed class MainWindow : Window
     {
         var settings = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
         settings.Children.Add(Text(T("settings_general"), 14, bold: true));
-        void Toggle(string title, bool current, Action<bool> action) {
-            var toggle = new CheckBox { IsChecked = current, Content = title, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 9, 0, 9) };
+        void Toggle(string title, bool current, Action<bool> action, bool isEnabled = true) {
+            var toggle = new CheckBox { IsChecked = current, Content = title, IsEnabled = isEnabled, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 9, 0, 9) };
             AutomationProperties.SetName(toggle, title); toggle.Click += (_, _) => { try { action(toggle.IsChecked == true); } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); } };
             settings.Children.Add(toggle);
         }
@@ -401,12 +385,19 @@ public sealed class MainWindow : Window
         var experimentHeading = Text(T("settings_automation"), 14, bold: true); experimentHeading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(experimentHeading);
         Toggle(T("auto_reset"), State.Settings.AutoResetEnabled, value => _ = Run("autoReset", value: value));
         var experimentHint = Text(T("auto_reset_hint"), 10.5, muted: true); experimentHint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(experimentHint);
-        settings.Children.Add(Button(T("open_reset_log"), () => {
+        Toggle(T("weekly_auto_start"), State.WeeklyUsageAutoStartEnabled,
+            value => _ = Run("weeklyUsageAutoStart", value: value), isEnabled: !IsBusy && !State.IsAddingAccount);
+        var autoStartHint = Text(T("weekly_auto_start_hint"), 10.5, muted: true);
+        autoStartHint.TextWrapping = TextWrapping.Wrap;
+        settings.Children.Add(autoStartHint);
+        var openLog = Button(T("open_reset_log"), () => {
             try {
                 var directory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
             } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
-        }));
+        });
+        openLog.Margin = new Thickness(0, 10, 0, 0);
+        settings.Children.Add(openLog);
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         string hintText;
