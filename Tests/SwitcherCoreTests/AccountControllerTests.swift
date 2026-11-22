@@ -163,7 +163,6 @@ struct AccountControllerTests {
         #expect(try await fixture.store.loadUsageCache().entries.first?.usage.remainingPercent == 72)
     }
 
-    #if os(macOS)
     @Test(arguments: [false, true])
     func weeklyAutoStartIsOptInAndUsesOnlyTheDueAccount(quotaChangedBeforeDispatch: Bool) async throws {
         let fixture = try ControllerFixture()
@@ -225,8 +224,6 @@ struct AccountControllerTests {
         await reopened.setWeeklyUsageAutoStartEnabled(false, for: secondID)
         #expect(try await reopenedStore.enabledWeeklyUsageAutoStartAccounts().isEmpty)
     }
-    #endif
-
     @Test func italianFollowsSystemLanguageAndPersistsWhenSelected() async throws {
         #expect(L10n.systemLanguage(for: "it-IT") == .italian)
         #expect(L10n.systemLanguage(for: "IT_it") == .italian)

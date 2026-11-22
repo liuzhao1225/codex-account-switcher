@@ -1,4 +1,6 @@
 using System.Security.AccessControl;
+using System.Text;
+using System.Text.Json;
 using CodexAccountSwitcher.Core;
 
 if (args.FirstOrDefault() == "app-server") {
@@ -28,6 +30,7 @@ var root = Path.Combine(Path.GetTempPath(), "switcher-host-check-" + Guid.NewGui
 var data = Path.Combine(root, "data");
 var active = Path.Combine(root, "active");
 Directory.CreateDirectory(active);
+var previousCLI = Environment.GetEnvironmentVariable("CODEX_CLI_PATH");
 try {
     await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
         await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
@@ -48,17 +51,54 @@ try {
         Require(acl.GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier)).Count == 1,
             "Shared-core files must grant only the current user access.");
     }
-    await using (var second = new CoreClient(Path.GetFullPath(host), data, active)) {
-        await second.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
-        await UntilAsync(() => second.State.Settings.Language == "simplifiedChinese");
-        Require(second.State.Settings.ShowsFiveHourUsage, "Settings must survive a host restart.");
-        Require(second.State.Settings.StatusBarUsageWindow == "weekly", "Tray usage selection must survive a host restart.");
+    // The restarted host sees only synthetic profiles and uses this executable as its app-server.
+    const string fixtureCreatedAt = "2026-01-01T00:00:00Z";
+    var profiles = new[] {
+        new { id = Guid.NewGuid(), displayName = "First fixture", accountID = "fixture-first", createdAt = fixtureCreatedAt },
+        new { id = Guid.NewGuid(), displayName = "Second fixture", accountID = "fixture-second", createdAt = fixtureCreatedAt }
+    };
+    foreach (var profile in profiles) {
+        var home = Path.Combine(data, "accounts", profile.id.ToString().ToUpperInvariant());
+        SecureFiles.CreatePrivateDirectory(home);
+        SecureFiles.AtomicWrite(Path.Combine(home, "auth.json"),
+            JsonSerializer.SerializeToUtf8Bytes(new { tokens = new { account_id = profile.accountID } }));
+        SecureFiles.AtomicWrite(Path.Combine(home, "fixture-mode"), Encoding.UTF8.GetBytes("normal"));
     }
-    Console.WriteLine("PASS: native transport, shared snapshots/localization, immediate settings, private ACL and restart persistence.");
+    SecureFiles.AtomicWrite(Path.Combine(data, "accounts.json"), JsonSerializer.SerializeToUtf8Bytes(new { accounts = profiles }));
+    var cliFixture = Path.Combine(AppContext.BaseDirectory, "CodexAccountSwitcher.Checks.exe");
+    Require(File.Exists(cliFixture), "The isolated CLI fixture is missing.");
+    Environment.SetEnvironmentVariable("CODEX_CLI_PATH", cliFixture);
+    var firstID = profiles[0].id;
+    var secondID = profiles[1].id;
+
+    await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
+        await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        await UntilAsync(() => client.State.Settings.Language == "simplifiedChinese" && client.State.Accounts.Length == 2);
+        Require(client.State.Settings.ShowsFiveHourUsage, "Settings must survive a host restart.");
+        Require(client.State.Settings.StatusBarUsageWindow == "weekly", "Tray usage selection must survive a host restart.");
+        Require(client.State.Accounts.All(row => !row.WeeklyUsageAutoStartEnabled),
+            "Existing saved accounts should default to weekly auto-start off.");
+        await client.CommandAsync("weeklyUsageAutoStart", accountID: firstID, value: true);
+        await UntilAsync(() => WeeklyAutoStartEnabled(client, firstID));
+        Require(!WeeklyAutoStartEnabled(client, secondID), "Weekly auto-start must apply only to the selected account.");
+    }
+    await using (var client = new CoreClient(Path.GetFullPath(host), data, active)) {
+        await client.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        await UntilAsync(() => client.State.Accounts.Length == 2 && WeeklyAutoStartEnabled(client, firstID));
+        Require(!WeeklyAutoStartEnabled(client, secondID), "Only the selected account's setting should survive restart.");
+        await client.CommandAsync("weeklyUsageAutoStart", accountID: firstID, value: false);
+        await UntilAsync(() => !WeeklyAutoStartEnabled(client, firstID));
+    }
+    Console.WriteLine("PASS: native transport, shared snapshots/localization, per-account weekly auto-start, private ACL and restart persistence.");
     return 0;
 } catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
-finally { SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), root); }
+finally {
+    Environment.SetEnvironmentVariable("CODEX_CLI_PATH", previousCLI);
+    SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), root);
+}
 
+static bool WeeklyAutoStartEnabled(CoreClient client, Guid accountID) =>
+    client.State.Accounts.Any(row => row.Profile.Id == accountID && row.WeeklyUsageAutoStartEnabled);
 static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 static async Task UntilAsync(Func<bool> condition) {
     for (var i = 0; i < 100; i++) { if (condition()) return; await Task.Delay(50); }

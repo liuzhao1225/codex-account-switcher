@@ -11,7 +11,8 @@ public sealed record LiveSubscription(DateTimeOffset? ActiveUntil, string PlanTy
     bool? WillRenew, bool? IsDelinquent, DateTimeOffset FetchedAt);
 public sealed record AccountRow(Profile Profile, string Initials, Usage? Usage, string? UsageError,
     string UsageStatus = "loaded", SubscriptionSnapshot? Subscription = null,
-    string SubscriptionStatus = "idle", LiveSubscription? LiveSubscription = null, string? SubscriptionError = null);
+    string SubscriptionStatus = "idle", LiveSubscription? LiveSubscription = null, string? SubscriptionError = null,
+    bool WeeklyUsageAutoStartEnabled = false);
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
     string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false);
 public sealed record AccountSnapshot(AccountRow[] Accounts, Guid? ActiveAccountID, Preferences Settings,

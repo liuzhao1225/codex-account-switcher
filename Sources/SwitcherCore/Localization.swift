@@ -27,8 +27,8 @@ public enum L10n {
         .english: [
             "settings_general": "General",
             "settings_automation": "Automation",
-            "auto_reset": "Use resets before expiry",
-            "auto_reset_hint": "Uses saved accounts’ resets 10 minutes before expiry. Keep the app running and computer awake.",
+            "auto_reset": "Automatically use reset cards",
+            "auto_reset_hint": "Tries to use expiring reset cards for all saved accounts, starting 10 minutes before they expire. Keep the app running and the computer awake.",
             "open_reset_log": "Open Log Folder",
             "weekly_auto_start": "Auto-start the next 7-day period",
             "weekly_auto_start_for_account": "Auto-start the next 7-day period for %@",
@@ -128,8 +128,8 @@ public enum L10n {
         .simplifiedChinese: [
             "settings_general": "通用",
             "settings_automation": "自动化",
-            "auto_reset": "到期前自动使用 reset",
-            "auto_reset_hint": "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。",
+            "auto_reset": "自动使用重置卡",
+            "auto_reset_hint": "重置卡到期前 10 分钟开始尝试使用，适用于所有已保存账号。请保持应用运行、电脑唤醒。",
             "open_reset_log": "打开日志文件夹",
             "weekly_auto_start": "自动开启下个 7 天周期",
             "weekly_auto_start_for_account": "为 %@ 自动开启下个 7 天周期",
@@ -229,8 +229,8 @@ public enum L10n {
         .italian: [
             "settings_general": "Generali",
             "settings_automation": "Automazione",
-            "auto_reset": "Usa i reset prima della scadenza",
-            "auto_reset_hint": "Usa i reset di tutti gli account salvati a partire da 10 minuti prima della scadenza. Tieni l’app aperta e il computer attivo.",
+            "auto_reset": "Usa automaticamente le carte di reset",
+            "auto_reset_hint": "Tenta di usare le carte di reset di tutti gli account salvati a partire da 10 minuti prima della scadenza. Tieni l’app aperta e il computer attivo.",
             "open_reset_log": "Apri cartella dei log",
             "weekly_auto_start": "Avvia in automatico il prossimo ciclo di 7 giorni",
             "weekly_auto_start_for_account": "Avvia in automatico il prossimo ciclo di 7 giorni per %@",

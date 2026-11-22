@@ -93,6 +93,7 @@ public partial class App : Application
             };
             client.Changed += RefreshTray;
             await client.InitializeAsync();
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
             if (!launchedInBackground) window.OpenWindow();
             updates = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
             updates.Tick += async (_, _) => { if (native.AutomaticallyCheckUpdates) await native.CheckUpdatesAsync(); };
@@ -140,6 +141,7 @@ public partial class App : Application
         updates?.Stop();
         activationListener?.Unregister(null);
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); client = null; }
         if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
         trayMenu?.Dispose(); trayMenu = null;
@@ -201,6 +203,11 @@ public partial class App : Application
         if (Dispatcher.HasShutdownStarted) return;
         Dispatcher.BeginInvoke(new Action(() => { if (!exiting) RefreshTrayIcon(); }));
     }
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != PowerModes.Resume || Dispatcher.HasShutdownStarted) return;
+        Dispatcher.BeginInvoke(new Action(() => { if (!exiting) window?.RefreshUsage(); }));
+    }
     private static bool IsDark() {
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         return key?.GetValue("AppsUseLightTheme") is int value && value == 0;
@@ -239,6 +246,7 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e) {
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         if (tray != null) { tray.Visible = false; tray.Dispose(); }
         trayMenu?.Dispose();
         icon?.Dispose();

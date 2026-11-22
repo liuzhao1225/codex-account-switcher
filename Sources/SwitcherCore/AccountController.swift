@@ -150,13 +150,11 @@ open class AccountController {
                 apply(loadedRegistry)
             }
             try await syncActiveIdentity()
-            #if os(macOS)
             do {
                 weeklyUsageAutoStartAccounts = try await store.enabledWeeklyUsageAutoStartAccounts()
             } catch {
                 showError(error)
             }
-            #endif
             await refreshSubscriptionSnapshots()
             do {
                 let cache = try await store.loadUsageCache()

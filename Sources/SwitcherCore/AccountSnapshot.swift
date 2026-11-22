@@ -12,6 +12,7 @@ public struct AccountSnapshot: Encodable, Sendable {
         public let subscriptionStatus: String
         public let liveSubscription: LiveSubscription?
         public let subscriptionError: String?
+        public let weeklyUsageAutoStartEnabled: Bool
     }
     public let accounts: [Row]
     public let activeAccountID: UUID?
@@ -41,7 +42,8 @@ extension AccountController {
                     subscription: subscriptionSnapshots[account.id],
                     subscriptionStatus: subState.presentationStatus,
                     liveSubscription: subState.displayedSubscription,
-                    subscriptionError: subState.refreshError
+                    subscriptionError: subState.refreshError,
+                    weeklyUsageAutoStartEnabled: isWeeklyUsageAutoStartEnabled(for: account.id)
                 )
             },
             activeAccountID: activeAccountID,

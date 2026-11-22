@@ -9,6 +9,7 @@ private struct Request: Decodable, Sendable {
     var value: Bool?
     var language: String?
     var error: String?
+    var result: String?
 }
 
 private struct SnapshotEnvelope: Encodable {
@@ -36,8 +37,8 @@ private struct ProtocolErrorEnvelope: Encodable {
 
 private struct DesktopAdapter: DesktopControlling {
     let host: Host
-    func closeDesktop() async throws { try await host.platform("closeDesktop") }
-    func reopenDesktop() async throws { try await host.platform("reopenDesktop") }
+    func closeDesktop() async throws { _ = try await host.platform("closeDesktop") }
+    func reopenDesktop() async throws { _ = try await host.platform("reopenDesktop") }
 }
 
 @MainActor
@@ -45,7 +46,7 @@ private final class Host {
     private var controller: AccountController?
     private var lastSentLanguage: AppLanguage?
     private var nextID = 0
-    private var pending: [Int: CheckedContinuation<Void, any Error>] = [:]
+    private var pending: [Int: CheckedContinuation<String?, any Error>] = [:]
     private var commands: [Int: Task<Void, Never>] = [:]
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -53,10 +54,10 @@ private final class Host {
         return encoder
     }()
 
-    func platform(_ method: String, url: URL? = nil) async throws {
+    func platform(_ method: String, url: URL? = nil) async throws -> String? {
         nextID += 1
         let id = nextID
-        try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
             send(PlatformEnvelope(id: id, method: method, url: url?.absoluteString))
         }
@@ -68,7 +69,7 @@ private final class Host {
             if request.command == "platformReply" {
                 guard let continuation = pending.removeValue(forKey: request.id) else { return }
                 if let error = request.error { continuation.resume(throwing: HostError.message(error)) }
-                else { continuation.resume() }
+                else { continuation.resume(returning: request.result) }
                 return
             }
             guard commands[request.id] == nil else { return }
@@ -91,11 +92,18 @@ private final class Host {
             guard controller == nil else { throw HostError.message("Already initialized.") }
             let environment = ProcessInfo.processInfo.environment
             let store = AccountStore(baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) })
-            let codex = CodexClient(openBrowser: { [self] url in
+            #if os(Windows)
+            let locator = CodexExecutableLocator(prefersBundledDesktop: true, locateDesktopCLI: { [self] in
+                (try? await platform("locateDesktopCLI")).map { URL(fileURLWithPath: $0) }
+            })
+            #else
+            let locator = CodexExecutableLocator()
+            #endif
+            let codex = CodexClient(locator: locator, openBrowser: { [self] url in
                 guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
                     throw HostError.message("Unsupported sign-in URL.")
                 }
-                try await platform("openBrowser", url: url)
+                _ = try await platform("openBrowser", url: url)
             })
             let model = AccountController(
                 store: store,
@@ -140,6 +148,10 @@ private final class Host {
         case "autoReset":
             guard let value = request.value else { throw HostError.message("Missing setting.") }
             await model.setAutoResetEnabled(value)
+        case "weeklyUsageAutoStart":
+            guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
+            guard let value = request.value else { throw HostError.message("Missing setting.") }
+            await model.setWeeklyUsageAutoStartEnabled(value, for: id)
         case "statusBarUsageWindow":
             guard let raw = request.language, let window = StatusBarUsageWindow(rawValue: raw) else {
                 throw HostError.message("Invalid status bar usage window.")

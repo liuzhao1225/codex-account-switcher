@@ -108,6 +108,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     private async Task HandlePlatformAsync(JsonElement message)
     {
         string? error = null;
+        string? result = null;
         try {
             switch (message.GetProperty("method").GetString()) {
                 case "openBrowser":
@@ -121,10 +122,13 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
                 case "reopenDesktop":
                     await desktop.OpenAsync(lifetime.Token);
                     break;
+                case "locateDesktopCLI":
+                    result = await desktop.LocateBundledCliAsync(lifetime.Token);
+                    break;
                 default: throw new IOException("Unknown platform operation.");
             }
         } catch (Exception ex) { error = ex.Message; }
-        try { await WriteAsync(new { command = "platformReply", id = message.GetProperty("id").GetInt32(), error }); }
+        try { await WriteAsync(new { command = "platformReply", id = message.GetProperty("id").GetInt32(), error, result }); }
         catch (Exception) when (lifetime.IsCancellationRequested || process.HasExited) { }
     }
 

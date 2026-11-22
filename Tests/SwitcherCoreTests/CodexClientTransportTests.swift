@@ -369,7 +369,6 @@ struct CodexClientTransportTests {
         try await client.stopUsageSessions()
     }
 
-    #if os(macOS)
     @Test func usageStartSendsOneEphemeralTurnInTheTargetProfile() async throws {
         let home = try fixtureHome("turn-completed")
         let sibling = try fixtureHome("normal")
@@ -447,7 +446,6 @@ struct CodexClientTransportTests {
             .split(separator: "\n")
         #expect(!methods.contains("thread/start"))
     }
-    #endif
 
     private func waitForRequest(_ method: String, home: URL) async throws {
         for _ in 0..<250 {

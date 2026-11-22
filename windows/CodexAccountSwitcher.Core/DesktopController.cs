@@ -56,6 +56,46 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
         throw new FileNotFoundException("Codex Desktop was not found. Install Codex Desktop before switching.");
     }
 
+    internal async Task<string?> LocateBundledCliAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var installation = await discover(cancellationToken);
+            // Desktop's own executable can be named Codex.exe. The CLI is in its resources.
+            var cli = Path.Combine(Path.GetDirectoryName(installation.Executable)!, "resources", "codex.exe");
+            if (!File.Exists(cli)) return null;
+            var info = new ProcessStartInfo(cli) { UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true };
+            info.ArgumentList.Add("--version");
+
+            // Some MSIX packages allow reading the binary but deny launching it outside the package.
+            // Let the core use the materialized Desktop runtime or PATH in that case.
+            using var process = Process.Start(info);
+            if (process == null) return null;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errors = process.StandardError.ReadToEndAsync(timeout.Token);
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+                var version = await output;
+                await errors;
+                return process.ExitCode == 0 && version.StartsWith("codex-cli ", StringComparison.Ordinal) ? cli : null;
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                throw;
+            }
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is (
+            IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or OperationCanceledException))
+        {
+            return null;
+        }
+    }
+
     private static List<Process> FindDesktopProcesses(DesktopInstallation installation)
     {
         var result = new List<Process>();

@@ -16,6 +16,7 @@ internal static class DesktopCloseChecks
         Directory.CreateDirectory(Path.GetDirectoryName(newExecutable)!);
         try
         {
+            await VerifyBundledCliAsync(root, fixtureExecutable);
             await VerifyRunningPackageIdentityAsync();
             CopyFixture(fixtureExecutable, Path.GetDirectoryName(oldExecutable)!);
             CopyFixture(fixtureExecutable, Path.GetDirectoryName(newExecutable)!);
@@ -67,6 +68,26 @@ internal static class DesktopCloseChecks
             StopFixture(Path.Combine(Path.GetDirectoryName(newExecutable)!, "codex.exe"));
             SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), root);
         }
+    }
+
+    private static async Task VerifyBundledCliAsync(string root, string fixtureExecutable)
+    {
+        var app = Path.Combine(root, "desktop-cli", "app");
+        Directory.CreateDirectory(app);
+        var desktopExecutable = Path.Combine(app, "Codex.exe");
+        File.Copy(fixtureExecutable, desktopExecutable);
+        var controller = new DesktopController(_ => Task.FromResult(new DesktopInstallation(desktopExecutable)));
+        Require(await controller.LocateBundledCliAsync(CancellationToken.None) == null,
+            "Desktop's Codex.exe is not its bundled CLI.");
+
+        var resources = Path.Combine(app, "resources");
+        Directory.CreateDirectory(resources);
+        CopyFixture(fixtureExecutable, resources);
+        var bundled = Path.Combine(resources, "codex.exe");
+        File.Move(Path.Combine(resources, Path.GetFileName(fixtureExecutable)), bundled);
+        Require(await controller.LocateBundledCliAsync(CancellationToken.None) == bundled,
+            "The version probe should find the CLI under the installed Desktop executable's resources.");
+        Console.WriteLine("PASS: only a runnable Desktop resource CLI is preferred.");
     }
 
     private static async Task VerifyTrayCloseAsync(DesktopController controller, string executable)

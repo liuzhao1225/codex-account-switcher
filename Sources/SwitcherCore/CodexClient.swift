@@ -410,17 +410,23 @@ public struct CodexExecutableLocator: Sendable {
     public let explicitURL: URL?
     private let desktopApplicationURLs: [URL]
     private let prefersBundledDesktop: Bool
+    private let locateDesktopCLI: (@Sendable () async -> URL?)?
 
     public init(explicitURL: URL? = nil, desktopApplicationURLs: [URL] = [
         URL(fileURLWithPath: "/Applications/Codex.app"),
         URL(fileURLWithPath: "/Applications/ChatGPT.app"),
-    ], prefersBundledDesktop: Bool = false) {
+    ], prefersBundledDesktop: Bool = false, locateDesktopCLI: (@Sendable () async -> URL?)? = nil) {
         self.explicitURL = explicitURL
         self.desktopApplicationURLs = desktopApplicationURLs
         self.prefersBundledDesktop = prefersBundledDesktop
+        self.locateDesktopCLI = locateDesktopCLI
     }
 
     public func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
+        try locate(environment: environment, windowsDesktopCLI: nil)
+    }
+
+    private func locate(environment: [String: String], windowsDesktopCLI: URL?) throws -> URL {
         if let explicitURL, isExecutable(explicitURL.path) {
             return explicitURL
         }
@@ -434,6 +440,10 @@ public struct CodexExecutableLocator: Sendable {
             }
             guard isExecutable(executable) else { throw CodexClientError.executableNotFound }
             return URL(fileURLWithPath: executable)
+        }
+        if prefersBundledDesktop, command?.isEmpty != false {
+            if let windowsDesktopCLI, isExecutable(windowsDesktopCLI.path) { return windowsDesktopCLI }
+            if let materialized = materializedWindowsDesktopCLI(environment: environment) { return materialized }
         }
         for directory in (environment["Path"] ?? environment["PATH"] ?? "").split(separator: ";") {
             let dirURL = URL(fileURLWithPath: String(directory))
@@ -449,18 +459,9 @@ public struct CodexExecutableLocator: Sendable {
                 }
             }
         }
-        if let local = environment["LOCALAPPDATA"] {
-            let bin = URL(fileURLWithPath: local).appendingPathComponent("OpenAI/Codex/bin")
-            let versions = (try? FileManager.default.contentsOfDirectory(at: bin,
-                includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-            for version in versions.sorted(by: {
-                let left = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-                let right = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-                return left > right
-            }) {
-                let candidate = version.appendingPathComponent("codex.exe")
-                if isExecutable(candidate.path) { return candidate }
-            }
+        if !prefersBundledDesktop, command?.isEmpty != false,
+           let materialized = materializedWindowsDesktopCLI(environment: environment) {
+            return materialized
         }
         #else
         if executable.contains("/") {
@@ -490,6 +491,24 @@ public struct CodexExecutableLocator: Sendable {
         #endif
         throw CodexClientError.executableNotFound
     }
+
+    #if os(Windows)
+    private func materializedWindowsDesktopCLI(environment: [String: String]) -> URL? {
+        guard let local = environment["LOCALAPPDATA"], !local.isEmpty else { return nil }
+        let bin = URL(fileURLWithPath: local).appendingPathComponent("OpenAI/Codex/bin")
+        let versions = (try? FileManager.default.contentsOfDirectory(at: bin,
+            includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        for version in versions.sorted(by: {
+            let left = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let right = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return left > right
+        }) {
+            let candidate = version.appendingPathComponent("codex.exe")
+            if isExecutable(candidate.path) { return candidate }
+        }
+        return nil
+    }
+    #endif
 
     #if os(macOS)
     private func bundledDesktopExecutable() -> URL? {
@@ -526,22 +545,32 @@ public struct CodexExecutableLocator: Sendable {
         requireDirectExecutable: Bool = false,
         shellTimeout: Duration = .seconds(5)
     ) async throws -> (executable: URL, environment: [String: String]) {
+        #if os(Windows)
+        let command = environment["CODEX_CLI_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let desktopCLI: URL? = if explicitURL == nil, prefersBundledDesktop, command?.isEmpty != false {
+            await locateDesktopCLI?()
+        } else {
+            nil
+        }
+        return try finalizeLaunchConfiguration(environment: environment,
+            requireDirectExecutable: requireDirectExecutable, windowsDesktopCLI: desktopCLI)
+        #else
         var environment = environment
-        #if !os(Windows)
         if explicitURL == nil {
             let resolved = try await Self.readLoginShellEnvironmentAsync(environment: environment, timeout: shellTimeout)
             environment["PATH"] = resolved.path
             environment["CODEX_CLI_PATH"] = resolved.codexCLIPath
         }
-        #endif
         return try finalizeLaunchConfiguration(environment: environment, requireDirectExecutable: requireDirectExecutable)
+        #endif
     }
 
     private func finalizeLaunchConfiguration(
         environment: [String: String],
-        requireDirectExecutable: Bool
+        requireDirectExecutable: Bool,
+        windowsDesktopCLI: URL? = nil
     ) throws -> (executable: URL, environment: [String: String]) {
-        let located = try locate(environment: environment)
+        let located = try locate(environment: environment, windowsDesktopCLI: windowsDesktopCLI)
         if let native = try unwrapOfficialLauncher(located) {
             return (native, environment)
         }

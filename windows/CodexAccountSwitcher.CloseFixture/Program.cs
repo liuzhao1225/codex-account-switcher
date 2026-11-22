@@ -7,6 +7,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.SequenceEqual(["--version"]))
+        {
+            Console.WriteLine("codex-cli 0.0.0-fixture");
+            return;
+        }
         if (args.Contains("--worker"))
         {
             if (args.Contains("--parent")) StartWorker("--worker");

@@ -108,6 +108,39 @@ internal static class Program
                 "Each saved account must have a named drag handle.");
             Assert(All<Border>(window).Count(row => row.ReadLocalValue(UIElement.AllowDropProperty) is true) == 2,
                 "Each account row must accept a drop, including the active account.");
+            var personalRow = client.State.Accounts[0];
+            var studioRow = client.State.Accounts[1];
+            CheckBox WeeklyAutoStart(AccountRow row) => All<CheckBox>(window).Single(toggle =>
+                System.Windows.Automation.AutomationProperties.GetName(toggle) ==
+                    client.State.Text("weekly_auto_start_for_account").Replace("%@", row.Profile.Email!));
+            var personalAutoStart = WeeklyAutoStart(personalRow);
+            var studioAutoStart = WeeklyAutoStart(studioRow);
+            Assert(personalAutoStart.IsChecked == false && studioAutoStart.IsChecked == false && client.Commands.Count == 0,
+                "Weekly auto-start must default to off for every account, with no commands when displayed.");
+            Assert(All<TextBlock>(window).Any(text => text.Text == client.State.Text("weekly_auto_start_hint")),
+                "Manage must explain when the weekly auto-start request is sent.");
+            personalAutoStart.IsChecked = true;
+            personalAutoStart.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            var enablePersonal = $"weeklyUsageAutoStart:{personalRow.Profile.Id}:True";
+            Assert(client.Commands.SequenceEqual(new[] { enablePersonal }) && studioAutoStart.IsChecked == false,
+                "Enabling one account must address only that profile.");
+
+            client.State = client.State with { Accounts = [personalRow with { WeeklyUsageAutoStartEnabled = true }, studioRow] };
+            window.Navigate("manage");
+            window.UpdateLayout();
+            personalAutoStart = WeeklyAutoStart(personalRow);
+            studioAutoStart = WeeklyAutoStart(studioRow);
+            Assert(personalAutoStart.IsChecked == true && studioAutoStart.IsChecked == false &&
+                client.Commands.SequenceEqual(new[] { enablePersonal }),
+                "Rebuilding Manage must reflect the saved per-account settings without sending commands.");
+            studioAutoStart.IsChecked = true;
+            studioAutoStart.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            personalAutoStart.IsChecked = false;
+            personalAutoStart.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            Assert(client.Commands.SequenceEqual(new[] {
+                enablePersonal, $"weeklyUsageAutoStart:{studioRow.Profile.Id}:True", $"weeklyUsageAutoStart:{personalRow.Profile.Id}:False"
+            }), "Weekly auto-start must send independent enable and disable commands for each account.");
+            client.Commands.Clear();
             window.Navigate("settings"); Render(window, Path.Combine(output, "settings-zh.png"));
             var languagePicker = All<ComboBox>(window).Single(box => box.Items.Contains("Italiano"));
             var fiveHour = All<CheckBox>(window).Single(toggle => System.Windows.Automation.AutomationProperties.GetName(toggle) == "显示 5 小时用量");
@@ -190,8 +223,10 @@ internal static class Program
                 ["accounts"] = "账号", ["drag_to_reorder"] = "拖动调整顺序", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",
-                ["settings_automation"] = "自动化", ["auto_reset"] = "到期前自动使用 reset",
-                ["auto_reset_hint"] = "到期前 10 分钟自动使用所有已保存账号的 reset；应用须运行且电脑保持唤醒。", ["open_reset_log"] = "打开日志文件夹",
+                ["settings_automation"] = "自动化", ["auto_reset"] = "自动使用重置卡",
+                ["auto_reset_hint"] = "重置卡到期前 10 分钟开始尝试使用，适用于所有已保存账号。请保持应用运行、电脑唤醒。", ["open_reset_log"] = "打开日志文件夹",
+                ["weekly_auto_start"] = "自动开启下个 7 天周期", ["weekly_auto_start_for_account"] = "为 %@ 自动开启下个 7 天周期",
+                ["weekly_auto_start_hint"] = "周额度自然恢复到 100% 后，自动发送一次「只回复 OK」开启下个周期。请保持应用运行。",
                 ["show_menu_bar_percentage"] = "在菜单栏显示百分比", ["show_tray_percentage"] = "在系统托盘显示百分比", ["show_five_hour_usage"] = "显示 5 小时用量", ["language"] = "语言",
                 ["remove_body_windows"] = "此操作只会移除这台电脑上保存的本地账号档案。",
                 ["system_default"] = "跟随系统", ["english"] = "English", ["simplified_chinese"] = "简体中文", ["italian"] = "Italiano", ["five_hour"] = "5 小时", ["weekly"] = "7 天",
@@ -205,7 +240,9 @@ internal static class Program
         }
         public Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
             Guid? targetAccountID = null) {
-            Commands.Add(command + ":" + (language ?? value?.ToString())); return Task.CompletedTask;
+            Commands.Add(command == "weeklyUsageAutoStart"
+                ? $"{command}:{accountID}:{value}" : command + ":" + (language ?? value?.ToString()));
+            return Task.CompletedTask;
         }
     }
 }
