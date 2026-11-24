@@ -47,8 +47,14 @@ export async function prepareFeeds({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { mac, windows } = await prepareFeeds();
-  console.log(`macOS update feed: ${mac}`);
-  if (windows) console.log(`Windows update feed: ${windows}`);
-  else console.log('Windows update feed: no published release with windows-update.json yet.');
+  prepareFeeds()
+    .then(({ mac, windows }) => {
+      console.log(`macOS update feed: ${mac}`);
+      if (windows) console.log(`Windows update feed: ${windows}`);
+      else console.log('Windows update feed: no published release with windows-update.json yet.');
+    })
+    .catch(error => {
+      console.error(error);
+      process.exitCode = 1;
+    });
 }
