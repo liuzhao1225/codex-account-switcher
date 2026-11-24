@@ -95,6 +95,7 @@ public partial class App : Application
             };
             client.Changed += RefreshTray;
             await client.InitializeAsync();
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
             if (!launchedInBackground) window.OpenWindow();
             updates = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
             updates.Tick += async (_, _) => { if (native.AutomaticallyCheckUpdates) await native.CheckUpdatesAsync(); };
@@ -165,6 +166,7 @@ public partial class App : Application
 
     private void ReleaseNativeHandles()
     {
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
         trayMenu?.Dispose(); trayMenu = null;
@@ -216,6 +218,11 @@ public partial class App : Application
         if (Dispatcher.HasShutdownStarted) return;
         Dispatcher.BeginInvoke(new Action(() => { if (!exiting) RefreshTrayIcon(); }));
     }
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != PowerModes.Resume || Dispatcher.HasShutdownStarted) return;
+        Dispatcher.BeginInvoke(new Action(() => { if (!exiting) window?.RefreshUsage(); }));
+    }
     private static bool IsDark() {
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         return key?.GetValue("AppsUseLightTheme") is int value && value == 0;
@@ -226,7 +233,11 @@ public partial class App : Application
             ("Muted", dark ? "#BEBEBE" : "#666666"), ("Line", dark ? "#444444" : "#DDDDDD"),
             ("Accent", dark ? "#60CDFF" : "#0067C0"), ("Selected", dark ? "#293F50" : "#E2EEFA"), ("Hover", dark ? "#15FFFFFF" : "#0C000000"),
             ("Warning", dark ? "#FFB74D" : "#B25900") })
-            Resources[pair.Item1] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(pair.Item2));
+        {
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(pair.Item2);
+            if (Resources[pair.Item1] is SolidColorBrush brush && !brush.IsFrozen) brush.Color = color;
+            else Resources[pair.Item1] = new SolidColorBrush(color);
+        }
     }
     private async Task QuitAsync() {
         if (exiting || updatingRestart || window?.IsBusy == true || native?.IsInstalling == true) return;

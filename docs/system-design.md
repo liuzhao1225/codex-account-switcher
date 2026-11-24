@@ -54,6 +54,7 @@ Under `~/Library/Application Support/Codex Account Switcher/` (macOS, `0700` dir
 - Login-shell environment resolution (`PATH`, `CODEX_CLI_PATH`) runs asynchronously off Swift's cooperative thread pool with a 5-second timeout and is cached for 5 minutes.
 - Official `@openai/codex` npm wrappers (`bin/codex.js` and Windows `codex.cmd`) unwrap directly to their native vendor binary so process lifecycle management tracks the real `codex` process.
 - Per-profile quota sessions (`UsageSession`) coalesce rapid UI reads, write a minimal `switcher-quota-model-catalog.json` inside the profile home (`-c model_catalog_json=...`) so `app-server` avoids fetching remote model catalogs on startup, and expire after 90 seconds of inactivity so child processes exit cleanly between 5-minute background polls.
+- Saved-profile RPCs (`readWeeklyUsage`, `readIdentity`, `refreshIdentity`, `consumeResetCredit`) strip inherited Codex/OpenAI credential and endpoint override environment variables via `CodexClient.profileEnvironment(_:)` so each child `app-server` authenticates strictly from its isolated `CODEX_HOME`.
 
 ## 6. Live Subscription Refresh & Auto-Reset
 

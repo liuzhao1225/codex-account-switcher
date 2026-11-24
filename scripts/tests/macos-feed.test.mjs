@@ -7,7 +7,8 @@ import { latestMacRelease, validateMacFeed, prepareMacFeed } from '../prepare-ma
 
 const mac = (tag, extra = {}) => ({ tag_name: tag, draft: false, prerelease: false,
   assets: [{ name: 'appcast.xml' }, { name: 'Codex-Account-Switcher-macos-arm64.dmg' }], ...extra });
-const feed = tag => `<rss><channel><item><enclosure url="https://github.com/liuzhao1225/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" sparkle:edSignature="fixture" /></item></channel></rss>`;
+const signature = Buffer.alloc(64).toString('base64');
+const feed = tag => `<rss><channel><item><enclosure url="https://github.com/liuzhao1225/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" length="123" sparkle:edSignature="${signature}" /></item></channel></rss>`;
 
 test('macOS ignores newer Windows releases, drafts, previews and incomplete releases', () => {
   const releases = [mac('windows-v99.0.0'), mac('macos-v3.0.0', { draft: true }),
@@ -21,6 +22,8 @@ test('feed validation rejects another platform, unsigned assets and mixed enclos
   validateMacFeed(feed('macos-v1.0.0'), 'macos-v1.0.0');
   assert.throws(() => validateMacFeed(feed('windows-v9.0.0'), 'macos-v1.0.0'));
   assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('sparkle:edSignature', 'signature'), 'macos-v1.0.0'));
+  assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('liuzhao1225/', 'other/'), 'macos-v1.0.0'));
+  assert.throws(() => validateMacFeed(feed('macos-v1.0.0').replace('length="123"', 'length="0"'), 'macos-v1.0.0'));
   assert.throws(() => validateMacFeed(feed('macos-v1.0.0') + '<enclosure url="other.exe"/>', 'macos-v1.0.0'));
 });
 

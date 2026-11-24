@@ -22,11 +22,17 @@ export function latestMacRelease(releases) {
 export function validateMacFeed(xml, tag) {
   const expected = `https://github.com/${repository}/releases/download/${tag}/${dmg}`;
   const enclosures = [...xml.matchAll(/<enclosure\b[^>]*>/g)].map(match => match[0]);
+  const attributes = new Map(
+    [...(enclosures[0] ?? '').matchAll(/\s([\w:-]+)="([^"]*)"/g)].map(([, name, value]) => [name, value]),
+  );
+  const signature = attributes.get('sparkle:edSignature') ?? '';
+  const size = Number(attributes.get('length'));
   if (!/^(macos-)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag) || !xml.includes('<rss') || enclosures.length !== 1 ||
-      !enclosures[0].includes(`url="${expected}"`) ||
-      !/sparkle:edSignature="[^"]+"/.test(enclosures[0])) {
+      attributes.get('url') !== expected || !/^[A-Za-z0-9+/]{86}==$/.test(signature) ||
+      !Number.isSafeInteger(size) || size <= 0) {
     throw new Error('The macOS feed must contain exactly its signed macOS DMG.');
   }
+  return { signature, size };
 }
 
 export async function prepareMacFeed(

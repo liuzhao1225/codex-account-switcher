@@ -329,6 +329,99 @@ struct AccountControllerTests {
         #expect(!json.contains("fixture-secret-token"))
         #expect(json.contains("demo@example.test"))
     }
+
+    @Test func switchAndRemoveAreBlockedWhileAddingAccount() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("switcher-adding-guard-\(UUID())")
+        let active = root.appendingPathComponent("active")
+        try FileManager.default.createDirectory(at: active, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let store = AccountStore(baseURL: root.appendingPathComponent("store"), activeHomeURL: active)
+        let client = BlockingLoginClient()
+        let desktop = CountingDesktop()
+        let model = AccountController(
+            store: store,
+            codex: client,
+            switchService: SwitchService(desktop: desktop, store: store, codex: client)
+        )
+
+        let firstID = UUID()
+        let secondID = UUID()
+        for (id, accountID, email) in [(firstID, "acc-1", "one@example.test"), (secondID, "acc-2", "two@example.test")] {
+            let profile = AccountProfile(id: id, displayName: email, email: email, accountID: accountID, createdAt: Date())
+            let home = try await store.createProfileDirectory(id: id)
+            try TestAuthFixture.authJSON(accountID: accountID, email: email, accessToken: accountID)
+                .write(to: home.appendingPathComponent("auth.json"))
+            try await store.addProfile(profile)
+        }
+        try TestAuthFixture.authJSON(accountID: "acc-1", email: "one@example.test", accessToken: "acc-1")
+            .write(to: active.appendingPathComponent("auth.json"))
+        try await store.commitActiveAccountID(firstID)
+
+        await model.start()
+        model.addAccount()
+        await client.waitForLoginStart()
+        #expect(model.isAddingAccount)
+
+        await model.switchAccount(to: secondID)
+        await model.removeAccount(id: secondID)
+
+        #expect(model.activeAccountID == firstID)
+        #expect(model.accounts.count == 2)
+        #expect(await desktop.closeCount == 0)
+
+        model.cancelAddingAccount()
+        await client.releaseLogin()
+        for _ in 0..<100 where model.isAddingAccount {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(!model.isAddingAccount)
+    }
+}
+
+private actor BlockingLoginClient: AccountClient {
+    private var loginStarted = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func waitForLoginStart() async {
+        if loginStarted { return }
+        await withCheckedContinuation { startWaiters.append($0) }
+    }
+
+    func releaseLogin() {
+        let waiters = releaseWaiters
+        releaseWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+    }
+
+    func readIdentity(profileHome: URL) async throws -> AccountIdentity {
+        AccountIdentity(accountID: "acc-1", email: "one@example.test")
+    }
+
+    func readWeeklyUsage(profileHome: URL) async throws -> WeeklyUsage {
+        WeeklyUsage(remainingPercent: 50, resetsAt: Date(timeIntervalSince1970: 2_000_000_000))
+    }
+
+    func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
+        .nothingToReset
+    }
+
+    func login(profileHome: URL) async throws -> AccountIdentity {
+        loginStarted = true
+        let waiters = startWaiters
+        startWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+        await withCheckedContinuation { releaseWaiters.append($0) }
+        try Task.checkCancellation()
+        throw CancellationError()
+    }
+}
+
+private actor CountingDesktop: DesktopControlling {
+    private(set) var closeCount = 0
+    func closeDesktop() async throws { closeCount += 1 }
+    func reopenDesktop() async throws {}
 }
 
 @MainActor

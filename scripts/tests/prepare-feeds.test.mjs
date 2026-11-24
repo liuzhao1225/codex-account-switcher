@@ -15,8 +15,9 @@ function generateKeyPair() {
   };
 }
 
+const signature = Buffer.alloc(64).toString('base64');
 const macFeedXml = tag =>
-  `<rss><channel><item><enclosure url="https://github.com/liuzhao1225/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" sparkle:edSignature="fixture" /></item></channel></rss>`;
+  `<rss><channel><item><enclosure url="https://github.com/liuzhao1225/codex-account-switcher/releases/download/${tag}/Codex-Account-Switcher-macos-arm64.dmg" length="123" sparkle:edSignature="${signature}" /></item></channel></rss>`;
 
 const unifiedRelease = (tag, assets) => ({
   tag_name: tag,

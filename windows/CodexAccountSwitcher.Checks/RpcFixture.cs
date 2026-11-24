@@ -1,11 +1,30 @@
+using System.Text;
 using System.Text.Json;
 
 // Executed only by the shared Swift tests with a temporary CODEX_HOME.
 internal static class RpcFixture
 {
+    private static readonly string[] OverrideEnvVars =
+    [
+        "CODEX_API_KEY",
+        "CODEX_ACCESS_TOKEN",
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "OPENAI_FEDERATION_RULE_ID",
+        "OPENAI_IDENTITY_TOKEN_FILE",
+        "CODEX_SQLITE_HOME",
+        "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+        "CODEX_REVOKE_TOKEN_URL_OVERRIDE",
+    ];
+
     public static async Task RunAsync()
     {
         var home = Environment.GetEnvironmentVariable("CODEX_HOME") ?? throw new Exception("Missing fixture home");
+        var foundOverrides = OverrideEnvVars.Where(name => Environment.GetEnvironmentVariable(name) != null).ToArray();
+        if (foundOverrides.Length > 0)
+        {
+            await File.AppendAllLinesAsync(Path.Combine(home, "env-overrides"), foundOverrides);
+        }
         var launchesPath = Path.Combine(home, "launches");
         if (File.Exists(launchesPath)) {
             foreach (var previous in await File.ReadAllLinesAsync(launchesPath)) {
@@ -18,7 +37,8 @@ internal static class RpcFixture
         }
         await File.AppendAllTextAsync(launchesPath, Environment.ProcessId + "\n");
         var scenario = (await File.ReadAllTextAsync(Path.Combine(home, "fixture-mode"))).Trim();
-        while (await Console.In.ReadLineAsync() is { } line) {
+        using var input = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
+        while (await input.ReadLineAsync() is { } line) {
             using var document = JsonDocument.Parse(line); var message = document.RootElement;
             if (!message.TryGetProperty("id", out var id)) continue;
             var method = message.GetProperty("method").GetString();

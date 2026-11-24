@@ -44,11 +44,12 @@ private struct DesktopAdapter: DesktopControlling {
 final class Host {
     private let environment: [String: String]
     private let writeOutput: @Sendable (Data) throws -> Void
-    private var controller: AccountController?
+    private(set) var controller: AccountController?
     private var lastSentLanguage: AppLanguage?
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var commands: [Int: Task<Void, Never>] = [:]
+    private var snapshotTask: Task<Void, Never>?
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -64,7 +65,7 @@ final class Host {
     }
 
     func waitForIdle() async {
-        while let task = commands.values.first {
+        while let task = commands.values.first ?? snapshotTask {
             await task.value
         }
     }
@@ -91,8 +92,10 @@ final class Host {
             commands[request.id] = Task {
                 do {
                     try await execute(request)
+                    flushPendingSnapshot()
                     send(CompletedEnvelope(id: request.id, error: nil))
                 } catch {
+                    flushPendingSnapshot()
                     send(CompletedEnvelope(id: request.id, error: error.localizedDescription))
                 }
                 commands[request.id] = nil
@@ -110,7 +113,7 @@ final class Host {
                 activeHomeURL: environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
             )
             let codex = CodexClient(openBrowser: { [self] url in
-                guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+                guard CodexClient.isSafeSignInURL(url) else {
                     throw HostError.message("Unsupported sign-in URL.")
                 }
                 try await platform("openBrowser", url: url)
@@ -124,7 +127,7 @@ final class Host {
             controller = model
             await model.start()
             guard !Task.isCancelled else { return }
-            model.onChange = { [weak self] in self?.sendSnapshot() }
+            model.onChange = { [weak self] in self?.scheduleSnapshot() }
             sendSnapshot(forceStrings: true)
             await model.startBackgroundUsageRefresh()
             return
@@ -170,6 +173,22 @@ final class Host {
         }
     }
 
+    private func scheduleSnapshot() {
+        guard snapshotTask == nil else { return }
+        snapshotTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            self.snapshotTask = nil
+            self.sendSnapshot()
+        }
+    }
+
+    private func flushPendingSnapshot() {
+        guard let task = snapshotTask else { return }
+        task.cancel()
+        snapshotTask = nil
+        sendSnapshot()
+    }
+
     private func sendSnapshot(forceStrings: Bool = false) {
         guard let model = controller else { return }
         let includeStrings = forceStrings || lastSentLanguage != model.settings.language
@@ -191,6 +210,8 @@ final class Host {
     }
 
     func shutdown() {
+        snapshotTask?.cancel()
+        snapshotTask = nil
         controller?.cancelAddingAccount()
         controller?.stopBackgroundUsageRefresh()
         for task in commands.values { task.cancel() }

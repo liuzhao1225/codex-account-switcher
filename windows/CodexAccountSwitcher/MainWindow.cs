@@ -98,8 +98,9 @@ public sealed class MainWindow : Window
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
-        _ = Run("refresh");
+        RefreshUsage();
     }
+    internal void RefreshUsage() => _ = Run("refresh");
     public void Navigate(string destination) { page = destination; target = null; localError = null; Render(preserveScroll: false); }
     private async Task Run(string command, Guid? id = null, bool? value = null, string? language = null,
         Guid? targetAccountID = null)

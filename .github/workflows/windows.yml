@@ -79,6 +79,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Desktop close and package update check failed.' }
       - name: Check Windows signed auto-update verification, swap, rollback, and cleanup
         run: dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- windows-update
+      - name: Check exited-host cancellation and runtime cache integrity
+        shell: pwsh
+        run: |
+          dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- host-exit
+          if ($LASTEXITCODE -ne 0) { throw 'Host exit check failed.' }
+          dotnet run --project windows/CodexAccountSwitcher.Checks -c Release -- runtime-cache
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache integrity check failed.' }
       - name: Test the same Swift core used by macOS
         shell: pwsh
         run: |
@@ -119,4 +126,5 @@ jobs:
           path: |
             windows/artifacts/*.exe
             windows/artifacts/*.sha256
+          overwrite: true
           if-no-files-found: error

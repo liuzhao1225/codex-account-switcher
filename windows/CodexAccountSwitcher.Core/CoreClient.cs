@@ -17,6 +17,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     private readonly Task stderr;
     private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(ct), allowMissingInstallation: true);
     private int nextID;
+    private int disposing;
     public AccountSnapshot State { get; private set; } = AccountSnapshot.Empty;
     public event Action? Changed;
 
@@ -54,7 +55,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
             var message = JsonSerializer.SerializeToNode(command)!.AsObject();
             message["id"] = id;
             await WriteAsync(message);
-            await completion.Task;
+            await completion.Task.WaitAsync(lifetime.Token);
         } finally { pending.TryRemove(id, out _); }
     }
 
@@ -62,7 +63,9 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     {
         await writeLock.WaitAsync(lifetime.Token);
         try {
-            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message));
+            if (Volatile.Read(ref disposing) != 0 || process.HasExited)
+                throw new IOException("The shared account core stopped.");
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(), lifetime.Token);
             await process.StandardInput.FlushAsync(lifetime.Token);
         } finally { writeLock.Release(); }
     }
@@ -102,6 +105,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
             foreach (var completion in pending.Values) completion.TrySetException(failure);
             if (!lifetime.IsCancellationRequested)
                 context.Post(_ => { State = State with { Error = failure.Message }; Changed?.Invoke(); }, null);
+            lifetime.Cancel();
         }
     }
 
@@ -112,7 +116,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
             switch (message.GetProperty("method").GetString()) {
                 case "openBrowser":
                     var url = new Uri(message.GetProperty("url").GetString()!);
-                    if (url.Scheme is not ("https" or "http")) throw new IOException("Invalid sign-in address.");
+                    if (!IsSafeSignInURL(url)) throw new IOException("Invalid sign-in address.");
                     using (Process.Start(new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true })) { }
                     break;
                 case "closeDesktop":
@@ -128,12 +132,19 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
         catch (Exception) when (lifetime.IsCancellationRequested || process.HasExited) { }
     }
 
+    internal static bool IsSafeSignInURL(Uri url) =>
+        url.IsAbsoluteUri && !string.IsNullOrEmpty(url.Host) &&
+        (url.Scheme == Uri.UriSchemeHttps || (url.Scheme == Uri.UriSchemeHttp && url.IsLoopback));
+
     public async ValueTask DisposeAsync()
     {
-        process.StandardInput.Close();
+        Interlocked.Exchange(ref disposing, 1);
+        lifetime.Cancel();
+        await writeLock.WaitAsync();
+        try { process.StandardInput.Close(); }
+        finally { writeLock.Release(); }
         try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
         catch (TimeoutException) { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-        lifetime.Cancel();
         try { await Task.WhenAll(reader, stderr); } catch (OperationCanceledException) { }
         process.Dispose(); lifetime.Dispose(); writeLock.Dispose();
     }

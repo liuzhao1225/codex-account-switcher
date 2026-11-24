@@ -316,6 +316,7 @@ private actor JSONRPCSession {
         params: [String: Any] = [:],
         timeout: Duration
     ) async throws -> JSONValue {
+        try Task.checkCancellation()
         try send(["method": method, "id": id, "params": params])
         let envelope = try await response(id: id, timeout: timeout)
         guard let result = envelope.result else { throw CodexClientError.malformedResponse }
@@ -808,10 +809,14 @@ private actor LaunchConfigurationCache {
 
     func resolve(
         using locator: CodexExecutableLocator,
+        environment: [String: String]? = nil,
         requireDirectExecutable: Bool
     ) async throws -> (executable: URL, environment: [String: String]) {
         if locator.explicitURL != nil {
-            return try await locator.launchConfigurationAsync(requireDirectExecutable: requireDirectExecutable)
+            return try await locator.launchConfigurationAsync(
+                environment: environment ?? ProcessInfo.processInfo.environment,
+                requireDirectExecutable: requireDirectExecutable
+            )
         }
         if !requireDirectExecutable,
            let cached,
@@ -819,7 +824,10 @@ private actor LaunchConfigurationCache {
            locator.isExecutable(cached.executable.path) {
             return (cached.executable, cached.environment)
         }
-        let fresh = try await locator.launchConfigurationAsync(requireDirectExecutable: requireDirectExecutable)
+        let fresh = try await locator.launchConfigurationAsync(
+            environment: environment ?? ProcessInfo.processInfo.environment,
+            requireDirectExecutable: requireDirectExecutable
+        )
         if !requireDirectExecutable {
             cached = Entry(executable: fresh.executable, environment: fresh.environment, resolvedAt: .now)
         }
@@ -857,6 +865,7 @@ public struct CodexClient: AccountClient {
     public let clientVersion: String
     private let usageSessions: UsageSessions
     private let launchCache = LaunchConfigurationCache()
+    private let baseEnvironment: [String: String]?
     private let openBrowser: @Sendable (URL) async throws -> Void
 
     public init(
@@ -870,11 +879,41 @@ public struct CodexClient: AccountClient {
         self.locator = locator
         self.requestTimeout = requestTimeout
         self.clientVersion = clientVersion
+        self.baseEnvironment = nil
         self.openBrowser = openBrowser
+    }
+
+    init(
+        locator: CodexExecutableLocator = .init(),
+        requestTimeout: Duration = .seconds(20),
+        clientVersion: String = SwitcherVersion.current,
+        usageSessionIdleTimeout: Duration = .seconds(90),
+        environment: [String: String],
+        openBrowser: @escaping @Sendable (URL) async throws -> Void = CodexClient.defaultOpenBrowser
+    ) {
+        self.usageSessions = UsageSessions(idleTimeout: usageSessionIdleTimeout)
+        self.locator = locator
+        self.requestTimeout = requestTimeout
+        self.clientVersion = clientVersion
+        self.baseEnvironment = environment
+        self.openBrowser = openBrowser
+    }
+
+    public static func isSafeSignInURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              let host = url.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).lowercased(),
+              !host.isEmpty else {
+            return false
+        }
+        if scheme == "https" { return true }
+        return scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(host)
     }
 
     @Sendable
     public static func defaultOpenBrowser(_ url: URL) async throws {
+        guard isSafeSignInURL(url) else {
+            throw CodexClientError.loginFailed("Unsupported sign-in URL.")
+        }
         #if canImport(AppKit)
         guard await MainActor.run(body: { NSWorkspace.shared.open(url) }) else {
             throw CodexClientError.loginFailed("The sign-in page could not be opened.")
@@ -885,7 +924,7 @@ public struct CodexClient: AccountClient {
     }
 
     public func readIdentity(profileHome: URL) async throws -> AccountIdentity {
-        let result = try await withSession(profileHome: profileHome) { session in
+        let result = try await withSession(profileHome: profileHome, useProfileAuthenticationOnly: true) { session in
             try await session.request(
                 method: "account/read",
                 id: 1,
@@ -900,8 +939,16 @@ public struct CodexClient: AccountClient {
         let worker = await usageSessions.worker(for: profileHome)
         let locator = locator
         let launchCache = launchCache
+        let baseEnvironment = baseEnvironment
         let result = try await worker.read(
-            resolveLaunch: { try await launchCache.resolve(using: locator, requireDirectExecutable: false) },
+            resolveLaunch: {
+                let launch = try await launchCache.resolve(
+                    using: locator,
+                    environment: baseEnvironment,
+                    requireDirectExecutable: false
+                )
+                return (launch.executable, Self.profileEnvironment(launch.environment))
+            },
             timeout: requestTimeout,
             clientVersion: clientVersion
         )
@@ -937,7 +984,8 @@ public struct CodexClient: AccountClient {
     public func refreshIdentity(profileHome: URL) async throws -> AccountIdentity {
         let worker = await usageSessions.worker(for: profileHome)
         let result = try await worker.withStoppedSession {
-            try await withSession(profileHome: profileHome, requireDirectExecutable: true) { session in
+            try await withSession(profileHome: profileHome, requireDirectExecutable: true,
+                                  useProfileAuthenticationOnly: true) { session in
                 try await session.request(method: "account/read", id: 1,
                                           params: ["refreshToken": true], timeout: requestTimeout)
             }
@@ -948,7 +996,7 @@ public struct CodexClient: AccountClient {
     public func consumeResetCredit(profileHome: URL, creditID: String, idempotencyKey: String) async throws -> ResetCreditOutcome {
         let worker = await usageSessions.worker(for: profileHome)
         let result = try await worker.withStoppedSession {
-            try await withSession(profileHome: profileHome) { session in
+            try await withSession(profileHome: profileHome, useProfileAuthenticationOnly: true) { session in
                 try await session.request(
                     method: "account/rateLimitResetCredit/consume", id: 1,
                     params: ["creditId": creditID, "idempotencyKey": idempotencyKey],
@@ -1018,11 +1066,19 @@ public struct CodexClient: AccountClient {
     private func withSession<T: Sendable>(
         profileHome: URL,
         requireDirectExecutable: Bool = false,
+        useProfileAuthenticationOnly: Bool = false,
         operation: (JSONRPCSession) async throws -> T
     ) async throws -> T {
-        let launch = try await launchCache.resolve(using: locator, requireDirectExecutable: requireDirectExecutable)
+        let launch = try await launchCache.resolve(
+            using: locator,
+            environment: baseEnvironment,
+            requireDirectExecutable: requireDirectExecutable
+        )
+        let environment = useProfileAuthenticationOnly
+            ? Self.profileEnvironment(launch.environment)
+            : launch.environment
         let session = try JSONRPCSession(executableURL: launch.executable, profileHome: profileHome,
-                                         environment: launch.environment)
+                                         environment: environment)
         return try await withTaskCancellationHandler {
             do {
                 try Task.checkCancellation()
@@ -1039,6 +1095,22 @@ public struct CodexClient: AccountClient {
         } onCancel: {
             Task { await session.stop() }
         }
+    }
+
+    static func profileEnvironment(_ environment: [String: String]) -> [String: String] {
+        // Isolate saved-profile RPCs from inherited credential or endpoint overrides.
+        let overrides: Set<String> = [
+            "CODEX_API_KEY",
+            "CODEX_ACCESS_TOKEN",
+            "OPENAI_API_KEY",
+            "OPENAI_BASE_URL",
+            "OPENAI_FEDERATION_RULE_ID",
+            "OPENAI_IDENTITY_TOKEN_FILE",
+            "CODEX_SQLITE_HOME",
+            "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+            "CODEX_REVOKE_TOKEN_URL_OVERRIDE",
+        ]
+        return environment.filter { !overrides.contains($0.key.uppercased()) }
     }
 
     private func parseIdentity(_ value: JSONValue, profileHome: URL) throws -> AccountIdentity {

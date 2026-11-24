@@ -71,13 +71,35 @@ private let fixtureExecutable: String? = {
         if (!home || !*home) return 1;
 
         char launches_path[1024], overlap_path[1024], mode_path[1024];
-        char requests_path[1024], release_path[1024], exited_path[1024];
+        char requests_path[1024], release_path[1024], exited_path[1024], overrides_path[1024];
         join_path(launches_path, sizeof(launches_path), home, "launches");
         join_path(overlap_path, sizeof(overlap_path), home, "overlap");
         join_path(mode_path, sizeof(mode_path), home, "fixture-mode");
         join_path(requests_path, sizeof(requests_path), home, "requests");
         join_path(release_path, sizeof(release_path), home, "release");
         join_path(exited_path, sizeof(exited_path), home, "exited");
+        join_path(overrides_path, sizeof(overrides_path), home, "env-overrides");
+
+        const char *override_vars[] = {
+            "CODEX_API_KEY",
+            "CODEX_ACCESS_TOKEN",
+            "OPENAI_API_KEY",
+            "OPENAI_BASE_URL",
+            "OPENAI_FEDERATION_RULE_ID",
+            "OPENAI_IDENTITY_TOKEN_FILE",
+            "CODEX_SQLITE_HOME",
+            "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+            "CODEX_REVOKE_TOKEN_URL_OVERRIDE",
+        };
+        for (size_t i = 0; i < sizeof(override_vars) / sizeof(override_vars[0]); i++) {
+            if (getenv(override_vars[i]) != NULL) {
+                FILE *of = fopen(overrides_path, "a");
+                if (of) {
+                    fprintf(of, "%s\n", override_vars[i]);
+                    fclose(of);
+                }
+            }
+        }
 
         FILE *lf = fopen(launches_path, "r");
         if (lf) {
@@ -378,6 +400,84 @@ struct CodexClientTransportTests {
         try await Task.sleep(for: .milliseconds(300))
         _ = try await client.readWeeklyUsage(profileHome: home)
         #expect(try launchCount(home) == 2)
+        try await client.stopUsageSessions()
+    }
+
+    @Test func isSafeSignInURLAndDefaultOpenBrowserRejectUnsafeSignInURLs() async throws {
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "https://auth.openai.com/login"))))
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "HTTPS://auth.openai.com/login"))))
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "http://localhost:1455/callback"))))
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "http://LOCALHOST:1455/callback"))))
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "http://127.0.0.1:1455/callback"))))
+        #expect(CodexClient.isSafeSignInURL(try #require(URL(string: "http://[::1]:1455/callback"))))
+
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "https://"))))
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "https:///path"))))
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "http://example.com/login"))))
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "http://localhost@evil.com/"))))
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "file:///etc/passwd"))))
+        #expect(!CodexClient.isSafeSignInURL(try #require(URL(string: "javascript:alert(1)"))))
+
+        await #expect(throws: CodexClientError.loginFailed("Unsupported sign-in URL.")) {
+            try await CodexClient.defaultOpenBrowser(try #require(URL(string: "http://example.com/login")))
+        }
+        await #expect(throws: CodexClientError.loginFailed("Unsupported sign-in URL.")) {
+            try await CodexClient.defaultOpenBrowser(try #require(URL(string: "https://")))
+        }
+    }
+
+    @Test func profileEnvironmentStripsOverridesAndIsolatesProfileRPCsWhileLoginKeepsThem() async throws {
+        let stripped = CodexClient.profileEnvironment([
+            "PATH": "/usr/bin",
+            "SWITCHER_KEEP": "keep",
+            "CODEX_API_KEY": "k1",
+            "codex_access_token": "k2",
+            "OpenAI_Api_Key": "k3",
+            "OPENAI_BASE_URL": "https://override.example.test",
+            "OPENAI_FEDERATION_RULE_ID": "rule",
+            "OPENAI_IDENTITY_TOKEN_FILE": "/tmp/token",
+            "CODEX_SQLITE_HOME": "/tmp/sqlite",
+            "CODEX_REFRESH_TOKEN_URL_OVERRIDE": "https://refresh.example.test",
+            "CODEX_REVOKE_TOKEN_URL_OVERRIDE": "https://revoke.example.test",
+        ])
+        #expect(stripped == ["PATH": "/usr/bin", "SWITCHER_KEEP": "keep"])
+
+        let overrideNames = [
+            "CODEX_API_KEY",
+            "CODEX_ACCESS_TOKEN",
+            "OPENAI_API_KEY",
+            "OPENAI_BASE_URL",
+            "OPENAI_FEDERATION_RULE_ID",
+            "OPENAI_IDENTITY_TOKEN_FILE",
+            "CODEX_SQLITE_HOME",
+            "CODEX_REFRESH_TOKEN_URL_OVERRIDE",
+            "CODEX_REVOKE_TOKEN_URL_OVERRIDE",
+        ]
+        var env = ProcessInfo.processInfo.environment
+        for name in overrideNames { env[name] = "override-\(name)" }
+
+        let home = try fixtureHome("normal")
+        let loginHome = try fixtureHome("login")
+        defer { try? FileManager.default.removeItem(at: home); try? FileManager.default.removeItem(at: loginHome) }
+
+        let client = CodexClient(
+            locator: .init(explicitURL: URL(fileURLWithPath: fixtureExecutable!)),
+            requestTimeout: .seconds(5),
+            environment: env,
+            openBrowser: { _ in }
+        )
+
+        _ = try await client.readIdentity(profileHome: home)
+        _ = try await client.readWeeklyUsage(profileHome: home)
+        _ = try await client.refreshIdentity(profileHome: home)
+        _ = try await client.consumeResetCredit(profileHome: home, creditID: "c", idempotencyKey: "k")
+        #expect(!FileManager.default.fileExists(atPath: home.appendingPathComponent("env-overrides").path))
+
+        _ = try await client.login(profileHome: loginHome)
+        let logged = try String(contentsOf: loginHome.appendingPathComponent("env-overrides"), encoding: .utf8)
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+        #expect(Set(logged) == Set(overrideNames))
         try await client.stopUsageSessions()
     }
 

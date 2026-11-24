@@ -181,6 +181,41 @@ struct BackgroundPollingAndSettingsTests {
         #expect(languageSnapshots.count == 1)
         #expect(languageSnapshots[0].state?.settings.language == "italian")
         #expect(languageSnapshots[0].state?.strings?["manage"] == "Gestisci account")
+        let snapshotIndex = try #require(languageEnvelopes.firstIndex { $0.kind == "snapshot" })
+        let completedIndex = try #require(languageEnvelopes.firstIndex { $0.kind == "completed" && $0.id == 3 })
+        #expect(snapshotIndex < completedIndex)
+    }
+
+    @Test func hostCoalescesBurstStateChangesIntoSingleSnapshot() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("switcher-host-coalesce-\(UUID())")
+        let dataURL = root.appendingPathComponent("data")
+        let activeURL = root.appendingPathComponent("active")
+        try FileManager.default.createDirectory(at: activeURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let collector = HostLineCollector()
+        let host = Host(
+            environment: [
+                "CODEX_SWITCHER_DATA_HOME": dataURL.path,
+                "CODEX_HOME": activeURL.path,
+            ],
+            writeOutput: { collector.append($0) }
+        )
+        defer { host.shutdown() }
+
+        host.accept(#"{"id":1,"command":"initialize"}"#)
+        await host.waitForIdle()
+        _ = try collector.drain()
+
+        let controller = try #require(host.controller)
+        for _ in 0..<5 {
+            controller.onChange?()
+        }
+        await host.waitForIdle()
+
+        let burstSnapshots = try collector.drain().filter { $0.kind == "snapshot" }
+        #expect(burstSnapshots.count == 1)
     }
 }
 

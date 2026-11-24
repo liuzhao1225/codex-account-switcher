@@ -347,6 +347,50 @@ struct AccountStoreTests {
         #expect(try permissions(fixture.support.appending(path: "usage-cache.json")) == 0o600)
     }
 
+    @Test func cachesMultipleWeeklyUsageEntriesInOneBatch() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+
+        let firstID = UUID()
+        let secondID = UUID()
+        let unknownID = UUID()
+        let firstProfile = AccountProfile(
+            id: firstID, displayName: "One", email: "one@example.com",
+            accountID: "account-1", createdAt: Date(), lastUsedAt: nil
+        )
+        let secondProfile = AccountProfile(
+            id: secondID, displayName: "Two", email: "two@example.com",
+            accountID: "account-2", createdAt: Date(), lastUsedAt: nil
+        )
+        try await fixture.store.seedActiveProfile(firstProfile)
+        let secondHome = try await fixture.store.createProfileDirectory(id: secondID)
+        try Data("second-fixture".utf8).write(to: secondHome.appendingPathComponent("auth.json"))
+        try await fixture.store.addProfile(secondProfile)
+
+        let firstEntry = UsageCacheEntry(
+            profileID: firstID,
+            usage: WeeklyUsage(remainingPercent: 80, resetsAt: Date(timeIntervalSince1970: 1_750_000_000)),
+            fetchedAt: Date(timeIntervalSince1970: 1_749_000_000)
+        )
+        let secondEntry = UsageCacheEntry(
+            profileID: secondID,
+            usage: WeeklyUsage(remainingPercent: 35, resetsAt: Date(timeIntervalSince1970: 1_750_100_000), fiveHourRemainingPercent: 60),
+            fetchedAt: Date(timeIntervalSince1970: 1_749_000_100)
+        )
+        let unknownEntry = UsageCacheEntry(
+            profileID: unknownID,
+            usage: WeeklyUsage(remainingPercent: 10, resetsAt: Date(timeIntervalSince1970: 1_750_200_000)),
+            fetchedAt: Date(timeIntervalSince1970: 1_749_000_200)
+        )
+
+        try await fixture.store.cacheWeeklyUsage([firstEntry, secondEntry, unknownEntry])
+        let reloadedStore = AccountStore(baseURL: fixture.support, activeHomeURL: fixture.activeHome)
+        let cache = try await reloadedStore.loadUsageCache()
+
+        #expect(cache.entries == [firstEntry, secondEntry])
+        #expect(try permissions(fixture.support.appending(path: "usage-cache.json")) == 0o600)
+    }
+
     @Test func persistsSettingsAndLoadsLegacyDefaults() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
