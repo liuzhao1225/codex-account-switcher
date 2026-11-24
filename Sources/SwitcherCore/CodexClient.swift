@@ -244,13 +244,20 @@ private actor JSONRPCSession {
     private let stopState = SessionStopState()
     private var didStop = false
 
-    init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
+    init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String],
+         modelCatalog: URL? = nil) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = executableURL
         process.arguments = Self.isolatedArguments
+        if let modelCatalog {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .withoutEscapingSlashes
+            let quotedPath = String(decoding: try encoder.encode(modelCatalog.path), as: UTF8.self)
+            process.arguments?.append(contentsOf: ["-c", "model_catalog_json=\(quotedPath)"])
+        }
         var environment = inheritedEnvironment
         environment["CODEX_HOME"] = profileHome.path
         process.environment = environment
@@ -1125,6 +1132,23 @@ private actor UsageSessions {
 }
 
 private actor UsageSession {
+    // App-server requires one model in a local catalog. Quota sessions never run inference.
+    private static let modelCatalog = Data("""
+        {"models":[{
+            "slug":"switcher-quota-only",
+            "display_name":"Quota only",
+            "base_instructions":"",
+            "supported_reasoning_levels":[],
+            "shell_type":"disabled",
+            "visibility":"hide",
+            "supported_in_api":false,
+            "priority":0,
+            "support_verbosity":false,
+            "truncation_policy":{"mode":"tokens","limit":1},
+            "experimental_supported_tools":[]
+        }]}
+        """.utf8)
+
     private let home: URL
     private let idleTimeout: Duration
     private var session: JSONRPCSession?
@@ -1231,8 +1255,10 @@ private actor UsageSession {
         }
         if session == nil {
             let launch = try await resolveLaunch()
+            let catalog = home.appendingPathComponent("switcher-quota-model-catalog.json")
+            try Self.modelCatalog.write(to: catalog, options: .atomic)
             let opened = try JSONRPCSession(executableURL: launch.executable, profileHome: home,
-                                            environment: launch.environment)
+                                            environment: launch.environment, modelCatalog: catalog)
             session = opened
             executable = launch.executable
             credential = currentCredential

@@ -198,9 +198,14 @@ struct CodexClientTransportTests {
         let home = try fixtureHome("normal")
         defer { try? FileManager.default.removeItem(at: home) }
         let client = makeClient()
+        let catalog = home.appendingPathComponent("switcher-quota-model-catalog.json")
         let identity = try await client.readIdentity(profileHome: home)
         #expect(identity.accountID == "fixture")
+        #expect(!FileManager.default.fileExists(atPath: catalog.path))
         let usage = try await client.readWeeklyUsage(profileHome: home)
+        let document = try JSONSerialization.jsonObject(with: Data(contentsOf: catalog)) as? [String: Any]
+        let models = try #require(document?["models"] as? [[String: Any]])
+        #expect(models.count == 1)
         #expect(usage.remainingPercent == 42)
         #expect(usage.fiveHourRemainingPercent == 67)
         #expect(usage.resetCreditsRemaining == 2)
