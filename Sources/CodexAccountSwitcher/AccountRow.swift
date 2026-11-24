@@ -54,6 +54,14 @@ struct AccountRow: View {
                     }
                 }
 
+                if let email = account.labeledEmail {
+                    Text(verbatim: email)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(email)
+                }
+
                 usageContent
                 HStack(spacing: 8) {
                     Text(presentation.primaryText(at: now, language: language, formatDay: subscriptionDate))

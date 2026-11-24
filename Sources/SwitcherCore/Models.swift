@@ -13,14 +13,43 @@ public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendab
     public var accountID: String?
     public let createdAt: Date
     public var lastUsedAt: Date?
+    public var note: String?
 
-    public init(id: UUID, displayName: String, email: String?, accountID: String?, createdAt: Date, lastUsedAt: Date? = nil) {
+    public init(
+        id: UUID,
+        displayName: String,
+        email: String?,
+        accountID: String?,
+        createdAt: Date,
+        lastUsedAt: Date? = nil,
+        note: String? = nil
+    ) {
         self.id = id; self.displayName = displayName; self.email = email
         self.accountID = accountID; self.createdAt = createdAt; self.lastUsedAt = lastUsedAt
+        self.note = note
+    }
+
+    private var normalizedNote: String? {
+        guard let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
+    }
+
+    private var nonEmptyEmail: String? {
+        email.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     public var preferredTitle: String {
-        email.flatMap { $0.isEmpty ? nil : $0 } ?? displayName
+        normalizedNote ?? nonEmptyEmail ?? displayName
+    }
+
+    public var labeledEmail: String? {
+        normalizedNote == nil ? nil : nonEmptyEmail
+    }
+
+    public var confirmationTitle: String {
+        normalizedNote ?? displayName
     }
 
     public var initials: String {
@@ -59,12 +88,22 @@ public enum StatusBarUsageWindow: String, Codable, CaseIterable, Identifiable, S
     public var id: String { rawValue }
 }
 
+public enum PopoverAccountRows: Int, Codable, CaseIterable, Sendable {
+    case three = 3
+    case five = 5
+    case eight = 8
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var language: AppLanguage
     public var showsMenuBarPercentage: Bool
     public var showsFiveHourUsage: Bool
     public var statusBarUsageWindow: StatusBarUsageWindow
     public var autoResetEnabled: Bool
+    public var popoverAccountRows: PopoverAccountRows
+    public var lowUsageThreshold: Int?
+
+    public static let lowUsageThresholdRange = 1...99
 
     public static let `default` = AppSettings(
         language: .system,
@@ -78,13 +117,17 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showsMenuBarPercentage: Bool = true,
         showsFiveHourUsage: Bool = false,
         statusBarUsageWindow: StatusBarUsageWindow = .fiveHour,
-        autoResetEnabled: Bool = false
+        autoResetEnabled: Bool = false,
+        popoverAccountRows: PopoverAccountRows = .three,
+        lowUsageThreshold: Int? = nil
     ) {
         self.language = language
         self.showsMenuBarPercentage = showsMenuBarPercentage
         self.showsFiveHourUsage = showsFiveHourUsage
         self.statusBarUsageWindow = statusBarUsageWindow
         self.autoResetEnabled = autoResetEnabled
+        self.popoverAccountRows = popoverAccountRows
+        self.lowUsageThreshold = lowUsageThreshold
     }
 
     public init(from decoder: any Decoder) throws {
@@ -105,6 +148,18 @@ public struct AppSettings: Codable, Equatable, Sendable {
         autoResetEnabled = try container.decodeIfPresent(
             Bool.self, forKey: .autoResetEnabled
         ) ?? false
+        popoverAccountRows = try container.decodeIfPresent(
+            PopoverAccountRows.self,
+            forKey: .popoverAccountRows
+        ) ?? .three
+        lowUsageThreshold = try container.decodeIfPresent(Int.self, forKey: .lowUsageThreshold)
+        if let lowUsageThreshold, !Self.lowUsageThresholdRange.contains(lowUsageThreshold) {
+            throw DecodingError.dataCorruptedError(
+                forKey: .lowUsageThreshold,
+                in: container,
+                debugDescription: "Low usage reminder threshold must be between 1 and 99."
+            )
+        }
     }
 }
 
@@ -250,6 +305,8 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
     case targetCredentialMissing
     case duplicateAccount
     case cannotRemoveActiveAccount
+    case accountOperationInProgress
+    case invalidUsageThreshold
 
     public var errorDescription: String? {
         switch self {
@@ -267,6 +324,10 @@ public enum AccountStoreError: LocalizedError, Equatable, Sendable {
             "This account is already saved. Select the existing account instead."
         case .cannotRemoveActiveAccount:
             "The active account cannot be removed."
+        case .accountOperationInProgress:
+            "Wait for the current account operation to finish."
+        case .invalidUsageThreshold:
+            "The low usage reminder requires a threshold from 1% to 99%."
         }
     }
 }

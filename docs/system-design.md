@@ -23,9 +23,9 @@ windows/
 
 Under `~/Library/Application Support/Codex Account Switcher/` (macOS, `0700` dirs / `0600` files) or `%LOCALAPPDATA%\Codex Account Switcher\` (Windows, current-user protected DACL):
 
-- `accounts.json` — Ordered saved `AccountProfile` entries and `activeAccountID`.
+- `accounts.json` — Ordered saved `AccountProfile` entries (including optional account notes) and `activeAccountID`.
 - `accounts/<profile-id>/auth.json` — Isolated credential snapshot per saved account.
-- `settings.json` — Language, status-bar/tray usage window, 5-hour visibility, and `autoResetEnabled`.
+- `settings.json` — Language, status-bar/tray usage window, 5-hour visibility, visible popover rows (3/5/8), low-usage reminder threshold (1–99%), and `autoResetEnabled`.
 - `usage-cache.json` — Last normalized weekly/5-hour usage per profile for instant display on launch.
 - `subscription-cache.json` — Cached `LiveSubscription` metadata per `(profileID, accountID)`.
 - `auto-reset.jsonl` — Bounded, crash-resilient log of automatic reset checkpoints, attempts, and readback verifications (automatically compacted above 256 KB / 500 entries; legacy `reset-expiry-experiment.jsonl` is migrated automatically).

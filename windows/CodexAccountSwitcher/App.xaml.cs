@@ -94,6 +94,7 @@ public partial class App : Application
                 if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window?.OpenWindow(); }
             };
             client.Changed += RefreshTray;
+            client.LowUsage += ShowLowUsageNotification;
             await client.InitializeAsync();
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
             if (!launchedInBackground) window.OpenWindow();
@@ -158,7 +159,12 @@ public partial class App : Application
         updates = null;
         activationListener?.Unregister(null);
         activationListener = null;
-        if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); client = null; }
+        if (client != null) {
+            client.Changed -= RefreshTray;
+            client.LowUsage -= ShowLowUsageNotification;
+            await client.DisposeAsync();
+            client = null;
+        }
         window?.CloseForExit();
         window = null;
         ReleaseNativeHandles();
@@ -178,6 +184,12 @@ public partial class App : Application
         }
         instance?.Dispose();
         instance = null;
+    }
+
+    private void ShowLowUsageNotification(string title, string message)
+    {
+        if (exiting || string.IsNullOrEmpty(message)) return;
+        tray?.ShowBalloonTip(0, title, message, Forms.ToolTipIcon.Warning);
     }
 
     private void RefreshTray()

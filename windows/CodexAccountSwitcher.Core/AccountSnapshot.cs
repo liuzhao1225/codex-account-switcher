@@ -4,7 +4,13 @@ using System.Text.Json;
 namespace CodexAccountSwitcher.Core;
 
 // Wire DTOs only. Account policy and storage live in Sources/SwitcherCore.
-public sealed record Profile(Guid Id, string DisplayName, string? Email);
+public sealed record Profile(Guid Id, string DisplayName, string? Email, string? Note = null)
+{
+    private string? NormalizedNote => string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
+    public string PreferredTitle => NormalizedNote ?? (string.IsNullOrEmpty(Email) ? DisplayName : Email);
+    public string? LabeledEmail => NormalizedNote != null && !string.IsNullOrEmpty(Email) ? Email : null;
+    public string ConfirmationTitle => NormalizedNote ?? DisplayName;
+}
 public sealed record Usage(int RemainingPercent, DateTimeOffset ResetsAt,
     int? FiveHourRemainingPercent, DateTimeOffset? FiveHourResetsAt, int? ResetCreditsRemaining = null);
 public sealed record SubscriptionSnapshot(DateTimeOffset ActiveUntil, DateTimeOffset LastChecked);
@@ -116,11 +122,11 @@ public sealed record AccountRow(
 {
     public string DisplayTitle => !string.IsNullOrEmpty(Title)
         ? Title
-        : string.IsNullOrEmpty(Profile.Email) ? Profile.DisplayName : Profile.Email;
+        : Profile.PreferredTitle;
 }
 
 public sealed record Preferences(string Language = "system", bool ShowsMenuBarPercentage = true, bool ShowsFiveHourUsage = false,
-    string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false);
+    string StatusBarUsageWindow = "fiveHour", bool AutoResetEnabled = false, int? LowUsageThreshold = null);
 public sealed record AccountSnapshot(
     AccountRow[] Accounts,
     Guid? ActiveAccountID,
@@ -141,6 +147,8 @@ public interface IAccountClient
 {
     AccountSnapshot State { get; }
     event Action? Changed;
+    Task SetAccountNoteAsync(Guid accountID, string note);
+    Task SetLowUsageThresholdAsync(int? threshold);
     Task CommandAsync(string command, Guid? accountID = null, bool? value = null, string? language = null,
         Guid? targetAccountID = null);
 }
