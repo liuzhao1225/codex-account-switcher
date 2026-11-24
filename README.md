@@ -54,10 +54,10 @@ Get the [latest unified release](https://github.com/liuzhao1225/codex-account-sw
 | --- | --- |
 | **Browser sign-in & local registration** | Add new accounts via Codex's browser login flow or register the currently active `~/.codex/auth.json` login. |
 | **Safe Desktop & CLI handoff** | Closes Codex Desktop, saves the previous credential, installs and verifies the target credential, and reopens Desktop (or switches `auth.json` directly for CLI-only users). Restores the previous credential if verification fails. |
-| **Usage & reset tracking** | Displays 7-day usage by default, optional exact 5-hour usage, selectable status-bar/tray percentage window, and remaining banked reset counts. |
+| **Usage & reset tracking** | Displays 7-day usage by default, optional exact 5-hour usage, selectable status-bar/tray percentage window, remaining banked reset counts, and configurable low-usage notifications. |
 | **Live subscription dates** | Refreshes subscription validity, renewal, and delinquency details on both macOS and Windows, with inactive-account 401 token recovery and local caching. |
 | **Use resets before expiry** | Opt-in automation that checks and consumes expiring `codexRateLimits` reset credits across saved accounts 10, 5, and 1 minute before expiry, backed by a bounded crash-resilient local log. |
-| **Drag-and-drop ordering & localization** | Reorder saved accounts in Manage Accounts; supports System Default, English, Simplified Chinese, and Italian. |
+| **Notes, ordering & localization** | Add custom account notes, reorder saved accounts in Manage Accounts, choose 3, 5, or 8 visible popover rows on macOS, and pick System Default, English, Simplified Chinese, or Italian. |
 
 ## Privacy & Architecture
 

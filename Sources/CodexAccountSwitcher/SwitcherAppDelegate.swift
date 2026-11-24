@@ -1,8 +1,9 @@
 import AppKit
 import Combine
+import UserNotifications
 
 @MainActor
-final class SwitcherAppDelegate: NSObject, NSApplicationDelegate {
+final class SwitcherAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     let model = AppModel.live()
     let updater = AppUpdater()
 
@@ -12,6 +13,12 @@ final class SwitcherAppDelegate: NSObject, NSApplicationDelegate {
         model.onSettledChange = { [weak self] in
             guard let self else { return }
             self.updater.accountOperationInProgress = self.model.isMutating || self.model.isAddingAccount
+        }
+        if Bundle.main.bundleIdentifier != nil {
+            UNUserNotificationCenter.current().delegate = self
+            model.onLowUsage = { [weak model] title, message in
+                model?.postLowUsageNotification(title: title, message: message)
+            }
         }
         updater.start()
         wakeObservation = NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
@@ -24,5 +31,12 @@ final class SwitcherAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         model.cancelAddingAccount()
         model.stopBackgroundUsageRefresh()
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list]
     }
 }

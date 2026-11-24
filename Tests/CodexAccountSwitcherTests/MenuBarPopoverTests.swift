@@ -50,6 +50,26 @@ struct MenuBarPopoverTests {
         #expect(manageHeights[20] == manageHeights[6])
     }
 
+    @Test func choosingMoreRowsGrowsTheViewportAndCapsOverflow() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "popover-rows-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let large = try await makeModel(root: root.appending(path: "large"), accountCount: 20)
+        let five = try await makeModel(root: root.appending(path: "five"), accountCount: 5)
+        let offer = NSSize(width: 400, height: 0)
+        func height(_ model: AppModel) -> CGFloat {
+            NSHostingController(rootView: MenuBarPopover(
+                model: model, updater: AppUpdater()
+            )).sizeThatFits(in: offer).height
+        }
+        let originalHeight = height(large)
+        await large.setPopoverAccountRows(.five)
+        await five.setPopoverAccountRows(.five)
+        #expect(height(large) > originalHeight)
+        #expect(abs(height(large) - height(five)) < 1)
+        let reopened = AccountStore(baseURL: root.appending(path: "large/store"), activeHomeURL: root.appending(path: "large/home"))
+        #expect(try await reopened.loadSettings().popoverAccountRows == .five)
+    }
+
     private func makeModel(root: URL, accountCount: Int) async throws -> AppModel {
         let store = AccountStore(baseURL: root.appending(path: "store"), activeHomeURL: root.appending(path: "home"))
         for index in 0..<accountCount {

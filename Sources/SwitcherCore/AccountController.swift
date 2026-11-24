@@ -9,6 +9,7 @@ private enum UsageRefreshResult: Sendable {
 open class AccountController {
     public var onWillChange: (@MainActor () -> Void)?
     public var onChange: (@MainActor () -> Void)?
+    public var onLowUsage: (@MainActor (_ title: String, _ message: String) -> Void)?
 
     private var batchDepth = 0
     private var didSendWillChangeInBatch = false
@@ -131,9 +132,29 @@ open class AccountController {
     public var activeRemainingPercent: Int? {
         guard let activeAccountID else { return nil }
         guard let usage = usageStates[activeAccountID]?.displayedUsage else { return nil }
-        return settings.statusBarUsageWindow == .fiveHour
-            ? (usage.fiveHourRemainingPercent ?? usage.remainingPercent)
-            : usage.remainingPercent
+        return quotaReading(for: usage).percent
+    }
+
+    private func quotaReading(for usage: WeeklyUsage) -> (window: StatusBarUsageWindow, percent: Int) {
+        if settings.statusBarUsageWindow == .fiveHour, let percent = usage.fiveHourRemainingPercent {
+            return (.fiveHour, percent)
+        }
+        return (.weekly, usage.remainingPercent)
+    }
+
+    private func notifyIfLowUsage(for account: AccountProfile, previous: WeeklyUsage?) {
+        guard !Task.isCancelled, account.id == activeAccountID,
+              let threshold = settings.lowUsageThreshold,
+              let previous, let current = usageStates[account.id]?.displayedUsage else { return }
+        let before = quotaReading(for: previous)
+        let now = quotaReading(for: current)
+        guard before.window == now.window, before.percent > threshold, now.percent <= threshold else { return }
+
+        let window = text(now.window == .fiveHour ? "five_hour" : "weekly")
+        onLowUsage?(
+            text("low_usage_title"),
+            String(format: text("low_usage_message"), account.preferredTitle, "\(now.percent)%", window)
+        )
     }
 
     public func start() async {
@@ -278,7 +299,7 @@ open class AccountController {
         guard !Task.isCancelled else { return }
         await refreshSubscriptionSnapshots()
         var cacheEntries: [UsageCacheEntry] = []
-        var observations: [(AccountProfile, WeeklyUsage?, String?)] = []
+        var observations: [(account: AccountProfile, usage: WeeklyUsage?, error: String?, previous: WeeklyUsage?)] = []
         await withTaskGroup(of: UsageRefreshResult.self) { group in
             for account in accounts {
                 group.addTask { [store, codex] in
@@ -296,12 +317,13 @@ open class AccountController {
                 switch result {
                 case let .success(id, usage):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
+                    let previous = usageStates[id]?.displayedUsage
                     usageStates[id] = .loaded(usage)
                     cacheEntries.append(UsageCacheEntry(profileID: id, usage: usage, fetchedAt: Date()))
-                    observations.append((account, usage, nil))
+                    observations.append((account, usage, nil, previous))
                 case let .failure(id, message):
                     guard let account = accounts.first(where: { $0.id == id }) else { continue }
-                    observations.append((account, nil, message))
+                    observations.append((account, nil, message, nil))
                     if let cached = usageStates[id]?.displayedUsage {
                         usageStates[id] = .stale(cached, message)
                     } else {
@@ -314,8 +336,11 @@ open class AccountController {
             do { try await store.cacheWeeklyUsage(cacheEntries) }
             catch { reportError(error) }
         }
-        for (account, usage, message) in observations where !Task.isCancelled {
+        for (account, usage, message, previous) in observations where !Task.isCancelled {
             await observeResetExpiry(profile: account, usage: usage, error: message)
+            if usage != nil {
+                notifyIfLowUsage(for: account, previous: previous)
+            }
         }
         guard !Task.isCancelled, let subscriptionClient else { return }
         subscriptionRefreshTask = Task { [weak self] in
@@ -522,6 +547,17 @@ open class AccountController {
         }
     }
 
+    public func setAccountNote(id: UUID, note: String) async throws {
+        guard !isMutating, !isAddingAccount else { throw AccountStoreError.accountOperationInProgress }
+        isMutating = true
+        defer { isMutating = false; completePendingResetCheckIfNeeded() }
+        let registry = try await store.setAccountNote(id: id, note: note)
+        withBatchedUpdates {
+            apply(registry)
+            visibleError = nil
+        }
+    }
+
     public func moveAccount(id: UUID, to targetID: UUID) async {
         guard !isMutating, !isAddingAccount else { return }
         isMutating = true
@@ -553,6 +589,17 @@ open class AccountController {
         await enqueueSettingsUpdate { $0.statusBarUsageWindow = window }
     }
 
+    public func setPopoverAccountRows(_ rows: PopoverAccountRows) async {
+        await enqueueSettingsUpdate { $0.popoverAccountRows = rows }
+    }
+
+    public func setLowUsageThreshold(_ threshold: Int?) async throws {
+        if let threshold, !AppSettings.lowUsageThresholdRange.contains(threshold) {
+            throw AccountStoreError.invalidUsageThreshold
+        }
+        try await enqueueThrowingSettingsUpdate { $0.lowUsageThreshold = threshold }
+    }
+
     public func setAutoResetEnabled(_ enabled: Bool) async {
         await enqueueSettingsUpdate({ $0.autoResetEnabled = enabled }) { [weak self] updated in
             guard let self else { return }
@@ -573,20 +620,29 @@ open class AccountController {
         _ mutate: @escaping @Sendable (inout AppSettings) -> Void,
         afterSave: (@MainActor (AppSettings) async throws -> Void)? = nil
     ) async {
+        do {
+            try await enqueueThrowingSettingsUpdate(mutate, afterSave: afterSave)
+        } catch {
+            reportError(error)
+        }
+    }
+
+    private func enqueueThrowingSettingsUpdate(
+        _ mutate: @escaping @Sendable (inout AppSettings) -> Void,
+        afterSave: (@MainActor (AppSettings) async throws -> Void)? = nil
+    ) async throws {
         let previous = settingsSaveTail
-        let task = Task { @MainActor [weak self] in
+        let task = Task<Void, any Error> { @MainActor [weak self] in
             await previous?.value
             guard let self else { return }
-            do {
-                let updated = try await self.store.updateSettings(mutate)
-                self.settings = updated
-                try await afterSave?(updated)
-            } catch {
-                self.reportError(error)
-            }
+            let updated = try await self.store.updateSettings(mutate)
+            self.settings = updated
+            try await afterSave?(updated)
         }
-        settingsSaveTail = task
-        await task.value
+        settingsSaveTail = Task<Void, Never> {
+            _ = try? await task.value
+        }
+        try await task.value
     }
 
     private func beginAutoReset(event: String) async throws {

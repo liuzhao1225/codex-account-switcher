@@ -62,6 +62,20 @@ struct SettingsView: View {
                 ))
             }
             rowDivider
+            settingRow("popover_account_rows") {
+                Picker(model.text("popover_account_rows"), selection: Binding(
+                    get: { model.settings.popoverAccountRows },
+                    set: { rows in Task { await model.setPopoverAccountRows(rows) } }
+                )) {
+                    ForEach(PopoverAccountRows.allCases, id: \.self) { rows in
+                        Text(rows.rawValue.formatted()).tag(rows)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
+            rowDivider
             settingRow("language") {
                 Picker(model.text("language"), selection: Binding(
                     get: { model.settings.language },
@@ -91,6 +105,22 @@ struct SettingsView: View {
                     .buttonStyle(.link)
             }
             .modifier(SettingsDetail())
+
+            rowDivider
+            settingRow("low_usage_reminder") {
+                Picker(model.text("low_usage_reminder"), selection: Binding(
+                    get: { model.settings.lowUsageThreshold },
+                    set: { threshold in Task { await model.chooseLowUsageThreshold(threshold) } }
+                )) {
+                    Text(model.text("low_usage_off")).tag(nil as Int?)
+                    ForEach(AppSettings.lowUsageThresholdRange, id: \.self) { percent in
+                        Text("\(percent)%").tag(Optional(percent))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
 
             sectionLabel("settings_updates")
             settingRow("automatically_check_updates") {

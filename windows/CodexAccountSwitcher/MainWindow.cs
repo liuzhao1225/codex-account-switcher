@@ -68,7 +68,7 @@ public sealed class MainWindow : Window
         MaxHeight = SystemParameters.WorkArea.Height - 24;
         client.Changed += OnExternalChanged; this.native.Changed += OnExternalChanged;
         IsVisibleChanged += (_, _) => { if (IsVisible) stalenessTimer.Start(); else stalenessTimer.Stop(); };
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate("accounts"); e.Handled = true; } };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate(page is "remove" or "note" ? "manage" : "accounts"); e.Handled = true; } };
         Closing += (_, e) => {
             if (closingForExit) return;
             e.Cancel = true;
@@ -82,6 +82,7 @@ public sealed class MainWindow : Window
 
     private void OnExternalChanged()
     {
+        if (page == "note") return;
         if (isDragging || activeComboBoxes.Any(box => box.IsDropDownOpen)) {
             pendingBackgroundRender = true;
             return;
@@ -156,16 +157,17 @@ public sealed class MainWindow : Window
             heading.Margin = new Thickness(20, 16, 20, 16); body.Children.Add(heading);
         } else {
             var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 16, 20, 16) };
-            header.Children.Add(Button("", () => Navigate(page == "remove" ? "manage" : "accounts"), "\uE72B"));
+            header.Children.Add(Button("", () => Navigate(page is "remove" or "note" ? "manage" : "accounts"), "\uE72B"));
             AutomationProperties.SetName(header.Children[0], T("back"));
             var title = target != null && page is "switch" or "remove"
-                ? T(page + "_title").Replace("%@", target.Profile.DisplayName)
-                : T(page == "settings" ? "settings" : "accounts");
+                ? T(page + "_title").Replace("%@", target.Profile.ConfirmationTitle)
+                : T(page switch { "settings" => "settings", "note" => "edit_account_note", _ => "accounts" });
             var heading = Text(title, 20, bold: true); heading.Margin = new Thickness(12, 0, 0, 0); header.Children.Add(heading);
             body.Children.Add(header);
         }
         if (page is "switch" or "remove") Confirmation(body);
         else if (page == "settings") Settings(body);
+        else if (page == "note" && target is { } edited) EditNote(body, edited.Profile);
         else Accounts(body, page == "manage");
         var viewer = new ScrollViewer {
             Content = body,
@@ -236,13 +238,28 @@ public sealed class MainWindow : Window
                 }
                 details.Children.Add(accountInfo);
             }
+            if (row.Profile.LabeledEmail is { } email) {
+                var address = Text(email, 11, muted: true);
+                address.ToolTip = email;
+                details.Children.Insert(1, address);
+            }
             var grid = new Grid { MinHeight = manage ? 32 : 50 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.Children.Add(avatar); Grid.SetColumn(details, 1); grid.Children.Add(details);
             if (manage) {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 UIElement action = active ? Text(T("active"), 11, muted: true) : Button("", () => { target = row; page = "remove"; Render(); }, "\uE74D");
-                AutomationProperties.SetName(action, active ? T("active") : T("remove")); Grid.SetColumn(action, 2); grid.Children.Add(action);
+                AutomationProperties.SetName(action, active ? T("active") : T("remove"));
+                var edit = Button("", () => { target = row; page = "note"; Render(); }, "\uE70F");
+                edit.IsEnabled &= !State.IsAddingAccount;
+                edit.ToolTip = T("edit_account_note");
+                AutomationProperties.SetName(edit, T("edit_account_note"));
+                edit.Margin = new Thickness(0, 0, 6, 0);
+                var rowActions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                rowActions.Children.Add(edit);
+                rowActions.Children.Add(action);
+                Grid.SetColumn(rowActions, 2);
+                grid.Children.Add(rowActions);
                 var item = new Border { Padding = new Thickness(16, 12, 16, 12), Child = grid };
                 if (canReorder) {
                     var handle = Text("☰", 17, muted: true);
@@ -263,7 +280,7 @@ public sealed class MainWindow : Window
                     grid.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(26) });
                     Grid.SetColumn(avatar, 1);
                     Grid.SetColumn(details, 2);
-                    Grid.SetColumn(action, 3);
+                    Grid.SetColumn(rowActions, 3);
                     grid.Children.Add(handle);
                     item.AllowDrop = true;
                     item.Background = Brushes.Transparent;
@@ -308,6 +325,44 @@ public sealed class MainWindow : Window
         }
     }
 
+    private void EditNote(StackPanel body, Profile profile)
+    {
+        var form = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
+        var input = new TextBox { Text = profile.Note ?? "", Margin = new Thickness(0, 4, 0, 6), MinHeight = 30 };
+        AutomationProperties.SetName(input, T("account_note"));
+        form.Children.Add(Text(T("account_note")));
+        form.Children.Add(input);
+        form.Children.Add(Text(T("account_note_hint"), 11, muted: true));
+        var error = Text("", 11);
+        error.TextWrapping = TextWrapping.Wrap;
+        form.Children.Add(error);
+        var actions = new StackPanel {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        var cancel = Button(T("cancel"), () => Navigate("manage"));
+        var save = Button(T("save_account_note"), () => _ = SaveNoteAsync());
+        save.IsDefault = true;
+        save.Margin = new Thickness(8, 0, 0, 0);
+        actions.Children.Add(cancel);
+        actions.Children.Add(save);
+        form.Children.Add(actions);
+        body.Children.Add(form);
+        input.Loaded += (_, _) => input.Focus();
+
+        async Task SaveNoteAsync()
+        {
+            form.IsEnabled = false;
+            try {
+                await client.SetAccountNoteAsync(profile.Id, input.Text);
+                Navigate("manage");
+            } catch (Exception ex) {
+                error.Text = ex.Message;
+                form.IsEnabled = true;
+            }
+        }
+    }
+
     private string Reset(DateTimeOffset date, bool includeDate = true) => T("resets") + " " + date.ToLocalTime().ToString(includeDate ? "MMM d HH:mm" : "HH:mm", CultureInfo.CurrentCulture);
     private Grid UsageLine(string title, int percent, string? reset)
     {
@@ -326,6 +381,12 @@ public sealed class MainWindow : Window
     {
         if (target == null) return;
         var content = new StackPanel { Margin = new Thickness(20, 0, 20, 20) };
+        if (target.Profile.LabeledEmail is { } email) {
+            var address = Text(email, 12, muted: true);
+            address.ToolTip = email;
+            address.Margin = new Thickness(0, 0, 0, 8);
+            content.Children.Add(address);
+        }
         var copy = T(page == "switch" ? "switch_body_windows" : "remove_body_windows");
         var text = Text(copy, 13, muted: true); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 0, 14); content.Children.Add(text);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -372,6 +433,17 @@ public sealed class MainWindow : Window
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dataPath) { UseShellExecute = true });
             } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
         }));
+        var lowUsageItems = Enumerable.Range(0, 100).Select(percent => percent == 0 ? T("low_usage_off") : $"{percent}%").ToArray();
+        var lowUsage = TrackedComboBox(lowUsageItems, State.Settings.LowUsageThreshold is int threshold and >= 1 and <= 99 ? threshold : 0);
+        AutomationProperties.SetName(lowUsage, T("low_usage_reminder"));
+        lowUsage.SelectionChanged += async (_, _) => {
+            if (lowUsage.SelectedIndex < 0) return;
+            try { await client.SetLowUsageThresholdAsync(lowUsage.SelectedIndex == 0 ? (int?)null : lowUsage.SelectedIndex); }
+            catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
+        };
+        var reminderRow = Pair(Text(T("low_usage_reminder")), lowUsage);
+        reminderRow.Height = 48;
+        settings.Children.Add(reminderRow);
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
         Toggle(T("automatically_check_updates"), native.AutomaticallyCheckUpdates, value => native.AutomaticallyCheckUpdates = value);
         string hintText;

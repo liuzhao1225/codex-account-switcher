@@ -118,6 +118,8 @@ struct BackgroundPollingAndSettingsTests {
             group.addTask { await fixture.model.setShowsFiveHourUsage(true) }
             group.addTask { await fixture.model.setStatusBarUsageWindow(.weekly) }
             group.addTask { await fixture.model.setAutoResetEnabled(true) }
+            group.addTask { await fixture.model.setPopoverAccountRows(.eight) }
+            group.addTask { try? await fixture.model.setLowUsageThreshold(25) }
         }
 
         let reloaded = AccountStore(baseURL: fixture.storeURL, activeHomeURL: fixture.active)
@@ -127,6 +129,8 @@ struct BackgroundPollingAndSettingsTests {
         #expect(persisted.showsFiveHourUsage == true)
         #expect(persisted.statusBarUsageWindow == .weekly)
         #expect(persisted.autoResetEnabled == true)
+        #expect(persisted.popoverAccountRows == .eight)
+        #expect(persisted.lowUsageThreshold == 25)
         #expect(fixture.model.visibleError == nil)
 
         // Replace `settings.json` with a directory so writing fails and surfaces an error.
@@ -218,6 +222,66 @@ struct BackgroundPollingAndSettingsTests {
 
         let burstSnapshots = try collector.drain().filter { $0.kind == "snapshot" }
         #expect(burstSnapshots.count == 1)
+    }
+
+    @Test func hostHandlesAccountNotesLowUsageThresholdAndLowUsageEnvelope() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("switcher-host-pr51-\(UUID())")
+        let dataURL = root.appendingPathComponent("data")
+        let activeURL = root.appendingPathComponent("active")
+        try FileManager.default.createDirectory(at: activeURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try TestAuthFixture.authJSON(
+            accountID: "host-account",
+            email: "host@example.test",
+            accessToken: "host-token"
+        ).write(to: activeURL.appendingPathComponent("auth.json"))
+
+        let collector = HostLineCollector()
+        let host = Host(
+            environment: [
+                "CODEX_SWITCHER_DATA_HOME": dataURL.path,
+                "CODEX_HOME": activeURL.path,
+            ],
+            writeOutput: { collector.append($0) }
+        )
+        defer { host.shutdown() }
+
+        host.accept(#"{"id":1,"command":"initialize"}"#)
+        await host.waitForIdle()
+        _ = try collector.drain()
+
+        let controller = try #require(host.controller)
+        let accountID = try #require(controller.accounts.first?.id)
+
+        host.accept(#"{"id":2,"command":"setAccountNote","accountID":"\#(accountID.uuidString)","note":"  Team Lead  "}"#)
+        await host.waitForIdle()
+        let noteEnvelopes = try collector.drain()
+        let noteSnapshotIndex = try #require(noteEnvelopes.lastIndex { $0.kind == "snapshot" })
+        let noteCompletedIndex = try #require(noteEnvelopes.firstIndex { $0.kind == "completed" && $0.id == 2 && $0.error == nil })
+        #expect(noteSnapshotIndex < noteCompletedIndex)
+        #expect(noteEnvelopes[noteSnapshotIndex].state?.accounts.first?.title == "Team Lead")
+        #expect(noteEnvelopes[noteSnapshotIndex].state?.accounts.first?.profile.note == "Team Lead")
+
+        host.accept(#"{"id":3,"command":"lowUsageThreshold","lowUsageThreshold":100}"#)
+        await host.waitForIdle()
+        let invalidEnvelopes = try collector.drain()
+        let invalidCompleted = try #require(invalidEnvelopes.first { $0.kind == "completed" && $0.id == 3 })
+        #expect(invalidCompleted.error != nil)
+
+        host.accept(#"{"id":4,"command":"lowUsageThreshold","lowUsageThreshold":15}"#)
+        await host.waitForIdle()
+        let validEnvelopes = try collector.drain()
+        let validSnapshot = try #require(validEnvelopes.last { $0.kind == "snapshot" })
+        #expect(validSnapshot.state?.settings.lowUsageThreshold == 15)
+        #expect(validEnvelopes.contains { $0.kind == "completed" && $0.id == 4 && $0.error == nil })
+
+        controller.onLowUsage?("Low Codex Usage", "Team Lead has 12% left in the 5h window.")
+        let lowUsageEnvelopes = try collector.drain()
+        let alert = try #require(lowUsageEnvelopes.first { $0.kind == "lowUsage" })
+        #expect(alert.title == "Low Codex Usage")
+        #expect(alert.message == "Team Lead has 12% left in the 5h window.")
     }
 }
 
@@ -397,15 +461,28 @@ private struct DecodedHostEnvelope: Decodable {
     let kind: String
     let id: Int?
     let error: String?
+    let title: String?
+    let message: String?
     let state: DecodedHostSnapshot?
 }
 
 private struct DecodedHostSnapshot: Decodable {
+    let accounts: [DecodedHostAccountRow]
     let settings: DecodedHostSettings
     let strings: [String: String]?
+}
+
+private struct DecodedHostAccountRow: Decodable {
+    let profile: DecodedHostProfile
+    let title: String
+}
+
+private struct DecodedHostProfile: Decodable {
+    let note: String?
 }
 
 private struct DecodedHostSettings: Decodable {
     let language: String
     let showsMenuBarPercentage: Bool
+    let lowUsageThreshold: Int?
 }

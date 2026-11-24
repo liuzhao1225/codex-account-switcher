@@ -407,12 +407,16 @@ struct AccountStoreTests {
         #expect(!legacySettings.showsFiveHourUsage)
         #expect(!AppSettings.default.showsFiveHourUsage)
         #expect(legacySettings.statusBarUsageWindow == .fiveHour)
+        #expect(legacySettings.popoverAccountRows == .three)
+        #expect(legacySettings.lowUsageThreshold == nil)
 
         let updatedSettings = AppSettings(
             language: .simplifiedChinese,
             showsMenuBarPercentage: false,
             showsFiveHourUsage: true,
-            statusBarUsageWindow: .weekly
+            statusBarUsageWindow: .weekly,
+            popoverAccountRows: .eight,
+            lowUsageThreshold: 15
         )
         try await fixture.store.saveSettings(updatedSettings)
         let reloadedStore = AccountStore(
@@ -421,6 +425,14 @@ struct AccountStoreTests {
         )
         #expect(try await reloadedStore.loadSettings() == updatedSettings)
         #expect(try permissions(settingsURL) == 0o600)
+
+        for invalid in [0, 100] {
+            try Data(#"{"lowUsageThreshold":\#(invalid)}"#.utf8).write(to: settingsURL)
+            do {
+                _ = try await fixture.store.loadSettings()
+                Issue.record("Out-of-range threshold \(invalid) should fail decoding.")
+            } catch is DecodingError {}
+        }
     }
 
     @Test func decodesLegacyWeeklyOnlyUsageCache() async throws {

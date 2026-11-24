@@ -6,6 +6,8 @@ private struct Request: Decodable, Sendable {
     let command: String
     var accountID: UUID?
     var targetAccountID: UUID?
+    var note: String?
+    var lowUsageThreshold: Int?
     var value: Bool?
     var language: String?
     var error: String?
@@ -32,6 +34,12 @@ private struct PlatformEnvelope: Encodable {
 private struct ProtocolErrorEnvelope: Encodable {
     let kind = "protocolError"
     let error: String
+}
+
+private struct LowUsageEnvelope: Encodable {
+    let kind = "lowUsage"
+    let title: String
+    let message: String
 }
 
 private struct DesktopAdapter: DesktopControlling {
@@ -128,6 +136,9 @@ final class Host {
             await model.start()
             guard !Task.isCancelled else { return }
             model.onChange = { [weak self] in self?.scheduleSnapshot() }
+            model.onLowUsage = { [weak self] title, message in
+                self?.send(LowUsageEnvelope(title: title, message: message))
+            }
             sendSnapshot(forceStrings: true)
             await model.startBackgroundUsageRefresh()
             return
@@ -144,6 +155,11 @@ final class Host {
         case "remove":
             guard let id = request.accountID else { throw HostError.message("Missing account ID.") }
             await model.removeAccount(id: id)
+        case "setAccountNote":
+            guard let id = request.accountID, let note = request.note else {
+                throw HostError.message("Missing account ID or note.")
+            }
+            try await model.setAccountNote(id: id, note: note)
         case "move":
             guard let id = request.accountID, let targetID = request.targetAccountID else {
                 throw HostError.message("Missing account ID.")
@@ -168,6 +184,8 @@ final class Host {
                 throw HostError.message("Invalid status bar usage window.")
             }
             await model.setStatusBarUsageWindow(window)
+        case "lowUsageThreshold":
+            try await model.setLowUsageThreshold(request.lowUsageThreshold)
         case "dismissError": model.dismissError()
         default: throw HostError.message("Unknown host command.")
         }

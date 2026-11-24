@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import ServiceManagement
 import AppKit
+import UserNotifications
 
 enum LaunchAtLoginState: Equatable {
     case disabled
@@ -51,6 +52,50 @@ final class AppModel: AccountController, @MainActor ObservableObject {
             codex: codex,
             switchService: SwitchService(desktop: DesktopController(), store: store, codex: CredentialIdentity()),
             subscriptionClient: LiveSubscriptionClient()
+        )
+    }
+
+    func chooseLowUsageThreshold(_ threshold: Int?) async {
+        do {
+            if threshold != nil, settings.lowUsageThreshold == nil {
+                guard Bundle.main.bundleIdentifier != nil else {
+                    showNotificationError(key: "low_usage_app_bundle")
+                    return
+                }
+                let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert])
+                guard granted else {
+                    showNotificationError(key: "low_usage_permission")
+                    return
+                }
+            }
+            try await setLowUsageThreshold(threshold)
+        } catch {
+            reportError(error)
+        }
+    }
+
+    func postLowUsageNotification(title: String, message: String) {
+        Task {
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = message
+            do {
+                try await UNUserNotificationCenter.current().add(
+                    UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+                )
+            } catch {
+                reportError(error)
+            }
+        }
+    }
+
+    private func showNotificationError(key: String) {
+        visibleError = OperationError(
+            stage: nil,
+            titleKey: "operation_failed",
+            messageKey: key,
+            message: text(key),
+            underlyingDescription: nil
         )
     }
 
