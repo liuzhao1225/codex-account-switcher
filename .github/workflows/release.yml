@@ -127,6 +127,17 @@ jobs:
           codesign --verify --deep --strict --verbose=4 "$app_path"
           file "$app_path/Contents/MacOS/CodexAccountSwitcher"
 
+          verify_notarization_json() {
+            ruby -rjson -e '
+              result = JSON.parse(File.read(ARGV.fetch(0)))
+              prefix = ARGV.fetch(1)
+              puts "#{prefix}_notarization_id=#{result.fetch("id", "unknown")}"
+              status = result.fetch("status", "missing")
+              abort "#{prefix}_notarization_status=#{status}" unless status == "Accepted"
+              puts "#{prefix}_notarization_status=#{status}"
+            ' "$1" "$2"
+          }
+
           ditto -c -k --sequesterRsrc --keepParent "$app_path" "$app_archive"
           xcrun notarytool submit "$app_archive" \
             --key "$api_key_path" \
@@ -135,13 +146,7 @@ jobs:
             --wait \
             --timeout 30m \
             --output-format json > "$RUNNER_TEMP/app-notarization.json"
-          ruby -rjson -e '
-            result = JSON.parse(File.read(ARGV.fetch(0)))
-            puts "app_notarization_id=#{result.fetch("id", "unknown")}"
-            status = result.fetch("status", "missing")
-            abort "app_notarization_status=#{status}" unless status == "Accepted"
-            puts "app_notarization_status=#{status}"
-          ' "$RUNNER_TEMP/app-notarization.json"
+          verify_notarization_json "$RUNNER_TEMP/app-notarization.json" app
           xcrun stapler staple -v "$app_path"
           xcrun stapler validate -v "$app_path"
           spctl --assess --type execute --verbose=4 "$app_path"
@@ -164,13 +169,7 @@ jobs:
             --wait \
             --timeout 30m \
             --output-format json > "$RUNNER_TEMP/dmg-notarization.json"
-          ruby -rjson -e '
-            result = JSON.parse(File.read(ARGV.fetch(0)))
-            puts "dmg_notarization_id=#{result.fetch("id", "unknown")}"
-            status = result.fetch("status", "missing")
-            abort "dmg_notarization_status=#{status}" unless status == "Accepted"
-            puts "dmg_notarization_status=#{status}"
-          ' "$RUNNER_TEMP/dmg-notarization.json"
+          verify_notarization_json "$RUNNER_TEMP/dmg-notarization.json" dmg
           xcrun stapler staple -v "$artifact"
           xcrun stapler validate -v "$artifact"
           spctl --assess --type open --context context:primary-signature --verbose=4 "$artifact"

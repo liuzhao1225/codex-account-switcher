@@ -20,11 +20,15 @@ struct AccountRow: View {
     var now: Date = Date()
     @ViewState private var isHovering = false
 
-    private var accountTitle: String {
-        account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
-    }
-
     var body: some View {
+        let title = account.preferredTitle
+        let presentation = SubscriptionPresentation(state: subscriptionState, historical: subscription)
+        let subscriptionDetail = presentation.detailText(
+            at: now,
+            language: language,
+            formatDay: subscriptionDate,
+            formatTimestamp: subscriptionTime
+        )
         HStack(alignment: .center, spacing: 10) {
             Text(account.initials)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -33,11 +37,11 @@ struct AccountRow: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text(verbatim: accountTitle)
+                    Text(verbatim: title)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .help(accountTitle)
+                        .help(title)
                     Spacer(minLength: 4)
                     if let usage = usageState.displayedUsage, !showsFiveHourUsage {
                         Text(resetText(for: usage))
@@ -46,23 +50,19 @@ struct AccountRow: View {
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                     } else if let message = usageState.refreshError {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.orange)
-                            .help(message)
-                            .accessibilityLabel(message)
+                        warningIcon(message)
                     }
                 }
 
                 usageContent
                 HStack(spacing: 8) {
-                    Text(subscriptionText(at: now))
+                    Text(presentation.primaryText(at: now, language: language, formatDay: subscriptionDate))
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(subscriptionNeedsUpdate(at: now) ? Color.orange : Color.secondary)
-                        .help(subscriptionDetail(at: now))
-                        .accessibilityHint(subscriptionDetail(at: now))
+                        .foregroundStyle(presentation.needsUpdate(at: now) ? Color.orange : Color.secondary)
+                        .help(subscriptionDetail)
+                        .accessibilityHint(subscriptionDetail)
                     if let usage = usageState.displayedUsage {
                         Text(resetCreditsText(for: usage))
                             .fixedSize(horizontal: true, vertical: false)
@@ -90,11 +90,11 @@ struct AccountRow: View {
     private var usageContent: some View {
         switch usageState {
         case .idle:
-            Text("\(L10n.string("usage", language: language)) -")
+            Text("\(text("usage")) -")
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
         case let .unavailable(message):
-            Text(L10n.string("usage_unavailable", language: language))
+            Text(text("usage_unavailable"))
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
                 .help(message)
@@ -109,23 +109,19 @@ struct AccountRow: View {
 
     private func compactWeeklyUsageContent(_ usage: WeeklyUsage) -> some View {
         HStack(spacing: 7) {
-            Text(L10n.string("usage", language: language))
+            Text(text("usage"))
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
 
             if let message = usageState.refreshError {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.orange)
-                    .help(message)
-                    .accessibilityLabel(message)
+                warningIcon(message)
             }
 
             UsageBar(remainingPercent: usage.remainingPercent)
-                .accessibilityLabel(L10n.string("usage", language: language))
-                .accessibilityValue("\(usage.remainingPercent)\(L10n.string("left", language: language))")
+                .accessibilityLabel(text("usage"))
+                .accessibilityValue("\(usage.remainingPercent)\(text("left"))")
 
-            Text("\(usage.remainingPercent)\(L10n.string("left", language: language))")
+            Text("\(usage.remainingPercent)\(text("left"))")
                 .font(.system(size: 10.5).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: true, vertical: false)
@@ -137,14 +133,14 @@ struct AccountRow: View {
             if let remaining = usage.fiveHourRemainingPercent,
                let resetsAt = usage.fiveHourResetsAt {
                 limitRow(
-                    title: L10n.string("five_hour", language: language),
+                    title: text("five_hour"),
                     remainingPercent: remaining,
                     resetsAt: resetsAt,
                     includesDate: false
                 )
             }
             limitRow(
-                title: L10n.string("weekly", language: language),
+                title: text("weekly"),
                 remainingPercent: usage.remainingPercent,
                 resetsAt: usage.resetsAt,
                 includesDate: true
@@ -167,7 +163,7 @@ struct AccountRow: View {
 
             UsageBar(remainingPercent: remainingPercent)
                 .accessibilityLabel(title)
-                .accessibilityValue("\(remainingPercent)\(L10n.string("left", language: language))")
+                .accessibilityValue("\(remainingPercent)\(text("left"))")
 
             Text("\(remainingPercent)%")
                 .font(.system(size: 10.5).monospacedDigit())
@@ -189,14 +185,25 @@ struct AccountRow: View {
         return Color.primary.opacity(isHovering ? 0.055 : 0)
     }
 
+    private func warningIcon(_ message: String) -> some View {
+        Image(systemName: "exclamationmark.triangle.fill")
+            .font(.system(size: 9))
+            .foregroundStyle(.orange)
+            .help(message)
+            .accessibilityLabel(message)
+    }
+
+    private func text(_ key: String) -> String {
+        L10n.string(key, language: language)
+    }
+
     private func resetText(for usage: WeeklyUsage) -> String {
         resetText(for: usage.resetsAt, includesDate: true)
     }
 
     private func resetCreditsText(for usage: WeeklyUsage) -> String {
-        let count = usage.resetCreditsRemaining.map(String.init)
-            ?? L10n.string("unknown", language: language)
-        return "\(L10n.string("reset_credits", language: language)): \(count)"
+        let count = usage.resetCreditsRemaining.map(String.init) ?? text("unknown")
+        return "\(text("reset_credits")): \(count)"
     }
 
     private var dateLocale: Locale {
@@ -216,37 +223,6 @@ struct AccountRow: View {
         }
     }
 
-    private func subscriptionText(at now: Date) -> String {
-        let text: String
-        if let live = subscriptionState.displayedSubscription {
-            if live.planType.lowercased() == "free" {
-                text = subscriptionString("subscription_live_free")
-            } else if !live.isActive {
-                text = subscriptionString("subscription_live_inactive")
-            } else if let activeUntil = live.activeUntil {
-                text = subscriptionFormat("subscription_live_until", subscriptionDate(activeUntil))
-            } else {
-                text = subscriptionString("subscription_live_active")
-            }
-        } else {
-            text = subscriptionString("subscription_live_pending")
-        }
-        return subscriptionNeedsUpdate(at: now)
-            ? text + " · " + subscriptionString("subscription_live_needs_update")
-            : text
-    }
-
-    private func subscriptionNeedsUpdate(at now: Date) -> Bool {
-        switch subscriptionState {
-        case .stale, .unavailable:
-            return true
-        case let .loaded(live):
-            return now.timeIntervalSince(live.fetchedAt) >= 600
-        case .idle:
-            return false
-        }
-    }
-
     private func subscriptionDate(_ date: Date) -> String {
         Self.isoDayFormatter.string(from: date)
     }
@@ -255,58 +231,11 @@ struct AccountRow: View {
         date.formatted(.dateTime.year().month().day().hour().minute().locale(dateLocale))
     }
 
-    private func subscriptionDetail(at now: Date) -> String {
-        var lines = [subscriptionString("subscription_live_source")]
-        if let live = subscriptionState.displayedSubscription {
-            lines.append(subscriptionFormat("subscription_live_updated", subscriptionTime(live.fetchedAt)))
-            lines.append(subscriptionFormat("subscription_live_plan", live.planType))
-            lines.append(subscriptionString(live.isActive
-                ? "subscription_live_status_active" : "subscription_live_status_inactive"))
-            if let activeUntil = live.activeUntil {
-                lines.append(subscriptionFormat("subscription_live_until", subscriptionDate(activeUntil)))
-            }
-            lines.append(subscriptionString(live.willRenew.map {
-                $0 ? "subscription_live_renew_on" : "subscription_live_renew_off"
-            } ?? "subscription_live_renew_unknown"))
-            lines.append(subscriptionString(live.isDelinquent.map {
-                $0 ? "subscription_live_delinquent_yes" : "subscription_live_delinquent_no"
-            } ?? "subscription_live_delinquent_unknown"))
-            if subscriptionNeedsUpdate(at: now) {
-                lines.append(subscriptionFormat("subscription_live_last_success", subscriptionTime(live.fetchedAt)))
-                lines.append(subscriptionString("subscription_live_stale_hint"))
-            }
-        } else {
-            lines.append(subscriptionString("subscription_live_never_succeeded"))
-            lines.append(subscriptionString("subscription_live_renew_unknown"))
-            lines.append(subscriptionString("subscription_live_delinquent_unknown"))
-        }
-        if let message = subscriptionState.refreshError {
-            lines.append(message == subscriptionString("subscription_refresh_pending")
-                ? message : subscriptionFormat("subscription_live_refresh_failed", message))
-        }
-        if let subscription {
-            lines.append(subscriptionFormat(
-                "subscription_live_history",
-                subscriptionDate(subscription.activeUntil),
-                subscriptionTime(subscription.lastChecked)
-            ))
-        }
-        return lines.joined(separator: "\n")
-    }
-
-    private func subscriptionString(_ key: String) -> String {
-        L10n.string(key, language: language)
-    }
-
-    private func subscriptionFormat(_ key: String, _ values: CVarArg...) -> String {
-        String(format: subscriptionString(key), arguments: values)
-    }
-
     private func resetText(for resetsAt: Date, includesDate: Bool) -> String {
         let date = includesDate
             ? resetsAt.formatted(.dateTime.month(.abbreviated).day().hour().minute().locale(dateLocale))
             : resetsAt.formatted(.dateTime.hour().minute().locale(dateLocale))
-        return "\(L10n.string("resets", language: language)) \(date)"
+        return "\(text("resets")) \(date)"
     }
 }
 

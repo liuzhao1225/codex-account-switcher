@@ -189,7 +189,7 @@ struct AccountStoreTests {
             id: UUID(), displayName: "First", email: "first@example.com",
             accountID: "account-first", createdAt: Date(timeIntervalSince1970: 1), lastUsedAt: nil
         )
-        try await store.importCurrentProfile(first)
+        try await store.seedActiveProfile(first)
         var registry = try await store.loadRegistry()
         #expect(registry.activeAccountID == first.id)
         #expect(registry.accounts == [first])
@@ -222,7 +222,7 @@ struct AccountStoreTests {
             id: UUID(), displayName: "First", email: "first@example.com",
             accountID: "account-first", createdAt: Date(), lastUsedAt: nil
         )
-        try await store.importCurrentProfile(first)
+        try await store.seedActiveProfile(first)
         let firstHome = await store.profileHome(id: first.id)
         #expect(try permissions(firstHome.appending(path: "auth.json")) == 0o600)
 
@@ -338,7 +338,7 @@ struct AccountStoreTests {
             lastUsedAt: nil
         )
 
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         try await fixture.store.cacheWeeklyUsage(usage, profileID: accountID, fetchedAt: fetchedAt)
         let reloadedStore = AccountStore(baseURL: fixture.support, activeHomeURL: fixture.activeHome)
         let cache = try await reloadedStore.loadUsageCache()
@@ -440,7 +440,7 @@ struct AccountStoreTests {
         )
         try Data(#"{"accountId":"original-id","email":"original@example.com"}"#.utf8)
             .write(to: fixture.activeHome.appending(path: "auth.json"))
-        try await fixture.store.importCurrentProfile(original)
+        try await fixture.store.seedActiveProfile(original)
         let originalAuth = await fixture.store.profileHome(id: original.id).appending(path: "auth.json")
         let originalBytes = try Data(contentsOf: originalAuth)
 

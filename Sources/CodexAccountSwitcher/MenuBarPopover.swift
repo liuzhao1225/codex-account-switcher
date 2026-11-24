@@ -85,17 +85,8 @@ struct MenuBarPopover: View {
                     .padding(.vertical, 28)
             } else {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    Group {
-                        if model.accounts.count <= 3 {
-                            accountList(model.accounts, now: context.date)
-                        } else {
-                            // Intrinsic height matches the first three stateless rows under zero-height probes.
-                            accountList(Array(model.accounts.prefix(3)), now: context.date)
-                                .hidden()
-                                .overlay {
-                                    ScrollView { accountList(model.accounts, now: context.date) }
-                                }
-                        }
+                    CappedScrollList(items: model.accounts, limit: 3) { items in
+                        accountList(items, now: context.date)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                 }

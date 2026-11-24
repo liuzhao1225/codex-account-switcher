@@ -10,6 +10,7 @@
   <SolidColorBrush x:Key="Accent" Color="#0067C0"/>
   <SolidColorBrush x:Key="Selected" Color="#E2EEFA"/>
   <SolidColorBrush x:Key="Hover" Color="#0C000000"/>
+  <SolidColorBrush x:Key="Warning" Color="#B25900"/>
   <Style TargetType="Window">
    <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI"/>
    <Setter Property="FontSize" Value="13"/>

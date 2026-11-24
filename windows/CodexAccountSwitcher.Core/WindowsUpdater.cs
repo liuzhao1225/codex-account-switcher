@@ -195,7 +195,7 @@ public static class WindowsUpdater
                 while ((read = await network.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
                 {
                     totalRead += read;
-                    if (totalRead > update.Size || totalRead > MaxDownloadBytes)
+                    if (totalRead > update.Size)
                         throw new CryptographicException("Downloaded Windows update exceeded declared size.");
                     await destination.WriteAsync(buffer.AsMemory(0, read), ct);
                     hasher.AppendData(buffer, 0, read);
@@ -216,7 +216,6 @@ public static class WindowsUpdater
             if (!string.Equals(actualSha256, update.Sha256, StringComparison.Ordinal))
                 throw new CryptographicException("Downloaded Windows update checksum mismatch.");
 
-            progress?.Report(100);
             return new StagedWindowsUpdate(stagingDir, stagedExe);
         }
         catch
@@ -409,7 +408,7 @@ public static class WindowsUpdater
         try { if (File.Exists(path)) File.Delete(path); } catch { }
     }
 
-    private static void TryDeleteOwnedDirectory(string root, string directory)
+    public static void TryDeleteOwnedDirectory(string root, string directory)
     {
         try { if (Directory.Exists(directory)) SecureFiles.DeleteOwnedDirectory(root, directory); } catch { }
     }

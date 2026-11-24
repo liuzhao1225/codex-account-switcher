@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using CodexAccountSwitcher.Checks;
 using CodexAccountSwitcher.Core;
+using static CodexAccountSwitcher.Checks.CheckSupport;
 
 internal static class DesktopCloseChecks
 {
@@ -228,12 +230,6 @@ internal static class DesktopCloseChecks
         return fixture is not null;
     }
 
-    private static async Task UntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        while (!condition()) await Task.Delay(50, timeout.Token);
-    }
-
     private static void CopyFixture(string executable, string destination)
     {
         foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(Path.GetFullPath(executable))!))
@@ -243,7 +239,7 @@ internal static class DesktopCloseChecks
     private static async Task VerifyRunningPackageIdentityAsync()
     {
         DesktopInstallation installation;
-        try { installation = await DesktopController.DiscoverAsync(null); }
+        try { installation = await DesktopController.DiscoverAsync(); }
         catch (FileNotFoundException) { return; }
         if (installation.AppUserModelId is null) return;
         foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(installation.Executable)))
@@ -283,10 +279,5 @@ internal static class DesktopCloseChecks
             process.Kill(entireProcessTree: true);
             process.WaitForExit(5000);
         }
-    }
-
-    private static void Require(bool condition, string message)
-    {
-        if (!condition) throw new InvalidOperationException(message);
     }
 }

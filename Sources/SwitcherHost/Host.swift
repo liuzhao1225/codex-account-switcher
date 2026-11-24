@@ -41,7 +41,9 @@ private struct DesktopAdapter: DesktopControlling {
 }
 
 @MainActor
-private final class Host {
+final class Host {
+    private let environment: [String: String]
+    private let writeOutput: @Sendable (Data) throws -> Void
     private var controller: AccountController?
     private var lastSentLanguage: AppLanguage?
     private var nextID = 0
@@ -52,6 +54,20 @@ private final class Host {
         encoder.dateEncodingStrategy = .iso8601
         return encoder
     }()
+
+    init(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        writeOutput: @escaping @Sendable (Data) throws -> Void = { try FileHandle.standardOutput.write(contentsOf: $0) }
+    ) {
+        self.environment = environment
+        self.writeOutput = writeOutput
+    }
+
+    func waitForIdle() async {
+        while let task = commands.values.first {
+            await task.value
+        }
+    }
 
     func platform(_ method: String, url: URL? = nil) async throws {
         nextID += 1
@@ -89,8 +105,10 @@ private final class Host {
     private func execute(_ request: Request) async throws {
         if request.command == "initialize" {
             guard controller == nil else { throw HostError.message("Already initialized.") }
-            let environment = ProcessInfo.processInfo.environment
-            let store = AccountStore(baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) })
+            let store = AccountStore(
+                baseURL: environment["CODEX_SWITCHER_DATA_HOME"].map { URL(fileURLWithPath: $0) },
+                activeHomeURL: environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
+            )
             let codex = CodexClient(openBrowser: { [self] url in
                 guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
                     throw HostError.message("Unsupported sign-in URL.")
@@ -104,9 +122,11 @@ private final class Host {
                 subscriptionClient: LiveSubscriptionClient()
             )
             controller = model
+            await model.start()
+            guard !Task.isCancelled else { return }
             model.onChange = { [weak self] in self?.sendSnapshot() }
-            await model.startBackgroundUsageRefresh()
             sendSnapshot(forceStrings: true)
+            await model.startBackgroundUsageRefresh()
             return
         }
         guard let model = controller else { throw HostError.message("Initialize the host first.") }
@@ -162,7 +182,7 @@ private final class Host {
         do {
             var bytes = try encoder.encode(message)
             bytes.append(0x0A)
-            try FileHandle.standardOutput.write(contentsOf: bytes)
+            try writeOutput(bytes)
         } catch {
             if !(message is ProtocolErrorEnvelope) {
                 send(ProtocolErrorEnvelope(error: "Could not encode host message."))

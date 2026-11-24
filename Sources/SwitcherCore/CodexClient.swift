@@ -59,16 +59,16 @@ public enum JSONValue: Decodable, Sendable {
 }
 
 private struct RPCRemoteError: Decodable, Sendable {
-    public let code: Int?
-    public let message: String
+    let code: Int?
+    let message: String
 }
 
 private struct RPCEnvelope: Decodable, Sendable {
-    public let id: Int?
-    public let method: String?
-    public let params: JSONValue?
-    public let result: JSONValue?
-    public let error: RPCRemoteError?
+    let id: Int?
+    let method: String?
+    let params: JSONValue?
+    let result: JSONValue?
+    let error: RPCRemoteError?
 }
 
 private final class LinePump: @unchecked Sendable {
@@ -79,7 +79,7 @@ private final class LinePump: @unchecked Sendable {
     private var isFinished = false
     private let maximumQueuedLines = 256
 
-    public init(handle: FileHandle) {
+    init(handle: FileHandle) {
         handle.readabilityHandler = { [weak self] readable in
             guard let self else {
                 readable.readabilityHandler = nil
@@ -111,7 +111,7 @@ private final class LinePump: @unchecked Sendable {
         }
     }
 
-    public func next() async -> Data? {
+    func next() async -> Data? {
         await withCheckedContinuation { continuation in
             lock.lock()
             if !lines.isEmpty {
@@ -143,7 +143,7 @@ private final class LinePump: @unchecked Sendable {
         }
     }
 
-    public func finish() {
+    func finish() {
         lock.lock()
         guard !isFinished else { lock.unlock(); return }
         isFinished = true
@@ -159,21 +159,56 @@ private final class LinePump: @unchecked Sendable {
     }
 }
 
-private final class StderrDrain: @unchecked Sendable {
+private final class PipeDrain: @unchecked Sendable {
     private let lock = NSLock()
-    private var tail = Data()
-    private let maximumBytes = 4_096
-
+    private let handle: FileHandle
+    private let tailLimit: Int?
+    private var buffer = Data()
     private var isFinished = false
-    private var waiters: [CheckedContinuation<String, Never>] = []
+    private var waiters: [CheckedContinuation<Data, Never>] = []
 
-    public func finishedMessage() async -> String {
+    init(handle: FileHandle, tailLimit: Int? = nil) {
+        self.handle = handle
+        self.tailLimit = tailLimit
+        handle.readabilityHandler = { [weak self] readable in
+            guard let self else {
+                readable.readabilityHandler = nil
+                return
+            }
+            let chunk = readable.availableData
+            guard !chunk.isEmpty else {
+                readable.readabilityHandler = nil
+                self.finish()
+                return
+            }
+            self.lock.lock()
+            self.buffer.append(chunk)
+            if let tailLimit = self.tailLimit, self.buffer.count > tailLimit {
+                self.buffer.removeFirst(self.buffer.count - tailLimit)
+            }
+            self.lock.unlock()
+        }
+    }
+
+    func finish() {
+        handle.readabilityHandler = nil
+        lock.lock()
+        guard !isFinished else { lock.unlock(); return }
+        isFinished = true
+        let snapshot = buffer
+        let pending = waiters
+        waiters.removeAll()
+        lock.unlock()
+        for waiter in pending { waiter.resume(returning: snapshot) }
+    }
+
+    func data() async -> Data {
         await withCheckedContinuation { continuation in
             lock.lock()
             if isFinished {
-                let message = String(decoding: tail, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                let snapshot = buffer
                 lock.unlock()
-                continuation.resume(returning: message)
+                continuation.resume(returning: snapshot)
             } else {
                 waiters.append(continuation)
                 lock.unlock()
@@ -181,36 +216,9 @@ private final class StderrDrain: @unchecked Sendable {
         }
     }
 
-    public func finish() {
-        lock.lock()
-        guard !isFinished else { lock.unlock(); return }
-        isFinished = true
-        let message = String(decoding: tail, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        let pending = waiters
-        waiters.removeAll()
-        lock.unlock()
-        pending.forEach { $0.resume(returning: message) }
-    }
-
-    public init(handle: FileHandle) {
-        handle.readabilityHandler = { [weak self] readable in
-            guard let self else {
-                readable.readabilityHandler = nil
-                return
-            }
-            let data = readable.availableData
-            guard !data.isEmpty else {
-                readable.readabilityHandler = nil
-                self.finish()
-                return
-            }
-            self.lock.lock()
-            self.tail.append(data)
-            if self.tail.count > self.maximumBytes {
-                self.tail.removeFirst(self.tail.count - self.maximumBytes)
-            }
-            self.lock.unlock()
-        }
+    func trimmedUTF8() async -> String {
+        String(decoding: await data(), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -229,14 +237,14 @@ private actor JSONRPCSession {
     private let output: FileHandle
     private let errorOutput: FileHandle
     private let pump: LinePump
-    private let stderrDrain: StderrDrain
+    private let stderrDrain: PipeDrain
     private let decoder = JSONDecoder()
     private var didTimeout = false
     private var pendingNotifications: [RPCEnvelope] = []
     private let stopState = SessionStopState()
     private var didStop = false
 
-    public init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
+    init(executableURL: URL, profileHome: URL, environment inheritedEnvironment: [String: String]) throws {
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
@@ -251,7 +259,7 @@ private actor JSONRPCSession {
         process.standardError = errorPipe
 
         let pump = LinePump(handle: outputPipe.fileHandleForReading)
-        let stderrDrain = StderrDrain(handle: errorPipe.fileHandleForReading)
+        let stderrDrain = PipeDrain(handle: errorPipe.fileHandleForReading, tailLimit: 4_096)
         self.process = process
         input = inputPipe.fileHandleForWriting
         output = outputPipe.fileHandleForReading
@@ -277,9 +285,9 @@ private actor JSONRPCSession {
         stderrDrain.finish()
     }
 
-    public var isRunning: Bool { process.isRunning && !didStop }
+    var isRunning: Bool { process.isRunning && !didStop }
 
-    public func initialize(timeout: Duration, clientVersion: String) async throws {
+    func initialize(timeout: Duration, clientVersion: String) async throws {
         try send([
             "method": "initialize",
             "id": 0,
@@ -295,7 +303,7 @@ private actor JSONRPCSession {
         try send(["method": "initialized", "params": [:]])
     }
 
-    public func request(
+    func request(
         method: String,
         id: Int,
         params: [String: Any] = [:],
@@ -307,7 +315,7 @@ private actor JSONRPCSession {
         return result
     }
 
-    public func notification(method: String, timeout: Duration) async throws -> JSONValue {
+    func notification(method: String, timeout: Duration) async throws -> JSONValue {
         let envelope = try await receive(
             where: { $0.method == method && $0.id == nil },
             timeout: timeout
@@ -316,7 +324,7 @@ private actor JSONRPCSession {
     }
 
     @discardableResult
-    public func stop() async -> Bool {
+    func stop() async -> Bool {
         didStop = true
         output.readabilityHandler = nil
         errorOutput.readabilityHandler = nil
@@ -380,7 +388,7 @@ private actor JSONRPCSession {
             }
         }
         if didTimeout { throw CodexClientError.timeout }
-        let details = await stderrDrain.finishedMessage()
+        let details = await stderrDrain.trimmedUTF8()
         if didTimeout { throw CodexClientError.timeout }
         if !details.isEmpty { throw CodexClientError.connectionClosedWithDetails(details) }
         throw CodexClientError.connectionClosed
@@ -414,8 +422,14 @@ public struct CodexExecutableLocator: Sendable {
     }
 
     public func locate(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
+        try locateCandidate(environment: environment).url
+    }
+
+    private func locateCandidate(
+        environment: [String: String]
+    ) throws -> (url: URL, alreadyVerifiedNative: Bool) {
         if let explicitURL, isExecutable(explicitURL.path) {
-            return explicitURL
+            return (explicitURL, false)
         }
         let command = environment["CODEX_CLI_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         let executable = command.flatMap { $0.isEmpty ? nil : $0 } ?? "codex"
@@ -426,19 +440,19 @@ public struct CodexExecutableLocator: Sendable {
                 throw CodexClientError.executableNotFound
             }
             guard isExecutable(executable) else { throw CodexClientError.executableNotFound }
-            return URL(fileURLWithPath: executable)
+            return (URL(fileURLWithPath: executable), false)
         }
         for directory in (environment["Path"] ?? environment["PATH"] ?? "").split(separator: ";") {
             let dirURL = URL(fileURLWithPath: String(directory))
             let candidate = dirURL.appendingPathComponent(
                 executable.lowercased().hasSuffix(".exe") ? executable : executable + ".exe")
-            if isExecutable(candidate.path) { return candidate }
+            if isExecutable(candidate.path) { return (candidate, false) }
             // Support standard Windows global npm installations (`codex.cmd` -> `@openai/codex` native binary).
-            if command == nil || command == "" || executable.caseInsensitiveCompare("codex") == .orderedSame {
+            if executable.caseInsensitiveCompare("codex") == .orderedSame {
                 let npmScript = dirURL.appendingPathComponent("node_modules/@openai/codex/bin/codex.js")
                 if FileManager.default.fileExists(atPath: dirURL.appendingPathComponent("codex.cmd").path),
                    let native = try? unwrapOfficialNPMLauncher(npmScript) {
-                    return native
+                    return (native, true)
                 }
             }
         }
@@ -452,7 +466,7 @@ public struct CodexExecutableLocator: Sendable {
                 return left > right
             }) {
                 let candidate = version.appendingPathComponent("codex.exe")
-                if isExecutable(candidate.path) { return candidate }
+                if isExecutable(candidate.path) { return (candidate, false) }
             }
         }
         #else
@@ -460,7 +474,7 @@ public struct CodexExecutableLocator: Sendable {
             guard executable.hasPrefix("/"), isExecutable(executable) else {
                 throw CodexClientError.processLaunchFailed("CODEX_CLI_PATH is not executable: \(executable)")
             }
-            return URL(fileURLWithPath: executable)
+            return (URL(fileURLWithPath: executable), false)
         }
         if let path = environment["PATH"]?
             .split(separator: ":")
@@ -468,7 +482,7 @@ public struct CodexExecutableLocator: Sendable {
             .map({ String($0) + "/" + executable })
             .first(where: isExecutable)
         {
-            return URL(fileURLWithPath: path)
+            return (URL(fileURLWithPath: path), false)
         }
         #if os(macOS)
         if command == nil || command == "" {
@@ -478,7 +492,7 @@ public struct CodexExecutableLocator: Sendable {
                     "Contents/Resources/codex",
                 ] {
                     let bundledCLI = applicationURL.appendingPathComponent(relativePath)
-                    if isExecutable(bundledCLI.path) { return bundledCLI }
+                    if isExecutable(bundledCLI.path) { return (bundledCLI, false) }
                 }
             }
         }
@@ -487,6 +501,7 @@ public struct CodexExecutableLocator: Sendable {
         throw CodexClientError.executableNotFound
     }
 
+    @available(*, deprecated, renamed: "launchConfigurationAsync")
     public func launchConfiguration(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         requireDirectExecutable: Bool = false
@@ -502,7 +517,7 @@ public struct CodexExecutableLocator: Sendable {
         return try finalizeLaunchConfiguration(environment: environment, requireDirectExecutable: requireDirectExecutable)
     }
 
-    func launchConfigurationAsync(
+    public func launchConfigurationAsync(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         requireDirectExecutable: Bool = false,
         shellTimeout: Duration = .seconds(5)
@@ -522,11 +537,14 @@ public struct CodexExecutableLocator: Sendable {
         environment: [String: String],
         requireDirectExecutable: Bool
     ) throws -> (executable: URL, environment: [String: String]) {
-        let located = try locate(environment: environment)
-        if let native = try unwrapOfficialLauncher(located) {
+        let located = try locateCandidate(environment: environment)
+        if located.alreadyVerifiedNative {
+            return (located.url, environment)
+        }
+        if let native = try unwrapOfficialLauncher(located.url) {
             return (native, environment)
         }
-        return (requireDirectExecutable ? try checkedNativeExecutable(located) : located, environment)
+        return (requireDirectExecutable ? try checkedNativeExecutable(located.url) : located.url, environment)
     }
 
     #if !os(Windows)
@@ -556,6 +574,7 @@ public struct CodexExecutableLocator: Sendable {
         environment: [String: String],
         timeout: Duration
     ) async throws -> (path: String, codexCLIPath: String) {
+        try Task.checkCancellation()
         let shell = Process()
         let output = Pipe()
         let handle = output.fileHandleForReading
@@ -565,36 +584,55 @@ public struct CodexExecutableLocator: Sendable {
         shell.standardOutput = output
         shell.standardError = FileHandle.nullDevice
 
-        let collector = ShellOutputCollector(handle: handle)
+        let drain = PipeDrain(handle: handle)
+        let state = ShellRunState()
         let timeoutTask = Task {
-            try? await Task.sleep(for: timeout)
-            if shell.isRunning {
-                shell.terminate()
-                try? await Task.sleep(for: .milliseconds(100))
-                if shell.isRunning { _ = kill(shell.processIdentifier, SIGKILL) }
-            }
+            do { try await Task.sleep(for: timeout) } catch { return }
+            state.markTimedOut()
+            drain.finish()
+            Self.terminateProcessTreeAware(shell)
         }
         defer { timeoutTask.cancel() }
 
         return try await withTaskCancellationHandler {
             let status: Int32 = try await withCheckedThrowingContinuation { continuation in
+                guard state.beginLaunch(continuation: continuation) else {
+                    drain.finish()
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
                 shell.terminationHandler = { finished in
-                    continuation.resume(returning: finished.terminationStatus)
+                    state.complete(with: .success(finished.terminationStatus))
                 }
                 do {
                     try shell.run()
                 } catch {
                     shell.terminationHandler = nil
-                    handle.readabilityHandler = nil
-                    collector.finish()
-                    continuation.resume(throwing: CodexClientError.processLaunchFailed(error.localizedDescription))
+                    drain.finish()
+                    state.complete(with: .failure(CodexClientError.processLaunchFailed(error.localizedDescription)))
                 }
             }
-            let bytes = await collector.bytes()
+            if state.didTimeOut { throw CodexClientError.timeout }
+            try Task.checkCancellation()
+            let bytes = await drain.data()
+            if state.didTimeOut { throw CodexClientError.timeout }
+            try Task.checkCancellation()
             return try parseShellFields(bytes, status: status)
         } onCancel: {
-            if shell.isRunning { shell.terminate() }
+            state.markCancelled()
+            drain.finish()
+            Task.detached { Self.terminateProcessTreeAware(shell) }
         }
+    }
+
+    private static func terminateProcessTreeAware(_ process: Process) {
+        guard process.isRunning else { return }
+        process.terminate()
+        let deadline = ContinuousClock.now + .milliseconds(100)
+        while process.isRunning, ContinuousClock.now < deadline {
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+        if process.isRunning { _ = kill(process.processIdentifier, SIGKILL) }
     }
     #endif
 
@@ -709,53 +747,44 @@ public struct CodexExecutableLocator: Sendable {
 }
 
 #if !os(Windows)
-private final class ShellOutputCollector: @unchecked Sendable {
+private final class ShellRunState: @unchecked Sendable {
     private let lock = NSLock()
-    private var data = Data()
-    private var finished = false
-    private var waiters: [CheckedContinuation<Data, Never>] = []
+    private var continuation: CheckedContinuation<Int32, any Error>?
+    private var timedOut = false
+    private var cancelled = false
 
-    init(handle: FileHandle) {
-        handle.readabilityHandler = { [weak self] readable in
-            guard let self else {
-                readable.readabilityHandler = nil
-                return
-            }
-            let chunk = readable.availableData
-            guard !chunk.isEmpty else {
-                readable.readabilityHandler = nil
-                self.finish()
-                return
-            }
-            self.lock.lock()
-            self.data.append(chunk)
-            self.lock.unlock()
-        }
-    }
-
-    func finish() {
+    var didTimeOut: Bool {
         lock.lock()
-        guard !finished else { lock.unlock(); return }
-        finished = true
-        let snapshot = data
-        let pending = waiters
-        waiters.removeAll()
-        lock.unlock()
-        pending.forEach { $0.resume(returning: snapshot) }
+        defer { lock.unlock() }
+        return timedOut
     }
 
-    func bytes() async -> Data {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            if finished {
-                let snapshot = data
-                lock.unlock()
-                continuation.resume(returning: snapshot)
-            } else {
-                waiters.append(continuation)
-                lock.unlock()
-            }
-        }
+    func markTimedOut() {
+        lock.lock()
+        timedOut = true
+        lock.unlock()
+    }
+
+    func markCancelled() {
+        lock.lock()
+        cancelled = true
+        lock.unlock()
+    }
+
+    func beginLaunch(continuation: CheckedContinuation<Int32, any Error>) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if cancelled { return false }
+        self.continuation = continuation
+        return true
+    }
+
+    func complete(with result: Result<Int32, any Error>) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(with: result)
     }
 }
 #endif
@@ -1201,13 +1230,7 @@ private actor UsageSession {
             }
         }
         if session == nil {
-            let launch: (executable: URL, environment: [String: String])
-            do {
-                launch = try await resolveLaunch()
-            } catch {
-                try await close()
-                throw error
-            }
+            let launch = try await resolveLaunch()
             let opened = try JSONRPCSession(executableURL: launch.executable, profileHome: home,
                                             environment: launch.environment)
             session = opened
@@ -1229,7 +1252,6 @@ private actor UsageSession {
                 try Task.checkCancellation()
                 return try await session.request(method: "account/rateLimits/read", id: id, timeout: timeout)
             } onCancel: { Task { await session.stop() } }
-            credential = currentCredential
             generation += 1
             let token = generation
             let idleTimeout = idleTimeout

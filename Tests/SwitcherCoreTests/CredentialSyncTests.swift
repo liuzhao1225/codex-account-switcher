@@ -42,7 +42,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let home = await fixture.store.profileHome(id: profile.id)
         let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
         let client = CredentialClient()
@@ -65,7 +65,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let home = await fixture.store.profileHome(id: profile.id)
         let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
         try fixture.writeLive("personal", token: "new")
@@ -80,7 +80,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let home = await fixture.store.profileHome(id: profile.id)
         let original = try Data(contentsOf: home.appendingPathComponent("auth.json"))
         try fixture.writeLive("personal", token: "intermediate")
@@ -100,7 +100,7 @@ struct CredentialSyncTests {
         let first = fixture.profile("personal")
         let second = fixture.profile("workspace")
         try fixture.writeLive("personal", token: "personal-token")
-        try await fixture.store.importCurrentProfile(first)
+        try await fixture.store.seedActiveProfile(first)
         let home = try await fixture.store.createProfileDirectory(id: second.id)
         try fixture.bytes("workspace", token: "workspace-token").write(to: home.appendingPathComponent("auth.json"))
         try await fixture.store.addProfile(second)
@@ -120,7 +120,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
         try fixture.writeLive("personal", token: "fresh")
         #expect(try await fixture.store.syncActiveCredential().activeAccountID == profile.id)
@@ -144,7 +144,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let legacy = fixture.profile(nil)
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(legacy)
+        try await fixture.store.seedActiveProfile(legacy)
         try fixture.writeLive("workspace", token: "fresh")
         let reopened = AccountStore(baseURL: fixture.base, activeHomeURL: fixture.active)
         #expect(try await reopened.loadRegistry().accounts.first?.accountID == "personal")
@@ -159,7 +159,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
         let original = try Data(contentsOf: saved)
         let model = AccountController(store: fixture.store, codex: CredentialClient(),
@@ -189,9 +189,11 @@ struct CredentialSyncTests {
     }
 
     @Test func tokenWorkspaceIDTakesPrecedenceOverDefaultClaim() throws {
-        let claims = Data(#"{"email":"same@example.test","https://api.openai.com/auth":{"chatgpt_account_id":"personal"}}"#.utf8)
-            .base64EncodedString()
-        let data = try JSONSerialization.data(withJSONObject: ["tokens": ["account_id": "workspace", "id_token": "header.\(claims).signature"]])
+        let data = try TestAuthFixture.authJSON(
+            accountID: "workspace",
+            claimAccountID: "personal",
+            email: "same@example.test"
+        )
         #expect(try CredentialIdentity.decode(data)?.accountID == "workspace")
         #expect(try CredentialIdentity.decode(data)?.email == "same@example.test")
     }
@@ -207,7 +209,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "revoked")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let client = CredentialClient()
         let model = AccountController(store: fixture.store, codex: client, switchService: CredentialSwitch(store: fixture.store))
         await model.start()
@@ -225,7 +227,7 @@ struct CredentialSyncTests {
         let first = fixture.profile("personal")
         let second = fixture.profile("workspace")
         try fixture.writeLive("personal", token: "old")
-        try await fixture.store.importCurrentProfile(first)
+        try await fixture.store.seedActiveProfile(first)
         let secondHome = try await fixture.store.createProfileDirectory(id: second.id)
         try fixture.bytes("workspace", token: "old").write(to: secondHome.appending(path: "auth.json"))
         try await fixture.store.addProfile(second)
@@ -280,7 +282,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let profile = fixture.profile("personal")
         try fixture.writeLive("personal", token: "fresh")
-        try await fixture.store.importCurrentProfile(profile)
+        try await fixture.store.seedActiveProfile(profile)
         let saved = await fixture.store.profileHome(id: profile.id).appending(path: "auth.json")
         let original = try Data(contentsOf: saved)
         let model = AccountController(store: fixture.store, codex: CredentialClient(),
@@ -301,7 +303,7 @@ struct CredentialSyncTests {
         defer { fixture.clean() }
         let first = fixture.profile("personal")
         try fixture.writeLive("personal", token: "fresh")
-        try await fixture.store.importCurrentProfile(first)
+        try await fixture.store.seedActiveProfile(first)
         let model = AccountController(store: fixture.store, codex: CredentialClient(),
                                       switchService: CredentialSwitch(store: fixture.store))
         await model.start()
@@ -320,7 +322,7 @@ struct CredentialSyncTests {
         let first = fixture.profile("personal")
         let second = fixture.profile("workspace")
         try fixture.writeLive("personal", token: "fresh")
-        try await fixture.store.importCurrentProfile(first)
+        try await fixture.store.seedActiveProfile(first)
         let home = try await fixture.store.createProfileDirectory(id: second.id)
         try fixture.bytes("workspace", token: "old").write(to: home.appending(path: "auth.json"))
         try await fixture.store.addProfile(second)
@@ -342,7 +344,7 @@ struct CredentialSyncTests {
         let first = fixture.profile("personal")
         let second = fixture.profile("workspace")
         try fixture.writeLive("personal", token: "fresh")
-        try await fixture.store.importCurrentProfile(first)
+        try await fixture.store.seedActiveProfile(first)
         let secondHome = try await fixture.store.createProfileDirectory(id: second.id)
         try fixture.bytes("workspace", token: "fresh").write(to: secondHome.appending(path: "auth.json"))
         try await fixture.store.addProfile(second)

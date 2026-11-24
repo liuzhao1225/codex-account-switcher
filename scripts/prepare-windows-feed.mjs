@@ -6,6 +6,7 @@ import {
   readDefaultPublicKey,
   validateWindowsFeed,
 } from './sign-windows-update.mjs';
+import { compareSemverTags, fetchPublishedReleases } from './prepare-feeds.mjs';
 
 export function latestWindowsRelease(releases) {
   return releases
@@ -18,39 +19,18 @@ export function latestWindowsRelease(releases) {
         release.assets.some(asset => asset.name === windowsAssetName)
       );
     })
-    .sort((a, b) => {
-      const av = a.tag_name.slice(1).split('.').map(BigInt);
-      const bv = b.tag_name.slice(1).split('.').map(BigInt);
-      for (let i = 0; i < 3; i++) if (av[i] !== bv[i]) return av[i] > bv[i] ? -1 : 1;
-      return 0;
-    })[0];
+    .sort((a, b) => compareSemverTags(a.tag_name, b.tag_name))[0];
 }
 
 export async function prepareWindowsFeed(
   fetcher = fetch,
   output = 'site/updates/windows/latest.json',
   publicKeySpkiBase64 = null,
+  releases = null,
 ) {
   const pubKey = publicKeySpkiBase64 ?? (await readDefaultPublicKey());
-  const releases = [];
-  for (let page = 1; ; page++) {
-    const response = await fetcher(
-      `https://api.github.com/repos/${repository}/releases?per_page=100&page=${page}`,
-      {
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'User-Agent': 'CodexAccountSwitcher-WindowsFeed',
-          ...(process.env.GH_TOKEN ? { Authorization: `Bearer ${process.env.GH_TOKEN}` } : {}),
-        },
-        signal: AbortSignal.timeout(30000),
-      },
-    );
-    if (!response.ok) throw new Error(`Release lookup failed: ${response.status}`);
-    const batch = await response.json();
-    releases.push(...batch);
-    if (batch.length < 100) break;
-  }
-  const release = latestWindowsRelease(releases);
+  const publishedReleases = releases ?? (await fetchPublishedReleases(fetcher));
+  const release = latestWindowsRelease(publishedReleases);
   if (!release) return null;
 
   const response = await fetcher(

@@ -66,6 +66,7 @@ jobs:
             throw 'Release tag and checkout must point to the same commit.'
           }
       - name: Check release routing
+        if: github.event_name != 'workflow_call'
         run: node --test scripts/tests/*.test.mjs
       - name: Build Windows application
         run: dotnet build windows/CodexAccountSwitcher -c Release --nologo

@@ -103,7 +103,7 @@ private struct LocalSwitchFixture {
 
     func prepare() async throws {
         try credential(original).write(to: active.appending(path: "auth.json"))
-        try await store.importCurrentProfile(original)
+        try await store.seedActiveProfile(original)
         try await addTarget()
     }
 
@@ -114,12 +114,7 @@ private struct LocalSwitchFixture {
     }
 
     func credential(_ profile: AccountProfile) throws -> Data {
-        let claims = try JSONSerialization.data(withJSONObject: ["email": profile.email!], options: .sortedKeys)
-        let payload = claims.base64EncodedString().replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-        return try JSONSerialization.data(withJSONObject: ["tokens": [
-            "account_id": profile.accountID!, "id_token": "header.\(payload).signature",
-        ]], options: .sortedKeys)
+        try TestAuthFixture.authJSON(accountID: profile.accountID, email: profile.email)
     }
 
     func remove() { try? FileManager.default.removeItem(at: root) }

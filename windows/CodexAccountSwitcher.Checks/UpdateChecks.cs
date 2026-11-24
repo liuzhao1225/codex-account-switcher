@@ -4,22 +4,12 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using CodexAccountSwitcher.Checks;
 using CodexAccountSwitcher.Core;
+using static CodexAccountSwitcher.Checks.CheckSupport;
 
 internal static class UpdateChecks
 {
-    private const string CrossLangPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkeWTKfZIKx3GnWkh5xBlkyWt10Uhd7iJ0vnjlxDR8Ola1nSSc+wDED/iA8UNoy9bDrU7lHQCfN5dZo5MFByp7A==";
-    private const string CrossLangManifestJson = """
-        {
-          "version": "0.2.1",
-          "tag": "v0.2.1",
-          "url": "https://github.com/liuzhao1225/codex-account-switcher/releases/download/v0.2.1/Codex-Account-Switcher-windows-x64.exe",
-          "size": 123456,
-          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-          "releaseNotesUrl": "https://github.com/liuzhao1225/codex-account-switcher/releases/tag/v0.2.1",
-          "signature": "ejLJeqnLSWnne4afPqt0SqG+CuCuSf+JHyuSA8AmO+WVkOiwAEijmvx4XyjNK3HuOQfBq03c+0iuJwHO2BQr1g=="
-        }
-        """;
 
     public static async Task<int> RunAsync()
     {
@@ -179,18 +169,6 @@ internal static class UpdateChecks
         Require(!File.Exists(targetExe + ".old"), "Cleanup must delete .old backup binary.");
         Require(!File.Exists(targetExe + ".new"), "Cleanup must leave no .new temp binary.");
         Require(!Directory.Exists(stagingDir), "Cleanup must remove staging directory.");
-    }
-
-    private static void Require(bool condition, string message)
-    {
-        if (!condition) throw new Exception(message);
-    }
-
-    private static void RequireThrows<TException>(Action action, string message) where TException : Exception
-    {
-        try { action(); }
-        catch (TException) { return; }
-        throw new Exception(message);
     }
 
     private sealed class SynchronousProgress(Action<int> callback) : IProgress<int>

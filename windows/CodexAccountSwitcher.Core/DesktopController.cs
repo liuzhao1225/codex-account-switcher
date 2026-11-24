@@ -15,15 +15,8 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetApplicationUserModelId(IntPtr process, ref uint length, StringBuilder? appUserModelId);
 
-    public static async Task<DesktopInstallation> DiscoverAsync(string? explicitPath, CancellationToken ct = default)
+    public static async Task<DesktopInstallation> DiscoverAsync(CancellationToken ct = default)
     {
-        if (!string.IsNullOrWhiteSpace(explicitPath))
-        {
-            var full = Path.GetFullPath(explicitPath);
-            if (!File.Exists(full) || !Path.GetExtension(full).Equals(".exe", StringComparison.OrdinalIgnoreCase))
-                throw new FileNotFoundException("The configured Codex Desktop executable was not found.");
-            return new(full);
-        }
         // The Store package executable may be named ChatGPT.exe. Discover from the manifest;
         // process-name matching alone can close unrelated apps or a codex.exe CLI.
         const string script = "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); $p = Get-AppxPackage -Name OpenAI.Codex | Select-Object -First 1; if ($p) { [xml]$m = Get-Content -LiteralPath (Join-Path $p.InstallLocation 'AppxManifest.xml'); $a = @($m.Package.Applications.Application)[0]; @{ executable = (Join-Path $p.InstallLocation $a.Executable); appId = ($p.PackageFamilyName + '!' + $a.Id) } | ConvertTo-Json -Compress }";
@@ -127,10 +120,7 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var remaining = FindDesktopProcesses(installation);
-                var count = remaining.Count;
-                foreach (var process in remaining) process.Dispose();
-                if (count == 0 && processes.All(process => process.HasExited)) return;
+                if (CountRunningProcesses(installation) == 0 && processes.All(process => process.HasExited)) return;
                 if (stopwatch.Elapsed > exitTimeout)
                     throw new TimeoutException($"Codex Desktop or its child processes did not exit within {exitTimeout.TotalSeconds:g} seconds. Close them manually before switching; the account was not changed.");
                 await Task.Delay(200, cancellationToken);
@@ -159,12 +149,17 @@ public sealed class DesktopController(Func<CancellationToken, Task<DesktopInstal
         while (stopwatch.Elapsed < TimeSpan.FromSeconds(15))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var running = FindDesktopProcesses(installation);
-            var count = running.Count;
-            foreach (var process in running) process.Dispose();
-            if (count > 0) return;
+            if (CountRunningProcesses(installation) > 0) return;
             await Task.Delay(250, cancellationToken);
         }
         throw new IOException("Codex Desktop did not start within 15 seconds. Open it manually; the selected account remains active.");
+    }
+
+    private static int CountRunningProcesses(DesktopInstallation installation)
+    {
+        var running = FindDesktopProcesses(installation);
+        var count = running.Count;
+        foreach (var process in running) process.Dispose();
+        return count;
     }
 }

@@ -70,8 +70,7 @@ final class AppModel: AccountController, @MainActor ObservableObject {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
         } catch {
-            visibleError = OperationError(stage: nil, titleKey: "operation_failed", messageKey: nil,
-                                          message: error.localizedDescription, underlyingDescription: nil)
+            reportError(error)
         }
         refreshLaunchAtLoginStatus()
     }

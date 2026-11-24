@@ -1,7 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -38,7 +46,8 @@ internal static class Program
             Directory.CreateDirectory(output);
             var app = new App(false); app.InitializeComponent();
             var client = new FixtureClient();
-            var window = new MainWindow(client);
+            var simulatedNow = new DateTimeOffset(2026, 9, 15, 9, 30, 0, TimeSpan.FromHours(8));
+            var window = new MainWindow(client, clock: () => simulatedNow);
             Assert(window.Icon != null, "The taskbar and title bar must use the packaged application logo.");
             using (var stream = Application.GetResourceStream(App.IconUri).Stream)
             using (var trayIcon = new System.Drawing.Icon(stream, 16, 16))
@@ -81,9 +90,21 @@ internal static class Program
             Assert(!All<TextBlock>(window).Any(text => text.Text == "当前"), "Home uses selection color, not active labels.");
             Assert(All<TextBlock>(window).Any(text => text.Text == "重置次数: 2"), "Home shows the reported reset count beneath usage.");
             Assert(All<TextBlock>(window).Any(text => text.Text == "重置次数: 未知"), "Missing reset count must not be shown as zero.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "有效期：2099-10-17" && text.ToolTip is string),
-                "Home shows the subscription date without a parenthetical label and exposes its check time on hover.");
-            Assert(All<TextBlock>(window).Any(text => text.Text == "有效期：未知"), "Missing subscription date stays unknown.");
+            var liveSubBlock = All<TextBlock>(window).SingleOrDefault(text => text.Text == "有效至 2099-10-17");
+            Assert(liveSubBlock != null && liveSubBlock.ToolTip is string liveTip
+                && liveTip.Contains("自动续费：已开启") && liveTip.Contains("欠费状态：否")
+                && liveTip.Contains("历史登录快照（非实时）"),
+                "Home shows live subscription primary line and full details in tooltip.");
+            var failedSubBlock = All<TextBlock>(window).SingleOrDefault(text => text.Text == "订阅日期：待同步 · 待更新");
+            Assert(failedSubBlock != null && failedSubBlock.ToolTip is string failedTip
+                && failedTip.Contains("刷新失败：Network timeout") && failedTip.Contains("历史登录快照（非实时）"),
+                "First-sync failure with historical snapshot keeps main line as pending needs-update and puts error + history in tooltip.");
+            simulatedNow = simulatedNow.AddMinutes(10);
+            window.RefreshIfVisible();
+            Assert(All<TextBlock>(window).Any(text => text.Text == "有效至 2099-10-17 · 待更新"),
+                "Crossing the core staleAfter deadline updates the subscription line without a new network snapshot.");
+            simulatedNow = simulatedNow.AddMinutes(-10);
+            window.RefreshIfVisible();
             var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "studio@example.test");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
@@ -151,10 +172,220 @@ internal static class Program
             client.State = client.State with { IsMutating = false };
             window.CloseForExit();
             Assert(closed, "Explicit application exit must release the window.");
+            var customData = Path.Combine(Path.GetTempPath(), "switcher-ui-path-check-" + Guid.NewGuid().ToString("N"));
+            var customWindow = new MainWindow(client, dataPath: customData);
+            Assert(customWindow.DataPath == customData, "MainWindow must preserve the resolved custom dataPath.");
+            customWindow.CloseForExit();
+            Task.Run(VerifyNativeSettingsUpdateFlowsAsync).GetAwaiter().GetResult();
             Console.WriteLine("PASS: native taskbar window, focus persistence, compact home, full-row confirmation, management, immediate settings and optional five-hour usage.");
             Console.WriteLine(output);
             return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+    }
+
+    private static async Task VerifyNativeSettingsUpdateFlowsAsync()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "switcher-ui-update-checks-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var updatesRoot = Path.Combine(root, "updates");
+
+            var payload = new byte[64_000];
+            Random.Shared.NextBytes(payload);
+            var sha256 = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
+            const string version = "9.9.9";
+            const string tag = "v9.9.9";
+            var url = $"https://github.com/{WindowsUpdater.Repository}/releases/download/{tag}/{WindowsUpdater.AssetName}";
+
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var pubSpki = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
+            var sig = Convert.ToBase64String(key.SignData(
+                WindowsUpdater.CanonicalPayload(version, tag, url, payload.Length, sha256),
+                HashAlgorithmName.SHA256,
+                DSASignatureFormat.IeeeP1363FixedFieldConcatenation));
+
+            var manifestJson = JsonSerializer.Serialize(new
+            {
+                version,
+                tag,
+                url,
+                size = payload.Length,
+                sha256,
+                releaseNotesUrl = $"https://github.com/{WindowsUpdater.Repository}/releases/tag/{tag}",
+                signature = sig,
+            });
+
+            // 1. Read-only install directory opens release page fallback.
+            Uri? openedFallback = null;
+            var readOnlySettings = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () => new ByteArrayContent(payload))),
+                _ => false,
+                _ => null,
+                uri => openedFallback = uri,
+                () => @"C:\Program Files\Codex\Codex.exe",
+                pubSpki);
+            await readOnlySettings.CheckUpdatesAsync();
+            Assert(readOnlySettings.AvailableUpdate != null, "Signed update manifest must populate AvailableUpdate.");
+            await readOnlySettings.InstallUpdateAsync(
+                new UpdateRestartHooks(() => true, () => { }, () => Task.CompletedTask),
+                relaunchInBackground: false,
+                updatesRoot);
+            Assert(readOnlySettings.UpdateError == "update_readonly_fallback", "Read-only directory must set fallback error.");
+            Assert(openedFallback == readOnlySettings.AvailableUpdate!.ReleaseNotesUri, "Read-only fallback must open release notes.");
+
+            // 2. Signature / checksum mismatch cleans staging directory and reports update_verify_failed.
+            var corrupted = (byte[])payload.Clone();
+            corrupted[0] ^= 0xFF;
+            var tamperSettings = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () => new ByteArrayContent(corrupted))),
+                _ => true,
+                _ => null,
+                _ => { },
+                () => @"C:\Writable\Codex.exe",
+                pubSpki);
+            await tamperSettings.CheckUpdatesAsync();
+            await tamperSettings.InstallUpdateAsync(
+                new UpdateRestartHooks(() => true, () => { }, () => Task.CompletedTask),
+                relaunchInBackground: false,
+                updatesRoot);
+            Assert(tamperSettings.UpdateError == "update_verify_failed" && !tamperSettings.IsInstalling,
+                "Tampered payload must surface update_verify_failed.");
+            Assert(!Directory.EnumerateDirectories(updatesRoot).Any(), "Tampered update must remove staging directory.");
+
+            // 3. Cancellation clears error and cleans staging directory.
+            NativeSettings? cancelTarget = null;
+            cancelTarget = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () =>
+                {
+                    var content = new StreamContent(new CancelTriggeringStream(payload, () => cancelTarget!.CancelUpdate()));
+                    content.Headers.ContentLength = payload.Length;
+                    return content;
+                })),
+                _ => true,
+                _ => null,
+                _ => { },
+                () => @"C:\Writable\Codex.exe",
+                pubSpki);
+            await cancelTarget.CheckUpdatesAsync();
+            await cancelTarget.InstallUpdateAsync(
+                new UpdateRestartHooks(() => true, () => { }, () => Task.CompletedTask),
+                relaunchInBackground: false,
+                updatesRoot);
+            Assert(cancelTarget.UpdateError == null && !cancelTarget.IsInstalling && cancelTarget.DownloadPercent == null,
+                "Cancelled update must clear state cleanly without error.");
+            Assert(!Directory.EnumerateDirectories(updatesRoot).Any(), "Cancelled update must remove staging directory.");
+
+            // 4. Refused restart cleans staging directory without calling Complete.
+            var completed = false;
+            var refusedSettings = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () => new ByteArrayContent(payload))),
+                _ => true,
+                _ => null,
+                _ => { },
+                () => @"C:\Writable\Codex.exe",
+                pubSpki);
+            await refusedSettings.CheckUpdatesAsync();
+            await refusedSettings.InstallUpdateAsync(
+                new UpdateRestartHooks(() => false, () => { }, () => { completed = true; return Task.CompletedTask; }),
+                relaunchInBackground: false,
+                updatesRoot);
+            Assert(!completed && !refusedSettings.IsInstalling && !Directory.EnumerateDirectories(updatesRoot).Any(),
+                "Refused restart must clean staging directory.");
+
+            // 5. Helper launch failure cancels restart reservation, deletes staging, and surfaces original error.
+            var cancelledReservation = false;
+            var helperFailSettings = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () => new ByteArrayContent(payload))),
+                _ => true,
+                _ => throw new IOException("helper start blocked"),
+                _ => { },
+                () => @"C:\Writable\Codex.exe",
+                pubSpki);
+            await helperFailSettings.CheckUpdatesAsync();
+            await helperFailSettings.InstallUpdateAsync(
+                new UpdateRestartHooks(() => true, () => cancelledReservation = true, () => { completed = true; return Task.CompletedTask; }),
+                relaunchInBackground: false,
+                updatesRoot);
+            Assert(cancelledReservation && !completed && !helperFailSettings.IsInstalling,
+                "Helper launch failure must release restart reservation and restore non-installing state.");
+            Assert(helperFailSettings.UpdateError == "helper start blocked",
+                "Helper launch failure must preserve the launch error message.");
+            Assert(!Directory.EnumerateDirectories(updatesRoot).Any(),
+                "Helper launch failure must clean staging directory.");
+
+            // 6. Successful helper handoff transfers staging directory ownership and triggers Complete.
+            var handoffCompleted = false;
+            string[]? helperArgs = null;
+            var handoffSettings = new NativeSettings(
+                _ => new HttpClient(new StubUpdateHandler(manifestJson, () => new ByteArrayContent(payload))),
+                _ => true,
+                psi => { helperArgs = [.. psi.ArgumentList]; return new Process(); },
+                _ => { },
+                () => @"C:\Writable\Codex.exe",
+                pubSpki);
+            await handoffSettings.CheckUpdatesAsync();
+            await handoffSettings.InstallUpdateAsync(
+                new UpdateRestartHooks(() => true, () => Assert(false, "Successful handoff must not cancel."), () => { handoffCompleted = true; return Task.CompletedTask; }),
+                relaunchInBackground: true,
+                updatesRoot);
+            Assert(handoffCompleted && helperArgs != null && helperArgs.Contains("--apply-update") && helperArgs.Contains("--background"),
+                "Successful handoff must launch helper and invoke Complete.");
+            Assert(Directory.EnumerateDirectories(updatesRoot).Count() == 1,
+                "Successful handoff must leave staging directory for the launched helper.");
+        }
+        finally
+        {
+            if (Directory.Exists(root)) SecureFiles.DeleteOwnedDirectory(Path.GetTempPath(), root);
+        }
+    }
+
+    private sealed class StubUpdateHandler(string manifestJson, Func<HttpContent> downloadContent) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.AbsoluteUri == WindowsUpdater.FeedUrl)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(manifestJson, Encoding.UTF8, "application/json"),
+                });
+            }
+            var content = downloadContent();
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        }
+    }
+
+    private sealed class CancelTriggeringStream(byte[] payload, Action triggerCancel) : Stream
+    {
+        private bool sentFirstChunk;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => payload.Length;
+        public override long Position { get => sentFirstChunk ? 1024 : 0; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!sentFirstChunk)
+            {
+                sentFirstChunk = true;
+                var chunk = Math.Min(1024, buffer.Length);
+                payload.AsMemory(0, chunk).CopyTo(buffer);
+                return chunk;
+            }
+            triggerCancel();
+            await Task.Delay(5000, cancellationToken);
+            return 0;
+        }
     }
     private static void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static IEnumerable<T> All<T>(DependencyObject parent) where T : DependencyObject {
@@ -179,14 +410,35 @@ internal static class Program
         public FixtureClient() {
             var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var time = new DateTimeOffset(2026, 9, 15, 9, 25, 0, TimeSpan.FromHours(8));
+            var until = new DateTimeOffset(2099, 10, 17, 12, 0, 0, TimeSpan.Zero);
+            var personalSub = new SubscriptionPresentation(
+                "activeUntil", ActiveUntil: until, PlanType: "plus", IsActive: true,
+                FetchedAt: time, StaleAfter: time.AddSeconds(600),
+                RequiresUpdateImmediately: false, IsWaitingForRefresh: false, RefreshError: null,
+                AutoRenew: "yes", PaymentDelinquent: "no",
+                HistoricalActiveUntil: until, HistoricalLastChecked: time);
+            var studioSub = new SubscriptionPresentation(
+                "pending", RequiresUpdateImmediately: true, RefreshError: "Network timeout",
+                HistoricalActiveUntil: until, HistoricalLastChecked: time);
             State = new([
                 new(new(id, "Personal", "personal@example.test"), "P", new(83, time, 91, time.AddHours(-2), 2), null,
-                    "loaded", new(new DateTimeOffset(2099, 10, 17, 12, 0, 0, TimeSpan.Zero), time)),
-                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null)
+                    "loaded", new(until, time), SubscriptionView: personalSub),
+                new(new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Studio", "studio@example.test"), "S", new(56, time.AddHours(1), 68, time.AddHours(-1)), null,
+                    SubscriptionView: studioSub)
             ], id, new("simplifiedChinese"), false, false, true, null, new() {
                 ["usage"] = "用量", ["resets"] = "重置于", ["reset_credits"] = "重置次数", ["unknown"] = "未知", ["left"] = "% 剩余", ["manage"] = "管理账号", ["settings"] = "设置", ["quit"] = "退出应用",
-                ["subscription_until"] = "有效期：%@", ["subscription_snapshot"] = "登录快照", ["subscription_old_snapshot"] = "旧登录快照",
-                ["subscription_unknown"] = "有效期：未知", ["subscription_detail"] = "最近核验于 %@。",
+                ["subscription_live_pending"] = "订阅日期：待同步", ["subscription_live_until"] = "有效至 %@",
+                ["subscription_live_active"] = "订阅已生效", ["subscription_live_inactive"] = "无有效订阅",
+                ["subscription_live_free"] = "免费方案", ["subscription_live_needs_update"] = "待更新",
+                ["subscription_live_source"] = "数据来源：ChatGPT 订阅服务", ["subscription_live_updated"] = "更新于 %@",
+                ["subscription_live_plan"] = "方案：%@", ["subscription_live_status_active"] = "订阅状态：已生效",
+                ["subscription_live_status_inactive"] = "订阅状态：未生效", ["subscription_live_renew_on"] = "自动续费：已开启",
+                ["subscription_live_renew_off"] = "自动续费：未开启", ["subscription_live_renew_unknown"] = "自动续费：未知",
+                ["subscription_live_delinquent_yes"] = "欠费状态：是", ["subscription_live_delinquent_no"] = "欠费状态：否",
+                ["subscription_live_delinquent_unknown"] = "欠费状态：未知", ["subscription_live_last_success"] = "上次成功更新时间：%@",
+                ["subscription_live_never_succeeded"] = "更新时间：尚未成功同步", ["subscription_live_stale_hint"] = "待更新。当前显示的是上次成功同步的结果。",
+                ["subscription_live_refresh_failed"] = "刷新失败：%@", ["subscription_live_history"] = "历史登录快照（非实时）：有效至 %@；最近核验于 %@。",
+                ["subscription_refresh_pending"] = "正在等待更新订阅信息。",
                 ["accounts"] = "账号", ["drag_to_reorder"] = "拖动调整顺序", ["back"] = "返回", ["active"] = "当前", ["remove"] = "移除", ["add_account"] = "添加账号",
                 ["sign_in_hint"] = "将打开浏览器进行 Codex 登录。", ["register_current_account"] = "登记当前登录账号",
                 ["settings_general"] = "通用", ["settings_updates"] = "软件更新", ["launch_at_login"] = "登录时自动启动",

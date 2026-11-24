@@ -161,6 +161,13 @@ public actor AccountStore: AccountStoring {
         try writeJSON(settings, to: settingsURL)
     }
 
+    public func updateSettings(_ mutate: @Sendable (inout AppSettings) -> Void) throws -> AppSettings {
+        var updated = try loadSettings()
+        mutate(&updated)
+        try saveSettings(updated)
+        return updated
+    }
+
     public func loadUsageCache() throws -> UsageCache {
         try prepareDirectories()
         if let usageCache { return usageCache }
@@ -227,16 +234,38 @@ public actor AccountStore: AccountStoring {
     }
 
     public func subscriptionCredential(profile: AccountProfile, isActive: Bool) throws -> Data {
-        let home = isActive ? activeHomeURL : profileHome(id: profile.id)
-        let bytes = try readChecked(home.appending(path: "auth.json"))
-        guard let identity = try CredentialIdentity.decode(bytes), identity.matches(profile) else {
-            throw AccountStoreError.activeCredentialMismatch
-        }
+        let (_, bytes) = try readVerifiedSubscriptionCredential(profile: profile, isActive: isActive)
         return bytes
     }
 
+    func parsedSubscriptionCredential(profile: AccountProfile, isActive: Bool) throws -> ParsedCredential {
+        let (parsed, _) = try readVerifiedSubscriptionCredential(profile: profile, isActive: isActive)
+        return parsed
+    }
+
+    private func readVerifiedSubscriptionCredential(
+        profile: AccountProfile,
+        isActive: Bool
+    ) throws -> (parsed: ParsedCredential, bytes: Data) {
+        let home = isActive ? activeHomeURL : profileHome(id: profile.id)
+        let bytes = try readChecked(home.appending(path: "auth.json"))
+        guard bytes.count <= ParsedCredential.maximumCredentialBytes else {
+            throw AccountStoreError.activeCredentialMismatch
+        }
+        let parsed: ParsedCredential
+        do {
+            parsed = try ParsedCredential.decode(bytes)
+        } catch {
+            throw CodexClientError.identityUnavailable
+        }
+        guard let identity = parsed.localIdentity, identity.matches(profile) else {
+            throw AccountStoreError.activeCredentialMismatch
+        }
+        return (parsed, bytes)
+    }
+
     public func permitsSubscriptionCredentialRenewal(profile: AccountProfile) throws -> Bool {
-        _ = try subscriptionCredential(profile: profile, isActive: false)
+        _ = try parsedSubscriptionCredential(profile: profile, isActive: false)
         guard activeCredentialExists() else { return true }
         guard let current = try CredentialIdentity.decode(readChecked(activeHomeURL.appending(path: "auth.json"))) else { return false }
         if current.accountID == profile.accountID { return false }
@@ -290,7 +319,12 @@ public actor AccountStore: AccountStoring {
         return directory
     }
 
+    @available(*, deprecated, message: "Use syncActiveCredential or createProfileDirectory and addProfile instead")
     public func importCurrentProfile(_ profile: AccountProfile) throws {
+        try seedActiveProfile(profile)
+    }
+
+    func seedActiveProfile(_ profile: AccountProfile) throws {
         let source = activeHomeURL.appending(path: "auth.json")
         guard fileManager.fileExists(atPath: source.path) else {
             throw AccountStoreError.activeCredentialMissing
@@ -342,19 +376,28 @@ public actor AccountStore: AccountStoring {
         }
     }
 
-    /// The live login determines the active profile. Identify and save the same credential bytes.
-    public func syncActiveCredential() throws -> AccountRegistry {
-        var current = try loadRegistry()
-        guard activeCredentialExists() else {
-            if current.activeAccountID != nil {
-                current.activeAccountID = nil
-                try saveRegistry(current)
-            }
-            return current
-        }
+    private func readActiveCredential() throws -> (bytes: Data, identity: AccountIdentity)? {
+        guard activeCredentialExists() else { return nil }
         let bytes = try readChecked(activeHomeURL.appending(path: "auth.json"))
         guard let identity = try CredentialIdentity.decode(bytes) else {
             throw CodexClientError.identityUnavailable
+        }
+        return (bytes, identity)
+    }
+
+    private func clearActiveAccountIfMissing() throws -> AccountRegistry {
+        var current = try loadRegistry()
+        if current.activeAccountID != nil {
+            current.activeAccountID = nil
+            try saveRegistry(current)
+        }
+        return current
+    }
+
+    /// The live login determines the active profile. Identify and save the same credential bytes.
+    public func syncActiveCredential() throws -> AccountRegistry {
+        guard let (bytes, identity) = try readActiveCredential() else {
+            return try clearActiveAccountIfMissing()
         }
         try registerActiveIdentity(identity, credential: bytes)
         return try loadRegistry()
@@ -365,16 +408,16 @@ public actor AccountStore: AccountStoring {
     public func syncActiveCredential(beforeUpdatingProfile: @Sendable (URL) async throws -> Void) async throws -> AccountRegistry {
         while true {
             let current = try loadRegistry()
-            guard activeCredentialExists() else { return try syncActiveCredential() }
-            let source = activeHomeURL.appending(path: "auth.json")
-            let bytes = try readChecked(source)
-            guard let identity = try CredentialIdentity.decode(bytes) else { throw CodexClientError.identityUnavailable }
+            guard let (bytes, identity) = try readActiveCredential() else {
+                return try clearActiveAccountIfMissing()
+            }
             if let profile = current.accounts.first(where: { identity.matches($0) }) {
                 let home = profileHome(id: profile.id)
                 if try readChecked(home.appending(path: "auth.json")) != bytes {
                     try await beforeUpdatingProfile(home)
                     try Task.checkCancellation()
-                    guard activeCredentialExists(), try readChecked(source) == bytes else { continue }
+                    guard activeCredentialExists(),
+                          try readChecked(activeHomeURL.appending(path: "auth.json")) == bytes else { continue }
                     let latest = try loadRegistry()
                     guard latest.accounts.first(where: { identity.matches($0) })?.id == profile.id else { continue }
                 }

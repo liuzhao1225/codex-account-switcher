@@ -58,7 +58,32 @@ public struct LiveSubscriptionClient: SubscriptionClient {
     public func readSubscription(credential: Data, expectedAccountID: String?,
                                  expectedEmail: String?) async throws -> LiveSubscription {
         try Task.checkCancellation()
-        let login = try Self.matchingLogin(credential, accountID: expectedAccountID, email: expectedEmail)
+        guard credential.count <= Self.maximumResponseBytes else {
+            throw LiveSubscriptionError.invalidCredential
+        }
+        let parsed: ParsedCredential
+        do {
+            parsed = try ParsedCredential.decode(credential)
+        } catch {
+            throw LiveSubscriptionError.invalidCredential
+        }
+        return try await readSubscription(
+            parsed: parsed,
+            expectedAccountID: expectedAccountID,
+            expectedEmail: expectedEmail
+        )
+    }
+
+    func readSubscription(
+        parsed: ParsedCredential,
+        expectedAccountID: String?,
+        expectedEmail: String?
+    ) async throws -> LiveSubscription {
+        try Task.checkCancellation()
+        let login = try parsed.validatedSubscriptionLogin(
+            expectedAccountID: expectedAccountID,
+            expectedEmail: expectedEmail
+        )
         var components = URLComponents(string: "https://chatgpt.com/backend-api/subscriptions")!
         components.queryItems = [URLQueryItem(name: "account_id", value: login.accountID)]
         guard let url = components.url else { throw LiveSubscriptionError.invalidCredential }
@@ -105,7 +130,7 @@ public struct LiveSubscriptionClient: SubscriptionClient {
             guard !plan.isEmpty else { throw LiveSubscriptionError.invalidResponse }
             var activeUntil: Date?
             if let text = payload.activeUntil {
-                activeUntil = Self.parseDate(text)
+                activeUntil = ISO8601Timestamp.parse(text)
                 guard activeUntil != nil else { throw LiveSubscriptionError.invalidResponse }
             }
             guard !payload.isActive || plan.lowercased() == "free" || activeUntil != nil else {
@@ -120,57 +145,6 @@ public struct LiveSubscriptionClient: SubscriptionClient {
         }
     }
 
-    private struct Login {
-        let accountID: String
-        let accessToken: String
-    }
-
-    private static func matchingLogin(_ data: Data, accountID: String?, email: String?) throws -> Login {
-        do {
-            guard data.count <= maximumResponseBytes,
-                  let accountID, validHeaderValue(accountID) else {
-                throw LiveSubscriptionError.invalidCredential
-            }
-            let credential = try JSONDecoder().decode(Credential.self, from: data)
-            let tokens = credential.tokens
-            guard validHeaderValue(tokens.accessToken) else {
-                throw LiveSubscriptionError.invalidCredential
-            }
-            // A selected workspace may differ from the ID token's default
-            // account. Reuse the registry's identity rules rather than imposing
-            // a second interpretation of the credential.
-            guard let identity = try CredentialIdentity.decode(data), identity.accountID == accountID else {
-                throw LiveSubscriptionError.invalidCredential
-            }
-            if let email, !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-               identity.email?.caseInsensitiveCompare(email) != .orderedSame {
-                throw LiveSubscriptionError.invalidCredential
-            }
-            return Login(accountID: accountID, accessToken: tokens.accessToken)
-        } catch {
-            throw LiveSubscriptionError.invalidCredential
-        }
-    }
-
-    private static func validHeaderValue(_ value: String) -> Bool {
-        !value.isEmpty && value.utf8.allSatisfy { $0 > 32 && $0 < 127 }
-    }
-
-    private static func parseDate(_ text: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: text) { return date }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: text)
-    }
-
-    private struct Credential: Decodable { let tokens: Tokens }
-    private struct Tokens: Decodable {
-        let accessToken: String
-        enum CodingKeys: String, CodingKey {
-            case accessToken = "access_token"
-        }
-    }
     private struct ResponsePayload: Decodable {
         let activeUntil: String?
         let planType: String
@@ -190,7 +164,6 @@ private final class BoundedSubscriptionRequest: NSObject, URLSessionDataDelegate
     private let lock = NSLock()
     private var continuation: CheckedContinuation<(Data, HTTPURLResponse), any Error>?
     private var session: URLSession?
-    private var task: URLSessionDataTask?
     private var response: HTTPURLResponse?
     private var data = Data()
     private var completed = false
@@ -228,7 +201,6 @@ private final class BoundedSubscriptionRequest: NSObject, URLSessionDataDelegate
         let task = session.dataTask(with: request)
         self.continuation = continuation
         self.session = session
-        self.task = task
         lock.unlock()
         task.resume()
     }
@@ -241,7 +213,6 @@ private final class BoundedSubscriptionRequest: NSObject, URLSessionDataDelegate
         let session = self.session
         self.continuation = nil
         self.session = nil
-        task = nil
         lock.unlock()
         session?.invalidateAndCancel()
         continuation?.resume(with: result)

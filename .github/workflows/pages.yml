@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "site/**"
+      - "scripts/prepare-feeds.mjs"
       - "scripts/prepare-macos-feed.mjs"
       - "scripts/prepare-windows-feed.mjs"
       - "scripts/sign-windows-update.mjs"
@@ -36,15 +37,10 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Prepare the macOS-only Sparkle feed
+      - name: Prepare the signed macOS and Windows update feeds
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/prepare-macos-feed.mjs
-
-      - name: Prepare the signed Windows update feed
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/prepare-windows-feed.mjs
+        run: node scripts/prepare-feeds.mjs
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4

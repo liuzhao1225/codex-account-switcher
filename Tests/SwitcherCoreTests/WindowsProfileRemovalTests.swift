@@ -119,7 +119,7 @@ private struct RemovalFixture {
 
     func prepare() async throws {
         try activeCredential.write(to: live.appending(path: "auth.json"))
-        try await store.importCurrentProfile(active)
+        try await store.seedActiveProfile(active)
         let home = try await store.createProfileDirectory(id: target.id)
         try targetCredential.write(to: home.appending(path: "auth.json"))
         try await store.addProfile(target)

@@ -1,4 +1,3 @@
-import SwitcherCore
 import AppKit
 import Combine
 import Sparkle

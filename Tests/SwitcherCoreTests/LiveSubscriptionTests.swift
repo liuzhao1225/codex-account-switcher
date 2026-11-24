@@ -98,18 +98,16 @@ struct LiveSubscriptionTests {
         accessToken: String? = "synthetic-access-token",
         idTokenOverride: String? = nil
     ) throws -> Data {
-        var authClaims: [String: Any] = ["chatgpt_account_id": claimID, "chatgpt_plan_type": plan]
-        authClaims["chatgpt_subscription_active_until"] = activeUntil
-        authClaims["chatgpt_subscription_last_checked"] = lastChecked
-        var claims: [String: Any] = ["https://api.openai.com/auth": authClaims]
-        claims["email"] = email
-        let payload = try JSONSerialization.data(withJSONObject: claims).base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-        var tokens: [String: Any] = ["id_token": idTokenOverride ?? "header.\(payload).signature"]
-        tokens["account_id"] = accountID
-        tokens["access_token"] = accessToken
-        return try JSONSerialization.data(withJSONObject: ["tokens": tokens])
+        try TestAuthFixture.authJSON(
+            accountID: accountID,
+            claimAccountID: claimID,
+            email: email,
+            planType: plan,
+            subscriptionActiveUntil: activeUntil,
+            subscriptionLastChecked: lastChecked,
+            accessToken: accessToken,
+            idTokenOverride: idTokenOverride
+        )
     }
 
     private func makeBody(_ changes: [String: Any] = [:], removing: [String] = []) throws -> Data {
@@ -274,7 +272,7 @@ struct LiveSubscriptionTests {
         try activeCred.write(to: home.appendingPathComponent("auth.json"))
 
         let store = AccountStore(baseURL: support, activeHomeURL: home)
-        try await store.importCurrentProfile(active)
+        try await store.seedActiveProfile(active)
         let otherHome = try await store.createProfileDirectory(id: other.id)
         try otherCred.write(to: otherHome.appendingPathComponent("auth.json"))
         try await store.addProfile(other)
@@ -313,12 +311,16 @@ struct LiveSubscriptionTests {
         await controller.waitForWeeklyUsageRefresh()
         #expect(await client.cancelledRequests == 1)
 
-        // Reload retains stale cached subscription, survives failures, and renews ONLY inactive 401 accounts.
+        // Reload retains cached subscription waiting for refresh, survives failures, and renews ONLY inactive 401 accounts.
         let newStore = AccountStore(baseURL: support, activeHomeURL: home)
         let reloaded = AccountController(store: newStore, codex: codex, switchService: SubscriptionFixtureSwitch(), subscriptionClient: client)
         await reloaded.start()
+        #expect(reloaded.subscriptionStates[active.id] == .cached(latest))
         #expect(reloaded.subscriptionStates[active.id]?.displayedSubscription == latest)
-        #expect(reloaded.subscriptionStates[active.id]?.refreshError != nil)
+        #expect(reloaded.subscriptionStates[active.id]?.refreshError == nil)
+        let cachedPresentation = SubscriptionPresentation(state: reloaded.subscriptionStates[active.id] ?? .idle, historical: nil)
+        #expect(cachedPresentation.isWaitingForRefresh)
+        #expect(cachedPresentation.needsUpdate(at: now))
 
         await client.setFails(true)
         reloaded.refreshWeeklyUsage()
@@ -350,7 +352,7 @@ struct LiveSubscriptionTests {
     }
 
     #if !os(Windows)
-    @Test func locatorUnwrapsOfficialNPMPackagesAndRejectsNonNativeLaunchersForRenewal() throws {
+    @Test func locatorUnwrapsOfficialNPMPackagesAndRejectsNonNativeLaunchersForRenewal() async throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("switcher-npm-locator-\(UUID())")
         defer { try? fm.removeItem(at: root) }
@@ -389,20 +391,20 @@ struct LiveSubscriptionTests {
             try fm.createSymbolicLink(at: symlink, withDestinationURL: launcher)
 
             let locator = CodexExecutableLocator(explicitURL: symlink)
-            let resolved = try locator.launchConfiguration(requireDirectExecutable: true)
+            let resolved = try await locator.launchConfigurationAsync(requireDirectExecutable: true)
             #expect(resolved.executable == native.resolvingSymlinksInPath())
 
             try fm.removeItem(at: native)
-            #expect(throws: CodexClientError.self) {
-                try locator.launchConfiguration(requireDirectExecutable: true)
+            await #expect(throws: CodexClientError.self) {
+                try await locator.launchConfigurationAsync(requireDirectExecutable: true)
             }
         }
 
         let scriptLauncher = root.appendingPathComponent("custom-script")
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: scriptLauncher)
         try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: scriptLauncher.path)
-        #expect(throws: CodexClientError.self) {
-            try CodexExecutableLocator(explicitURL: scriptLauncher).launchConfiguration(requireDirectExecutable: true)
+        await #expect(throws: CodexClientError.self) {
+            try await CodexExecutableLocator(explicitURL: scriptLauncher).launchConfigurationAsync(requireDirectExecutable: true)
         }
     }
     #endif

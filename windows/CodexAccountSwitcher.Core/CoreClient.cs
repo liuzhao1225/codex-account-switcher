@@ -15,7 +15,7 @@ public sealed class CoreClient : IAccountClient, IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task reader;
     private readonly Task stderr;
-    private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(null, ct), allowMissingInstallation: true);
+    private readonly DesktopController desktop = new(ct => DesktopController.DiscoverAsync(ct), allowMissingInstallation: true);
     private int nextID;
     public AccountSnapshot State { get; private set; } = AccountSnapshot.Empty;
     public event Action? Changed;

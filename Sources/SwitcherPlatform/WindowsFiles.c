@@ -27,21 +27,20 @@ static DWORD check_path(const wchar_t *path) {
     if (!GetFullPathNameW(path, size, full, NULL)) { DWORD error = GetLastError(); free(full); return error; }
 
     size_t length = wcslen(full);
-    size_t separators[8];
+    size_t separators[4];
     size_t sep_count = 0;
     for (size_t i = 3; i <= length; i++) {
         if (full[i] == L'\\' || full[i] == L'/' || full[i] == L'\0') {
-            if (sep_count < 8) {
+            if (sep_count < 4) {
                 separators[sep_count++] = i;
             } else {
-                memmove(separators, separators + 1, 7 * sizeof(size_t));
-                separators[7] = i;
+                memmove(separators, separators + 1, 3 * sizeof(size_t));
+                separators[3] = i;
             }
         }
     }
-    size_t start_idx = sep_count > 4 ? sep_count - 4 : 0;
     DWORD error = ERROR_SUCCESS;
-    for (size_t k = start_idx; k < sep_count; k++) {
+    for (size_t k = 0; k < sep_count; k++) {
         size_t pos = separators[k];
         wchar_t delimiter = full[pos];
         full[pos] = L'\0';

@@ -12,11 +12,40 @@ using Microsoft.Win32;
 
 namespace CodexAccountSwitcher;
 
+public sealed record UpdateRestartHooks(Func<bool> TryBegin, Action Cancel, Func<Task> Complete);
+
 public sealed class NativeSettings
 {
     private const string Key = @"Software\CodexAccountSwitcher";
     private const string Run = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private readonly Func<TimeSpan, HttpClient> createHttpClient;
+    private readonly Func<string, bool> canWriteToDirectory;
+    private readonly Func<ProcessStartInfo, Process?> startProcess;
+    private readonly Action<Uri> openUri;
+    private readonly Func<string?> currentProcessPath;
+    private readonly string publicKeySpkiBase64;
     private CancellationTokenSource? downloadCancellation;
+
+    public NativeSettings()
+        : this(null, null, null, null, null, WindowsUpdater.PublicKeySpkiBase64)
+    {
+    }
+
+    internal NativeSettings(
+        Func<TimeSpan, HttpClient>? createHttpClient,
+        Func<string, bool>? canWriteToDirectory,
+        Func<ProcessStartInfo, Process?>? startProcess,
+        Action<Uri>? openUri,
+        Func<string?>? currentProcessPath,
+        string publicKeySpkiBase64)
+    {
+        this.createHttpClient = createHttpClient ?? (timeout => new HttpClient { Timeout = timeout });
+        this.canWriteToDirectory = canWriteToDirectory ?? WindowsUpdater.CanWriteToDirectory;
+        this.startProcess = startProcess ?? Process.Start;
+        this.openUri = openUri ?? (uri => Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true })?.Dispose());
+        this.currentProcessPath = currentProcessPath ?? (() => Environment.ProcessPath);
+        this.publicKeySpkiBase64 = publicKeySpkiBase64;
+    }
 
     public string Version => typeof(NativeSettings).Assembly.GetName().Version!.ToString(3);
     public bool LaunchAtLogin
@@ -35,7 +64,6 @@ public sealed class NativeSettings
         set { using var key = Registry.CurrentUser.CreateSubKey(Key); key.SetValue("AutomaticallyCheckUpdates", value ? 1 : 0); }
     }
     public AvailableWindowsUpdate? AvailableUpdate { get; private set; }
-    public Uri? UpdatePage => AvailableUpdate?.ReleaseNotesUri;
     public bool IsChecking { get; private set; }
     public bool IsInstalling { get; private set; }
     public int? DownloadPercent { get; private set; }
@@ -51,10 +79,10 @@ public sealed class NativeSettings
         Changed?.Invoke();
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            using var http = createHttpClient(TimeSpan.FromSeconds(15));
             http.DefaultRequestHeaders.UserAgent.ParseAdd("CodexAccountSwitcher/" + Version);
             var json = await http.GetStringAsync(WindowsUpdater.FeedUrl);
-            AvailableUpdate = WindowsUpdater.ParseAndVerifyManifest(json, new Version(Version));
+            AvailableUpdate = WindowsUpdater.ParseAndVerifyManifest(json, new Version(Version), publicKeySpkiBase64);
         }
         catch (CryptographicException) { UpdateError = "update_verify_failed"; }
         catch (Exception) { UpdateError = "update_check_failed"; }
@@ -63,11 +91,11 @@ public sealed class NativeSettings
 
     public void CancelUpdate() => downloadCancellation?.Cancel();
 
-    public async Task InstallUpdateAsync(Func<Task<bool>> prepareForRestart, bool relaunchInBackground, string updatesRoot)
+    public async Task InstallUpdateAsync(UpdateRestartHooks restartHooks, bool relaunchInBackground, string updatesRoot)
     {
         if (AvailableUpdate is not { } update || IsInstalling) return;
-        var currentExe = Environment.ProcessPath;
-        if (string.IsNullOrEmpty(currentExe) || !WindowsUpdater.CanWriteToDirectory(currentExe))
+        var currentExe = currentProcessPath();
+        if (string.IsNullOrEmpty(currentExe) || !canWriteToDirectory(currentExe))
         {
             UpdateError = "update_readonly_fallback";
             OpenUpdate();
@@ -83,9 +111,11 @@ public sealed class NativeSettings
         Changed?.Invoke();
 
         StagedWindowsUpdate? staged = null;
+        var restartReserved = false;
+        var completedRestart = false;
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            using var http = createHttpClient(TimeSpan.FromMinutes(10));
             http.DefaultRequestHeaders.UserAgent.ParseAdd("CodexAccountSwitcher/" + Version);
             var progress = new Progress<int>(percent =>
             {
@@ -95,18 +125,19 @@ public sealed class NativeSettings
                     Changed?.Invoke();
                 }
             });
-            staged = await WindowsUpdater.DownloadAndVerifyAsync(update, updatesRoot, http, progress, cts.Token);
+            staged = await WindowsUpdater.DownloadAndVerifyAsync(
+                update, updatesRoot, http, progress, cts.Token, publicKeySpkiBase64);
             DownloadPercent = null;
             downloadCancellation = null;
             Changed?.Invoke();
 
-            if (!await prepareForRestart())
+            if (!restartHooks.TryBegin())
             {
-                TryDeleteDirectory(updatesRoot, staged.StagingDirectory);
-                IsInstalling = false;
-                Changed?.Invoke();
+                WindowsUpdater.TryDeleteOwnedDirectory(updatesRoot, staged.StagingDirectory);
+                staged = null;
                 return;
             }
+            restartReserved = true;
 
             var start = new ProcessStartInfo(staged.ExecutablePath)
             {
@@ -123,49 +154,49 @@ public sealed class NativeSettings
             if (relaunchInBackground)
                 start.ArgumentList.Add("--background");
 
-            using var helper = Process.Start(start) ?? throw new IOException("Could not start update installer.");
-            Application.Current?.Shutdown(0);
+            try
+            {
+                using var helper = startProcess(start) ?? throw new IOException("Could not start update installer.");
+            }
+            catch (Exception ex)
+            {
+                restartHooks.Cancel();
+                restartReserved = false;
+                WindowsUpdater.TryDeleteOwnedDirectory(updatesRoot, staged.StagingDirectory);
+                staged = null;
+                UpdateError = ex.Message;
+                return;
+            }
+
+            // Ownership of the staging directory transfers to the launched helper process.
+            staged = null;
+            restartReserved = false;
+            completedRestart = true;
+            await restartHooks.Complete();
         }
-        catch (OperationCanceledException)
+        catch (Exception ex)
         {
-            if (staged != null) TryDeleteDirectory(updatesRoot, staged.StagingDirectory);
-            IsInstalling = false;
-            DownloadPercent = null;
-            downloadCancellation = null;
-            Changed?.Invoke();
-        }
-        catch (CryptographicException)
-        {
-            if (staged != null) TryDeleteDirectory(updatesRoot, staged.StagingDirectory);
-            UpdateError = "update_verify_failed";
-            IsInstalling = false;
-            DownloadPercent = null;
-            downloadCancellation = null;
-            Changed?.Invoke();
-        }
-        catch (Exception)
-        {
-            if (staged != null) TryDeleteDirectory(updatesRoot, staged.StagingDirectory);
-            UpdateError = "update_download_failed";
-            IsInstalling = false;
-            DownloadPercent = null;
-            downloadCancellation = null;
-            Changed?.Invoke();
+            if (restartReserved) restartHooks.Cancel();
+            if (staged != null) WindowsUpdater.TryDeleteOwnedDirectory(updatesRoot, staged.StagingDirectory);
+            UpdateError = ex switch
+            {
+                OperationCanceledException => null,
+                CryptographicException => "update_verify_failed",
+                _ => "update_download_failed",
+            };
         }
         finally
         {
+            IsInstalling = false;
+            DownloadPercent = null;
             downloadCancellation = null;
             cts.Dispose();
+            if (!completedRestart) Changed?.Invoke();
         }
     }
 
-    public void OpenUpdate()
+    private void OpenUpdate()
     {
-        if (UpdatePage != null) Process.Start(new ProcessStartInfo(UpdatePage.AbsoluteUri) { UseShellExecute = true })?.Dispose();
-    }
-
-    private static void TryDeleteDirectory(string updatesRoot, string directory)
-    {
-        try { SecureFiles.DeleteOwnedDirectory(updatesRoot, directory); } catch { }
+        if (AvailableUpdate?.ReleaseNotesUri is { } uri) openUri(uri);
     }
 }

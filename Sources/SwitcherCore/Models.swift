@@ -19,6 +19,10 @@ public struct AccountProfile: Codable, Identifiable, Equatable, Hashable, Sendab
         self.accountID = accountID; self.createdAt = createdAt; self.lastUsedAt = lastUsedAt
     }
 
+    public var preferredTitle: String {
+        email.flatMap { $0.isEmpty ? nil : $0 } ?? displayName
+    }
+
     public var initials: String {
         let parts = displayName
             .split(whereSeparator: { $0.isWhitespace })

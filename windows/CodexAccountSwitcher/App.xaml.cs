@@ -37,6 +37,7 @@ public partial class App : Application
     private MainWindow? window;
     private DispatcherTimer? updates;
     private bool exiting;
+    private bool updatingRestart;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -72,9 +73,10 @@ public partial class App : Application
             client = new CoreClient(HostRuntime.Resolve(Assembly.GetExecutingAssembly()), dataPath);
             native = new NativeSettings();
             var launchedInBackground = e.Args.Contains("--background");
-            window = new MainWindow(client, native, PrepareForUpdateRestartAsync, updatesRoot, launchedInBackground); MainWindow = window;
+            var restartHooks = new UpdateRestartHooks(TryBeginUpdateRestart, CancelUpdateRestartReservation, CompleteUpdateRestartAsync);
+            window = new MainWindow(client, native, restartHooks, dataPath, updatesRoot, launchedInBackground); MainWindow = window;
             activationListener = ThreadPool.RegisterWaitForSingleObject(activateWindow, (_, _) =>
-                Dispatcher.BeginInvoke(new Action(() => { if (!exiting) { ApplyTheme(); window.OpenWindow(); } })),
+                Dispatcher.BeginInvoke(new Action(() => { if (!exiting && window != null) { ApplyTheme(); window.OpenWindow(); } })),
                 null, Timeout.Infinite, false);
             tray = new Forms.NotifyIcon { Text = "Codex Account Switcher" };
             RefreshTrayIcon();
@@ -82,14 +84,14 @@ public partial class App : Application
             SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             trayMenu = new Forms.ContextMenuStrip();
             var openItem = new Forms.ToolStripMenuItem("Codex Account Switcher");
-            openItem.Click += (_, _) => { ApplyTheme(); window.OpenWindow(); };
+            openItem.Click += (_, _) => { ApplyTheme(); window?.OpenWindow(); };
             var quitItem = new Forms.ToolStripMenuItem();
             quitItem.Click += (_, _) => _ = QuitAsync();
             trayMenu.Items.Add(openItem); trayMenu.Items.Add(new Forms.ToolStripSeparator()); trayMenu.Items.Add(quitItem);
-            trayMenu.Opening += (_, _) => { quitItem.Text = client.State.Text("quit"); quitItem.Enabled = !window.IsBusy && !(native?.IsInstalling ?? false); };
+            trayMenu.Opening += (_, _) => { quitItem.Text = client.State.Text("quit"); quitItem.Enabled = !(window?.IsBusy ?? false) && !(native?.IsInstalling ?? false); };
             tray.ContextMenuStrip = trayMenu;
             tray.MouseClick += (_, args) => {
-                if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window.OpenWindow(); }
+                if (args.Button == Forms.MouseButtons.Left) { ApplyTheme(); window?.OpenWindow(); }
             };
             client.Changed += RefreshTray;
             await client.InitializeAsync();
@@ -133,18 +135,40 @@ public partial class App : Application
         return null;
     }
 
-    private async Task<bool> PrepareForUpdateRestartAsync()
+    private bool TryBeginUpdateRestart()
     {
-        if (exiting || window?.IsBusy == true) return false;
+        if (exiting || updatingRestart || window?.IsBusy == true) return false;
+        updatingRestart = true;
+        return true;
+    }
+
+    private void CancelUpdateRestartReservation() => updatingRestart = false;
+
+    private async Task CompleteUpdateRestartAsync()
+    {
+        await ReleaseRuntimeAsync();
+        Shutdown(0);
+    }
+
+    private async Task ReleaseRuntimeAsync()
+    {
         exiting = true;
         updates?.Stop();
+        updates = null;
         activationListener?.Unregister(null);
-        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        activationListener = null;
         if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); client = null; }
+        window?.CloseForExit();
+        window = null;
+        ReleaseNativeHandles();
+    }
+
+    private void ReleaseNativeHandles()
+    {
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; }
         trayMenu?.Dispose(); trayMenu = null;
         icon?.Dispose(); icon = null;
-        window?.CloseForExit();
         activateWindow?.Dispose(); activateWindow = null;
         if (ownsMutex) {
             ownsMutex = false;
@@ -152,36 +176,27 @@ public partial class App : Application
         }
         instance?.Dispose();
         instance = null;
-        return true;
     }
 
     private void RefreshTray()
     {
         if (client == null || tray == null) return;
-        RefreshTrayIcon();
-        var active = client.State.Accounts.FirstOrDefault(row => row.Profile.Id == client.State.ActiveAccountID);
         var percent = ActiveTrayPercent();
+        RefreshTrayIcon(percent);
+        var active = client.State.Accounts.FirstOrDefault(row => row.Profile.Id == client.State.ActiveAccountID);
         var label = active == null ? "Codex Account Switcher" : active.Profile.DisplayName + (percent != null ? " · " + percent + "%" : "");
         tray.Text = label.Length > 63 ? label[..63] : label;
     }
-    private int? ActiveTrayPercent()
-    {
-        if (client?.State.Settings.ShowsMenuBarPercentage != true) return null;
-        var state = client.State;
-        var usage = state.Accounts.FirstOrDefault(row => row.Profile.Id == state.ActiveAccountID)?.Usage;
-        if (usage == null) return null;
-        return state.Settings.StatusBarUsageWindow == "fiveHour"
-            ? usage.FiveHourRemainingPercent ?? usage.RemainingPercent
-            : usage.RemainingPercent;
-    }
-    private void RefreshTrayIcon()
+    private int? ActiveTrayPercent() =>
+        client?.State.Settings.ShowsMenuBarPercentage == true ? client.State.ActiveRemainingPercent : null;
+    private void RefreshTrayIcon() => RefreshTrayIcon(ActiveTrayPercent());
+    private void RefreshTrayIcon(int? percent)
     {
         if (tray == null) return;
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         // Taskbar appearance can differ from the application's light/dark theme.
         var variant = key?.GetValue("SystemUsesLightTheme") is int light && light != 0 ? "light" : "dark";
         var size = Forms.SystemInformation.SmallIconSize;
-        var percent = ActiveTrayPercent();
         if (trayIconVariant == variant && trayIconSize == size && trayIconPercent == percent) return;
         Icon replacement;
         if (percent is { } value) {
@@ -209,15 +224,13 @@ public partial class App : Application
         var dark = IsDark();
         foreach (var pair in new[] { ("ListSurface", dark ? "#2D2D2D" : "#FFFFFF"), ("Surface", dark ? "#282828" : "#F5F5F5"), ("Ink", dark ? "#F5F5F5" : "#1A1A1A"),
             ("Muted", dark ? "#BEBEBE" : "#666666"), ("Line", dark ? "#444444" : "#DDDDDD"),
-            ("Accent", dark ? "#60CDFF" : "#0067C0"), ("Selected", dark ? "#293F50" : "#E2EEFA"), ("Hover", dark ? "#15FFFFFF" : "#0C000000") })
+            ("Accent", dark ? "#60CDFF" : "#0067C0"), ("Selected", dark ? "#293F50" : "#E2EEFA"), ("Hover", dark ? "#15FFFFFF" : "#0C000000"),
+            ("Warning", dark ? "#FFB74D" : "#B25900") })
             Resources[pair.Item1] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(pair.Item2));
     }
     private async Task QuitAsync() {
-        if (exiting || window?.IsBusy == true || native?.IsInstalling == true) return;
-        exiting = true; updates?.Stop();
-        activationListener?.Unregister(null);
-        if (client != null) { client.Changed -= RefreshTray; await client.DisposeAsync(); }
-        window?.CloseForExit();
+        if (exiting || updatingRestart || window?.IsBusy == true || native?.IsInstalling == true) return;
+        await ReleaseRuntimeAsync();
         Shutdown();
     }
     private async Task SelfTestAsync() {
@@ -238,12 +251,7 @@ public partial class App : Application
         Shutdown(exitCode);
     }
     protected override void OnExit(ExitEventArgs e) {
-        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
-        if (tray != null) { tray.Visible = false; tray.Dispose(); }
-        trayMenu?.Dispose();
-        icon?.Dispose();
-        activateWindow?.Dispose();
-        if (ownsMutex) instance?.ReleaseMutex(); instance?.Dispose();
+        ReleaseNativeHandles();
         base.OnExit(e);
     }
 }

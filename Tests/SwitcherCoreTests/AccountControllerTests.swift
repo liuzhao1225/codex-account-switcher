@@ -20,7 +20,7 @@ struct AccountControllerTests {
         }
 
         await fixture.model.moveAccount(id: otherIDs[1], to: active)
-        #expect(fixture.model.snapshot.accounts.map(\.profile.id) == [otherIDs[1], active, otherIDs[0]])
+        #expect(fixture.model.snapshot(includeStrings: true).accounts.map(\.profile.id) == [otherIDs[1], active, otherIDs[0]])
         await fixture.model.moveAccount(id: otherIDs[1], to: otherIDs[0])
         #expect(fixture.model.accounts.map(\.id) == [active, otherIDs[0], otherIDs[1]])
 
@@ -173,7 +173,7 @@ struct AccountControllerTests {
         await fixture.model.start()
         await fixture.model.setLanguage(.italian)
         #expect(fixture.model.text("manage") == "Gestisci account")
-        #expect(fixture.model.snapshot.strings?["subscription_live_free"] == "Piano gratuito")
+        #expect(fixture.model.snapshot(includeStrings: true).strings?["subscription_live_free"] == "Piano gratuito")
         let reopened = AccountStore(baseURL: fixture.root.appendingPathComponent("store"), activeHomeURL: fixture.active)
         #expect(try await reopened.loadSettings().language == .italian)
     }
@@ -324,7 +324,7 @@ struct AccountControllerTests {
         defer { fixture.clean() }
         try fixture.writeActiveCredential()
         await fixture.model.start()
-        let data = try JSONEncoder().encode(fixture.model.snapshot)
+        let data = try JSONEncoder().encode(fixture.model.snapshot(includeStrings: true))
         let json = String(decoding: data, as: UTF8.self)
         #expect(!json.contains("fixture-secret-token"))
         #expect(json.contains("demo@example.test"))
@@ -348,12 +348,11 @@ private struct ControllerFixture {
             switchService: SwitchService(desktop: FixtureDesktop(), store: store, codex: client))
     }
     func writeActiveCredential() throws {
-        let claims = Data(#"{"email":"demo@example.test"}"#.utf8).base64EncodedString()
-        try JSONSerialization.data(withJSONObject: ["tokens": [
-            "account_id": "demo-account", "access_token": "fixture-secret-token",
-            "id_token": "header.\(claims).signature",
-        ]])
-            .write(to: active.appendingPathComponent("auth.json"))
+        try TestAuthFixture.authJSON(
+            accountID: "demo-account",
+            email: "demo@example.test",
+            accessToken: "fixture-secret-token"
+        ).write(to: active.appendingPathComponent("auth.json"))
     }
     func clean() { try? FileManager.default.removeItem(at: root) }
 }

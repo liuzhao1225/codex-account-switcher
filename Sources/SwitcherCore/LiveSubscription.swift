@@ -22,21 +22,26 @@ public struct LiveSubscription: Codable, Equatable, Sendable {
 
 public enum LiveSubscriptionState: Equatable, Sendable {
     case idle
+    case cached(LiveSubscription)
     case loaded(LiveSubscription)
     case stale(LiveSubscription, String)
     case unavailable(String)
 
     public var displayedSubscription: LiveSubscription? {
         switch self {
-        case let .loaded(subscription), let .stale(subscription, _): subscription
-        case .idle, .unavailable: nil
+        case let .cached(subscription), let .loaded(subscription), let .stale(subscription, _):
+            subscription
+        case .idle, .unavailable:
+            nil
         }
     }
 
     public var refreshError: String? {
         switch self {
-        case let .stale(_, message), let .unavailable(message): message
-        case .idle, .loaded: nil
+        case let .stale(_, message), let .unavailable(message):
+            message
+        case .idle, .cached, .loaded:
+            nil
         }
     }
 }

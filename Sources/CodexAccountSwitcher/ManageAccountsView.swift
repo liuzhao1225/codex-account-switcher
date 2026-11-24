@@ -57,15 +57,10 @@ struct ManageAccountsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
-            } else if model.accounts.count <= 6 {
-                managedRows(model.accounts)
             } else {
-                managedRows(Array(model.accounts.prefix(6)))
-                    .hidden()
-                    .overlay {
-                        ScrollView { managedRows(model.accounts) }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
+                CappedScrollList(items: model.accounts, limit: 6) { items in
+                    managedRows(items)
+                }
             }
 
             Divider()
@@ -166,7 +161,7 @@ struct ManageAccountsView: View {
     }
 
     private func managedAccountRow(_ account: AccountProfile) -> some View {
-        let title = account.email.flatMap { $0.isEmpty ? nil : $0 } ?? account.displayName
+        let title = account.preferredTitle
         return HStack(spacing: 9) {
             if model.accounts.count > 1 {
                 Image(systemName: "line.3.horizontal")
@@ -252,5 +247,25 @@ struct PopoverHeader: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
+    }
+}
+
+struct CappedScrollList<Item, Content: View>: View {
+    let items: [Item]
+    let limit: Int
+    @ViewBuilder let content: ([Item]) -> Content
+
+    var body: some View {
+        if items.count <= limit {
+            content(items)
+        } else {
+            // Intrinsic height matches the capped row count under zero-height probes.
+            content(Array(items.prefix(limit)))
+                .hidden()
+                .overlay {
+                    ScrollView { content(items) }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }

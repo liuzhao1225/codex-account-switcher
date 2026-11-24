@@ -8,6 +8,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CodexAccountSwitcher.Core;
 
 namespace CodexAccountSwitcher;
@@ -17,9 +18,12 @@ public sealed class MainWindow : Window
     private const string AccountDragFormat = "CodexAccountSwitcher.AccountID";
     private readonly IAccountClient client;
     private readonly NativeSettings native;
-    private readonly Func<Task<bool>>? prepareForUpdateRestart;
+    private readonly UpdateRestartHooks restartHooks;
+    private readonly string dataPath;
     private readonly string updatesRoot;
     private readonly bool launchedInBackground;
+    private readonly Func<DateTimeOffset> clock;
+    private readonly DispatcherTimer stalenessTimer;
     private readonly List<ComboBox> activeComboBoxes = [];
     private ScrollViewer? scrollViewer;
     private string page = "accounts";
@@ -30,6 +34,7 @@ public sealed class MainWindow : Window
     private bool pendingBackgroundRender;
     public bool IsBusy => client.State.IsMutating;
     public string CurrentPage => page;
+    internal string DataPath => dataPath;
     private AccountSnapshot State => client.State;
     private string T(string key) => State.Text(key);
     private Brush B(string key) => (Brush)FindResource(key);
@@ -37,18 +42,24 @@ public sealed class MainWindow : Window
     public MainWindow(
         IAccountClient client,
         NativeSettings? native = null,
-        Func<Task<bool>>? prepareForUpdateRestart = null,
+        UpdateRestartHooks? restartHooks = null,
+        string? dataPath = null,
         string? updatesRoot = null,
-        bool launchedInBackground = false)
+        bool launchedInBackground = false,
+        Func<DateTimeOffset>? clock = null)
     {
         this.client = client;
         this.native = native ?? new NativeSettings();
-        this.prepareForUpdateRestart = prepareForUpdateRestart;
-        this.updatesRoot = updatesRoot ?? System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Codex Account Switcher",
-            "updates");
+        this.restartHooks = restartHooks ?? new UpdateRestartHooks(() => false, () => { }, () => Task.CompletedTask);
+        this.dataPath = !string.IsNullOrWhiteSpace(dataPath)
+            ? dataPath
+            : Environment.GetEnvironmentVariable("CODEX_SWITCHER_DATA_HOME")
+                ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
+        this.updatesRoot = updatesRoot ?? System.IO.Path.Combine(this.dataPath, "updates");
         this.launchedInBackground = launchedInBackground;
+        this.clock = clock ?? (() => DateTimeOffset.UtcNow);
+        stalenessTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        stalenessTimer.Tick += (_, _) => RefreshIfVisible();
         Icon = System.Windows.Media.Imaging.BitmapFrame.Create(App.IconUri);
         Title = "Codex Account Switcher"; Width = 420; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanMinimize;
@@ -56,15 +67,18 @@ public sealed class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         MaxHeight = SystemParameters.WorkArea.Height - 24;
         client.Changed += OnExternalChanged; this.native.Changed += OnExternalChanged;
+        IsVisibleChanged += (_, _) => { if (IsVisible) stalenessTimer.Start(); else stalenessTimer.Stop(); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsBusy && page != "accounts") { Navigate("accounts"); e.Handled = true; } };
         Closing += (_, e) => {
             if (closingForExit) return;
             e.Cancel = true;
             Hide();
         };
-        Closed += (_, _) => { client.Changed -= OnExternalChanged; this.native.Changed -= OnExternalChanged; };
+        Closed += (_, _) => { stalenessTimer.Stop(); client.Changed -= OnExternalChanged; this.native.Changed -= OnExternalChanged; };
         Render();
     }
+
+    internal void RefreshIfVisible() { if (IsVisible) OnExternalChanged(); }
 
     private void OnExternalChanged()
     {
@@ -129,7 +143,7 @@ public sealed class MainWindow : Window
             var settings = Button("", () => Navigate("settings"), "\uE713");
             settings.Margin = new Thickness(8, 0, 0, 0); settings.ToolTip = T("settings");
             AutomationProperties.SetName(settings, T("settings"));
-            if (native.UpdatePage != null) {
+            if (native.AvailableUpdate != null) {
                 var glyph = (UIElement)settings.Content; settings.Content = null;
                 var indicator = new Grid(); indicator.Children.Add(glyph);
                 indicator.Children.Add(new System.Windows.Shapes.Ellipse { Width = 5, Height = 5, Fill = B("Accent"),
@@ -175,39 +189,12 @@ public sealed class MainWindow : Window
 
     private TextBlock BuildSubscriptionLine(AccountRow row)
     {
-        if (row.LiveSubscription is { } live) {
-            string label;
-            if (string.Equals(live.PlanType, "free", StringComparison.OrdinalIgnoreCase))
-                label = T("subscription_live_free");
-            else if (!live.IsActive)
-                label = T("subscription_live_inactive");
-            else if (live.ActiveUntil is { } until)
-                label = T("subscription_live_until").Replace("%@", until.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-            else
-                label = T("subscription_live_active");
-
-            var stale = row.SubscriptionStatus is "stale" or "unavailable"
-                || (DateTimeOffset.UtcNow - live.FetchedAt).TotalSeconds >= 600;
-            if (stale) label += " · " + T("subscription_live_needs_update");
-            var block = Text(label, 10.5, muted: true);
-            var lines = new List<string> {
-                T("subscription_live_source"),
-                T("subscription_live_updated").Replace("%@", live.FetchedAt.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture)),
-                T("subscription_live_plan").Replace("%@", live.PlanType),
-                T(live.IsActive ? "subscription_live_status_active" : "subscription_live_status_inactive")
-            };
-            if (!string.IsNullOrEmpty(row.SubscriptionError))
-                lines.Add(T("subscription_live_refresh_failed").Replace("%@", row.SubscriptionError));
-            block.ToolTip = string.Join("\n", lines);
-            return block;
-        }
-        if (row.Subscription is { } subscription) {
-            var date = subscription.ActiveUntil.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            var block = Text(T("subscription_until").Replace("%@", date), 10.5, muted: true);
-            block.ToolTip = block.Text + "\n" + T("subscription_detail").Replace("%@", subscription.LastChecked.ToLocalTime().ToString("yyyy MMM d HH:mm", CultureInfo.CurrentCulture));
-            return block;
-        }
-        return Text(T("subscription_unknown"), 10.5, muted: true);
+        var presentation = row.SubscriptionView ?? new SubscriptionPresentation("pending");
+        var now = clock();
+        var block = Text(presentation.FormatPrimary(now, T), 10.5, muted: true);
+        if (presentation.NeedsUpdate(now)) block.Foreground = B("Warning");
+        block.ToolTip = presentation.FormatDetail(now, T, CultureInfo.CurrentCulture);
+        return block;
     }
 
     private void Accounts(StackPanel body, bool manage)
@@ -225,7 +212,7 @@ public sealed class MainWindow : Window
             ((TextBlock)avatar.Child).HorizontalAlignment = HorizontalAlignment.Center;
             var details = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var active = row.Profile.Id == State.ActiveAccountID;
-            var title = string.IsNullOrEmpty(row.Profile.Email) ? row.Profile.DisplayName : row.Profile.Email;
+            var title = row.DisplayTitle;
             var name = Text(title, 14, bold: true);
             name.ToolTip = title;
             if (manage) {
@@ -240,15 +227,12 @@ public sealed class MainWindow : Window
                         State.Settings.ShowsFiveHourUsage ? Reset(usage.ResetsAt) : null));
                     details.ToolTip = row.UsageError;
                 } else { var missing = Text(row.UsageStatus == "idle" ? T("usage") + " —" : T("usage_unavailable"), 10.5, muted: true); missing.ToolTip = row.UsageError; details.Children.Add(missing); }
-                var accountInfo = new Grid();
-                accountInfo.ColumnDefinitions.Add(new ColumnDefinition());
-                accountInfo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                UIElement accountInfo = BuildSubscriptionLine(row);
                 if (row.Usage is { } infoUsage) {
                     var resetCredits = Text(T("reset_credits") + ": " + (infoUsage.ResetCreditsRemaining?.ToString(CultureInfo.CurrentCulture) ?? T("unknown")), 10.5, muted: true);
                     resetCredits.Margin = new Thickness(8, 0, 0, 0);
-                    Grid.SetColumn(resetCredits, 1); accountInfo.Children.Add(resetCredits);
+                    accountInfo = Pair(accountInfo, resetCredits);
                 }
-                accountInfo.Children.Add(BuildSubscriptionLine(row));
                 details.Children.Add(accountInfo);
             }
             var grid = new Grid { MinHeight = manage ? 32 : 50 };
@@ -384,8 +368,7 @@ public sealed class MainWindow : Window
         var experimentHint = Text(T("auto_reset_hint"), 10.5, muted: true); experimentHint.TextWrapping = TextWrapping.Wrap; settings.Children.Add(experimentHint);
         settings.Children.Add(Button(T("open_reset_log"), () => {
             try {
-                var directory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codex Account Switcher");
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dataPath) { UseShellExecute = true });
             } catch (Exception ex) { localError = ex.Message; Render(preserveScroll: true); }
         }));
         var heading = Text(T("settings_updates"), 14, bold: true); heading.Margin = new Thickness(0, 20, 0, 0); settings.Children.Add(heading);
@@ -403,7 +386,7 @@ public sealed class MainWindow : Window
                 ? T(native.UpdateError)
                 : T("update_available").Replace("%@", available.Version.ToString(3));
             check = Button(T("update_action"), async () => await native.InstallUpdateAsync(
-                prepareForUpdateRestart ?? (() => Task.FromResult(false)),
+                restartHooks,
                 launchedInBackground,
                 updatesRoot));
             check.IsEnabled = !IsBusy && !State.IsAddingAccount;
