@@ -7,6 +7,9 @@ import Glibc
 #if canImport(AppKit)
 import AppKit
 #endif
+#if os(Windows)
+import SwitcherPlatform
+#endif
 
 public enum JSONValue: Decodable, Sendable {
     case object([String: JSONValue])
@@ -1328,7 +1331,20 @@ private actor UsageSession {
         if session == nil {
             let launch = try await resolveLaunch()
             let catalog = home.appendingPathComponent("switcher-quota-model-catalog.json")
-            try Self.modelCatalog.write(to: catalog, options: .atomic)
+            if (try? Data(contentsOf: catalog)) != Self.modelCatalog {
+                #if os(Windows)
+                let writeError = Self.modelCatalog.withUnsafeBytes { buffer in
+                    switcher_atomic_write(catalog.path, buffer.baseAddress, buffer.count)
+                }
+                guard writeError == 0 else {
+                    throw NSError(domain: "CodexAccountSwitcher.Windows", code: Int(writeError), userInfo: [
+                        NSLocalizedDescriptionKey: "Windows could not write quota model catalog (error \(writeError)).",
+                    ])
+                }
+                #else
+                try Self.modelCatalog.write(to: catalog, options: .atomic)
+                #endif
+            }
             let opened = try JSONRPCSession(executableURL: launch.executable, profileHome: home,
                                             environment: launch.environment, modelCatalog: catalog)
             session = opened
