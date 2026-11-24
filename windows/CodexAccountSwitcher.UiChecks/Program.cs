@@ -101,10 +101,12 @@ internal static class Program
                 "First-sync failure with historical snapshot keeps main line as pending needs-update and puts error + history in tooltip.");
             simulatedNow = simulatedNow.AddMinutes(10);
             window.RefreshIfVisible();
+            window.UpdateLayout();
             Assert(All<TextBlock>(window).Any(text => text.Text == "有效至 2099-10-17 · 待更新"),
                 "Crossing the core staleAfter deadline updates the subscription line without a new network snapshot.");
             simulatedNow = simulatedNow.AddMinutes(-10);
             window.RefreshIfVisible();
+            window.UpdateLayout();
             var target = All<Button>(window).Single(button => button.Content is Grid && System.Windows.Automation.AutomationProperties.GetName(button) == "studio@example.test");
             target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert(window.CurrentPage == "switch", "Selecting a row must open an in-place confirmation.");
