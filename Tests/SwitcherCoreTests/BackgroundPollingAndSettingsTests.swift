@@ -78,11 +78,12 @@ struct BackgroundPollingAndSettingsTests {
         }
         try fixture.writeActiveCredential()
 
-        // First checkpoint occurs 10 minutes before expiry, so +600.4s puts it ~400ms in the future.
+        // Enable auto-reset first, then put the 10-minute checkpoint ~2s ahead so setup finishes before the deadline.
         await fixture.model.start()
-        await fixture.client.setResetExpiry(Date().addingTimeInterval(600.4))
         await fixture.model.setAutoResetEnabled(true)
         await fixture.model.waitForWeeklyUsageRefresh()
+        let checkpointAt = Date().addingTimeInterval(2.0)
+        await fixture.client.setResetExpiry(checkpointAt.addingTimeInterval(600))
         await fixture.model.startBackgroundUsageRefresh(every: .seconds(60))
         await fixture.model.waitForWeeklyUsageRefresh()
         let readsBeforeBusyWindow = await fixture.client.readCount
@@ -94,7 +95,8 @@ struct BackgroundPollingAndSettingsTests {
         await fixture.client.waitForReadStart(count: readsBeforeBusyWindow + 1)
 
         // Wait past the checkpoint deadline while the refresh is still blocked.
-        try await Task.sleep(for: .milliseconds(550))
+        let waitSeconds = max(0.25, checkpointAt.timeIntervalSinceNow + 0.25)
+        try await Task.sleep(for: .seconds(waitSeconds))
         #expect(await fixture.client.consumeCalls == 0)
 
         await fixture.client.releaseBlockedReads()
